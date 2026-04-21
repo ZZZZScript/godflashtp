@@ -6,6 +6,7 @@ local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local ProximityPromptService = game:GetService("ProximityPromptService")
 local CoreGui = game:GetService("CoreGui")
+local TweenService = game:GetService("TweenService")
 
 local LocalPlayer = Players.LocalPlayer
 
@@ -14,333 +15,349 @@ local CONFIG = {
     Gui = {
         ScreenGuiName = "GodHub",
         ResetOnSpawn = false,
-        ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
-    },
-    MainFrame = {
-        Name = "Main",
-        Size = UDim2.new(0, 200, 0, 126),
-        Position = UDim2.new(0.5, -100, 0.5, -59),
-        BackgroundColor3 = Color3.fromRGB(20, 20, 20),
-        BackgroundTransparency = 0.05,
-        BorderSizePixel = 0,
-        Active = true,
-    },
-    TitleBar = {
-        Height = 26,
-        Text = "discord.gg/godhub",
-        TextColor3 = Color3.fromRGB(255, 255, 255),
-        TextSize = 12,
     },
     Toggle = {
         Text = "Auto Flash",
-        TextColor3 = Color3.fromRGB(220, 220, 220),
-        TextSize = 11,
-        OffColor = Color3.fromRGB(80, 80, 80),
-        OnColor = Color3.fromRGB(255, 255, 255),
         DefaultState = true,
     },
     Slider = {
         Label = "Trigger Percent",
         DefaultPercent = 91,
-        BarColor = Color3.fromRGB(40, 40, 40),
-        FillColor = Color3.fromRGB(255, 255, 255),
-        KnobColor = Color3.fromRGB(200, 200, 200),
-    },
-    Accent = {
-        StrokeColor = Color3.fromRGB(255, 255, 255),
-        GradientRotationSpeed = 1,
+        Min = 1,
+        Max = 100,
     },
 }
 
 -- // [3] VARIABLES //
-local ScreenGui, MainFrame
-local ToggleFrame, ToggleLabel, StatusLabel, ToggleButton
-local SliderContainer, SliderLeftLabel, SliderRightLabel, SliderBar, SliderFill, SliderKnob
-
+local ScreenGui, MainFrame, TitleBar
+local ToggleButton, StatusLabel
+local SliderBar, SliderFill, SliderKnob, PercentLabel
 local flashEnabled = CONFIG.Toggle.DefaultState
-local sliderValue = CONFIG.Slider.DefaultPercent / 100
+local triggerPercent = CONFIG.Slider.DefaultPercent / 100
 local draggingSlider = false
-local draggingFrame = false
-local dragStart = nil
-local frameStartPos = nil
+local draggingGui = false
+local dragStartPos, guiStartPos
 local activeTriggers = {}
 
--- // [4] UTILITY //
-local function createCorner(parent, radius)
-    local c = Instance.new("UICorner")
-    c.CornerRadius = UDim.new(0, radius or 6)
-    c.Parent = parent
+-- // [4] CRIAÇÃO DA GUI //
+ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = CONFIG.Gui.ScreenGuiName
+ScreenGui.ResetOnSpawn = CONFIG.Gui.ResetOnSpawn
+ScreenGui.Parent = CoreGui
+
+-- Frame principal
+MainFrame = Instance.new("Frame")
+MainFrame.Name = "Main"
+MainFrame.Size = UDim2.new(0, 220, 0, 130)
+MainFrame.Position = UDim2.new(0.5, -110, 0.5, -65)
+MainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+MainFrame.BackgroundTransparency = 0.1
+MainFrame.BorderSizePixel = 0
+MainFrame.Parent = ScreenGui
+
+-- Corner
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 8)
+corner.Parent = MainFrame
+
+-- Stroke
+local stroke = Instance.new("UIStroke")
+stroke.Color = Color3.fromRGB(255, 255, 255)
+stroke.Thickness = 1.5
+stroke.Parent = MainFrame
+
+-- Gradiente giratorio
+local grad = Instance.new("UIGradient")
+grad.Color = ColorSequence.new{
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 0, 0)),
+    ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 255, 255)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(0, 0, 0)),
+}
+grad.Parent = stroke
+
+-- Title Bar (Área para arrastar)
+TitleBar = Instance.new("Frame")
+TitleBar.Size = UDim2.new(1, 0, 0, 32)
+TitleBar.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+TitleBar.BackgroundTransparency = 0.5
+TitleBar.Parent = MainFrame
+
+local titleCorner = Instance.new("UICorner")
+titleCorner.CornerRadius = UDim.new(0, 8)
+titleCorner.Parent = TitleBar
+
+local titleText = Instance.new("TextLabel")
+titleText.Size = UDim2.new(1, 0, 1, 0)
+titleText.BackgroundTransparency = 1
+titleText.Text = "discord.gg/godhub"
+titleText.TextColor3 = Color3.fromRGB(255, 255, 255)
+titleText.TextSize = 13
+titleText.Font = Enum.Font.GothamBold
+titleText.Parent = TitleBar
+
+-- Toggle Frame
+local toggleFrame = Instance.new("Frame")
+toggleFrame.Size = UDim2.new(1, -20, 0, 34)
+toggleFrame.Position = UDim2.new(0, 10, 0, 40)
+toggleFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+toggleFrame.Parent = MainFrame
+
+local toggleCorner = Instance.new("UICorner")
+toggleCorner.CornerRadius = UDim.new(0, 6)
+toggleCorner.Parent = toggleFrame
+
+local toggleStroke = Instance.new("UIStroke")
+toggleStroke.Color = Color3.fromRGB(255, 255, 255)
+toggleStroke.Thickness = 1
+toggleStroke.Parent = toggleFrame
+
+local toggleLabel = Instance.new("TextLabel")
+toggleLabel.Size = UDim2.new(1, -60, 1, 0)
+toggleLabel.Position = UDim2.new(0, 10, 0, 0)
+toggleLabel.BackgroundTransparency = 1
+toggleLabel.Text = "Auto Flash"
+toggleLabel.TextColor3 = Color3.fromRGB(220, 220, 220)
+toggleLabel.TextSize = 12
+toggleLabel.Font = Enum.Font.GothamBold
+toggleLabel.TextXAlignment = Enum.TextXAlignment.Left
+toggleLabel.Parent = toggleFrame
+
+StatusLabel = Instance.new("TextLabel")
+StatusLabel.Size = UDim2.new(0, 45, 1, 0)
+StatusLabel.Position = UDim2.new(1, -10, 0, 0)
+StatusLabel.AnchorPoint = Vector2.new(1, 0)
+StatusLabel.BackgroundTransparency = 1
+StatusLabel.Text = flashEnabled and "ON" or "OFF"
+StatusLabel.TextColor3 = flashEnabled and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(100, 100, 100)
+StatusLabel.TextSize = 12
+StatusLabel.Font = Enum.Font.GothamBold
+StatusLabel.TextXAlignment = Enum.TextXAlignment.Right
+StatusLabel.Parent = toggleFrame
+
+ToggleButton = Instance.new("TextButton")
+ToggleButton.Size = UDim2.new(1, 0, 1, 0)
+ToggleButton.BackgroundTransparency = 1
+ToggleButton.Text = ""
+ToggleButton.Parent = toggleFrame
+
+-- Slider Section
+local sliderContainer = Instance.new("Frame")
+sliderContainer.Size = UDim2.new(1, -20, 0, 44)
+sliderContainer.Position = UDim2.new(0, 10, 0, 82)
+sliderContainer.BackgroundTransparency = 1
+sliderContainer.Parent = MainFrame
+
+local sliderLabel = Instance.new("TextLabel")
+sliderLabel.Size = UDim2.new(1, -60, 0, 18)
+sliderLabel.Position = UDim2.new(0, 0, 0, 0)
+sliderLabel.BackgroundTransparency = 1
+sliderLabel.Text = "Trigger Percent"
+sliderLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+sliderLabel.TextSize = 12
+sliderLabel.Font = Enum.Font.GothamBold
+sliderLabel.TextXAlignment = Enum.TextXAlignment.Left
+sliderLabel.Parent = sliderContainer
+
+PercentLabel = Instance.new("TextLabel")
+PercentLabel.Size = UDim2.new(0, 45, 0, 18)
+PercentLabel.Position = UDim2.new(1, -45, 0, 0)
+PercentLabel.BackgroundTransparency = 1
+PercentLabel.Text = CONFIG.Slider.DefaultPercent .. "%"
+PercentLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+PercentLabel.TextSize = 12
+PercentLabel.Font = Enum.Font.GothamBold
+PercentLabel.TextXAlignment = Enum.TextXAlignment.Right
+PercentLabel.Parent = sliderContainer
+
+SliderBar = Instance.new("Frame")
+SliderBar.Size = UDim2.new(1, 0, 0, 5)
+SliderBar.Position = UDim2.new(0, 0, 0, 26)
+SliderBar.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+SliderBar.Parent = sliderContainer
+
+local barCorner = Instance.new("UICorner")
+barCorner.CornerRadius = UDim.new(0, 5)
+barCorner.Parent = SliderBar
+
+SliderFill = Instance.new("Frame")
+SliderFill.Size = UDim2.new(triggerPercent, 0, 1, 0)
+SliderFill.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+SliderFill.Parent = SliderBar
+
+local fillCorner = Instance.new("UICorner")
+fillCorner.CornerRadius = UDim.new(0, 5)
+fillCorner.Parent = SliderFill
+
+SliderKnob = Instance.new("Frame")
+SliderKnob.Size = UDim2.new(0, 16, 0, 16)
+SliderKnob.Position = UDim2.new(triggerPercent, -8, 0.5, -8)
+SliderKnob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+SliderKnob.Parent = SliderBar
+
+local knobCorner = Instance.new("UICorner")
+knobCorner.CornerRadius = UDim.new(0, 16)
+knobCorner.Parent = SliderKnob
+
+-- Sombra no knob
+local knobStroke = Instance.new("UIStroke")
+knobStroke.Color = Color3.fromRGB(0, 0, 0)
+knobStroke.Thickness = 1
+knobStroke.Transparency = 0.5
+knobStroke.Parent = SliderKnob
+
+-- // [5] FUNÇÕES //
+local function updateSlider(value)
+    triggerPercent = math.clamp(value, 0, 1)
+    SliderFill.Size = UDim2.new(triggerPercent, 0, 1, 0)
+    SliderKnob.Position = UDim2.new(triggerPercent, -8, 0.5, -8)
+    PercentLabel.Text = math.floor(triggerPercent * 100) .. "%"
 end
 
-local function createStroke(parent, color, thickness)
-    local s = Instance.new("UIStroke")
-    s.Color = color or Color3.fromRGB(255, 255, 255)
-    s.Thickness = thickness or 1.5
-    s.Parent = parent
-    return s
+-- Detecta tipo de entrada (mouse ou toque)
+local function getInputType(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        return "Mouse"
+    elseif input.UserInputType == Enum.UserInputType.Touch then
+        return "Touch"
+    end
+    return nil
 end
 
-local function createGradient(parent)
-    local g = Instance.new("UIGradient")
-    g.Color = ColorSequence.new{
-        ColorSequenceKeypoint.new(0,   Color3.fromRGB(0, 0, 0)),
-        ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 255, 255)),
-        ColorSequenceKeypoint.new(1,   Color3.fromRGB(0, 0, 0)),
-    }
-    g.Parent = parent
-    return g
+-- Arrastar GUI (funciona com mouse e toque)
+TitleBar.InputBegan:Connect(function(input)
+    local inputType = getInputType(input)
+    if inputType == "Mouse" or inputType == "Touch" then
+        draggingGui = true
+        dragStartPos = input.Position
+        guiStartPos = MainFrame.Position
+    end
+end)
+
+TitleBar.InputEnded:Connect(function(input)
+    local inputType = getInputType(input)
+    if inputType == "Mouse" or inputType == "Touch" then
+        draggingGui = false
+    end
+end)
+
+-- Arrastar Slider
+local function getSliderValue(input)
+    local relativeX = (input.Position.X - SliderBar.AbsolutePosition.X) / SliderBar.AbsoluteSize.X
+    return math.clamp(relativeX, 0, 1)
 end
 
--- // [5] GUI CREATION //
-local function createGUI()
-    ScreenGui = Instance.new("ScreenGui")
-    ScreenGui.Name = CONFIG.Gui.ScreenGuiName
-    ScreenGui.ResetOnSpawn = CONFIG.Gui.ResetOnSpawn
-    ScreenGui.ZIndexBehavior = CONFIG.Gui.ZIndexBehavior
-    ScreenGui.Parent = CoreGui
+SliderBar.InputBegan:Connect(function(input)
+    local inputType = getInputType(input)
+    if inputType == "Mouse" or inputType == "Touch" then
+        draggingSlider = true
+        updateSlider(getSliderValue(input))
+    end
+end)
 
-    MainFrame = Instance.new("Frame")
-    MainFrame.Name = CONFIG.MainFrame.Name
-    MainFrame.Size = CONFIG.MainFrame.Size
-    MainFrame.Position = CONFIG.MainFrame.Position
-    MainFrame.BackgroundColor3 = CONFIG.MainFrame.BackgroundColor3
-    MainFrame.BackgroundTransparency = CONFIG.MainFrame.BackgroundTransparency
-    MainFrame.BorderSizePixel = CONFIG.MainFrame.BorderSizePixel
-    MainFrame.Active = true
-    MainFrame.Parent = ScreenGui
-    createCorner(MainFrame, 6)
-    createGradient(createStroke(MainFrame, CONFIG.Accent.StrokeColor, 1.5))
+SliderKnob.InputBegan:Connect(function(input)
+    local inputType = getInputType(input)
+    if inputType == "Mouse" or inputType == "Touch" then
+        draggingSlider = true
+    end
+end)
 
-    -- Title bar (área para arrastar)
-    local TitleBar = Instance.new("Frame")
-    TitleBar.Size = UDim2.new(1, 0, 0, CONFIG.TitleBar.Height)
-    TitleBar.BackgroundTransparency = 1
-    TitleBar.Parent = MainFrame
+SliderKnob.InputEnded:Connect(function(input)
+    local inputType = getInputType(input)
+    if inputType == "Mouse" or inputType == "Touch" then
+        draggingSlider = false
+    end
+end)
 
-    local TitleLabel = Instance.new("TextLabel")
-    TitleLabel.Size = UDim2.new(1, 0, 1, 0)
-    TitleLabel.BackgroundTransparency = 1
-    TitleLabel.Text = CONFIG.TitleBar.Text
-    TitleLabel.TextColor3 = CONFIG.TitleBar.TextColor3
-    TitleLabel.FontFace = Font.new("rbxasset://fonts/families/GothamSSm.json", Enum.FontWeight.Bold, Enum.FontStyle.Normal)
-    TitleLabel.TextSize = CONFIG.TitleBar.TextSize
-    TitleLabel.Parent = TitleBar
+SliderBar.InputEnded:Connect(function(input)
+    local inputType = getInputType(input)
+    if inputType == "Mouse" or inputType == "Touch" then
+        draggingSlider = false
+    end
+end)
 
-    -- Toggle row
-    ToggleFrame = Instance.new("Frame")
-    ToggleFrame.Size = UDim2.new(1, -20, 0, 26)
-    ToggleFrame.Position = UDim2.new(0, 10, 0, 30)
-    ToggleFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-    ToggleFrame.Parent = MainFrame
-    createCorner(ToggleFrame, 4)
-    createStroke(ToggleFrame, CONFIG.Accent.StrokeColor, 1)
-
-    ToggleLabel = Instance.new("TextLabel")
-    ToggleLabel.Size = UDim2.new(1, -50, 1, 0)
-    ToggleLabel.Position = UDim2.new(0, 8, 0, 0)
-    ToggleLabel.BackgroundTransparency = 1
-    ToggleLabel.Text = CONFIG.Toggle.Text
-    ToggleLabel.TextColor3 = CONFIG.Toggle.TextColor3
-    ToggleLabel.FontFace = Font.new("rbxasset://fonts/families/GothamSSm.json", Enum.FontWeight.Bold, Enum.FontStyle.Normal)
-    ToggleLabel.TextSize = CONFIG.Toggle.TextSize
-    ToggleLabel.TextXAlignment = Enum.TextXAlignment.Left
-    ToggleLabel.Parent = ToggleFrame
-
-    StatusLabel = Instance.new("TextLabel")
-    StatusLabel.Size = UDim2.new(0, 40, 1, 0)
-    StatusLabel.Position = UDim2.new(1, -8, 0, 0)
-    StatusLabel.AnchorPoint = Vector2.new(1, 0)
-    StatusLabel.BackgroundTransparency = 1
-    StatusLabel.Text = flashEnabled and "ON" or "OFF"
-    StatusLabel.TextColor3 = flashEnabled and CONFIG.Toggle.OnColor or CONFIG.Toggle.OffColor
-    StatusLabel.FontFace = Font.new("rbxasset://fonts/families/GothamSSm.json", Enum.FontWeight.Bold, Enum.FontStyle.Normal)
-    StatusLabel.TextSize = CONFIG.Toggle.TextSize
-    StatusLabel.TextXAlignment = Enum.TextXAlignment.Right
-    StatusLabel.Parent = ToggleFrame
-
-    ToggleButton = Instance.new("TextButton")
-    ToggleButton.Size = UDim2.new(1, 0, 1, 0)
-    ToggleButton.BackgroundTransparency = 1
-    ToggleButton.Text = ""
-    ToggleButton.Parent = ToggleFrame
-
-    -- Slider section
-    SliderContainer = Instance.new("Frame")
-    SliderContainer.Size = UDim2.new(1, -20, 0, 38)
-    SliderContainer.Position = UDim2.new(0, 10, 0, 64)
-    SliderContainer.BackgroundTransparency = 1
-    SliderContainer.Parent = MainFrame
-
-    SliderLeftLabel = Instance.new("TextLabel")
-    SliderLeftLabel.Size = UDim2.new(1, -50, 0, 16)
-    SliderLeftLabel.Position = UDim2.new(0, 0, 0, 0)
-    SliderLeftLabel.BackgroundTransparency = 1
-    SliderLeftLabel.Text = CONFIG.Slider.Label
-    SliderLeftLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-    SliderLeftLabel.FontFace = Font.new("rbxasset://fonts/families/GothamSSm.json", Enum.FontWeight.Bold, Enum.FontStyle.Normal)
-    SliderLeftLabel.TextSize = 11
-    SliderLeftLabel.TextXAlignment = Enum.TextXAlignment.Left
-    SliderLeftLabel.Parent = SliderContainer
-
-    SliderRightLabel = Instance.new("TextLabel")
-    SliderRightLabel.Size = UDim2.new(0, 40, 0, 16)
-    SliderRightLabel.Position = UDim2.new(1, -40, 0, 0)
-    SliderRightLabel.BackgroundTransparency = 1
-    SliderRightLabel.Text = CONFIG.Slider.DefaultPercent .. "%"
-    SliderRightLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-    SliderRightLabel.FontFace = Font.new("rbxasset://fonts/families/GothamSSm.json", Enum.FontWeight.Bold, Enum.FontStyle.Normal)
-    SliderRightLabel.TextSize = 11
-    SliderRightLabel.TextXAlignment = Enum.TextXAlignment.Right
-    SliderRightLabel.Parent = SliderContainer
-
-    SliderBar = Instance.new("Frame")
-    SliderBar.Size = UDim2.new(1, 0, 0, 4)
-    SliderBar.Position = UDim2.new(0, 0, 0, 24)
-    SliderBar.BackgroundColor3 = CONFIG.Slider.BarColor
-    SliderBar.Parent = SliderContainer
-    createCorner(SliderBar, 4)
-
-    SliderFill = Instance.new("Frame")
-    SliderFill.Size = UDim2.new(sliderValue, 0, 1, 0)
-    SliderFill.BackgroundColor3 = CONFIG.Slider.FillColor
-    SliderFill.Parent = SliderBar
-    createCorner(SliderFill, 4)
-
-    SliderKnob = Instance.new("Frame")
-    SliderKnob.Size = UDim2.new(0, 10, 0, 10)
-    SliderKnob.Position = UDim2.new(sliderValue, -5, 0.5, -5)
-    SliderKnob.BackgroundColor3 = CONFIG.Slider.KnobColor
-    SliderKnob.Parent = SliderBar
-    createCorner(SliderKnob, 10)
-end
-
--- // [6] FUNCTIONALITY //
-local function updateSliderVisual(v)
-    sliderValue = v
-    SliderFill.Size = UDim2.new(v, 0, 1, 0)
-    SliderKnob.Position = UDim2.new(v, -5, 0.5, -5)
-    SliderRightLabel.Text = math.floor(v * 100) .. "%"
-end
-
-local function setupDragging()
-    -- Pega a barra de título (primeiro filho do MainFrame)
-    local titleBar = MainFrame:FindFirstChildWhichIsA("Frame")
-    
-    titleBar.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            draggingFrame = true
-            dragStart = input.Position
-            frameStartPos = MainFrame.Position
-        end
-    end)
-    
-    titleBar.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            draggingFrame = false
-        end
-    end)
-end
-
-local function setupSlider()
-    local function getSliderValue(input)
-        local relativeX = (input.Position.X - SliderBar.AbsolutePosition.X) / SliderBar.AbsoluteSize.X
-        return math.clamp(relativeX, 0, 1)
+-- Movimento (mouse e toque)
+UserInputService.InputChanged:Connect(function(input)
+    if draggingGui and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        local delta = input.Position - dragStartPos
+        MainFrame.Position = UDim2.new(
+            guiStartPos.X.Scale, guiStartPos.X.Offset + delta.X,
+            guiStartPos.Y.Scale, guiStartPos.Y.Offset + delta.Y
+        )
     end
     
-    SliderBar.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            draggingSlider = true
-            updateSliderVisual(getSliderValue(input))
-        end
-    end)
+    if draggingSlider and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        updateSlider(getSliderValue(input))
+    end
+end)
+
+-- Soltar
+UserInputService.InputEnded:Connect(function(input)
+    local inputType = getInputType(input)
+    if inputType == "Mouse" or inputType == "Touch" then
+        draggingSlider = false
+        draggingGui = false
+    end
+end)
+
+-- Gradiente girando
+RunService.Heartbeat:Connect(function(dt)
+    grad.Rotation = (grad.Rotation + 60 * dt) % 360
+end)
+
+-- Toggle
+ToggleButton.MouseButton1Click:Connect(function()
+    flashEnabled = not flashEnabled
+    StatusLabel.Text = flashEnabled and "ON" or "OFF"
+    StatusLabel.TextColor3 = flashEnabled and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(100, 100, 100)
+end)
+
+-- Para mobile (toque no toggle)
+ToggleButton.TouchTap:Connect(function()
+    flashEnabled = not flashEnabled
+    StatusLabel.Text = flashEnabled and "ON" or "OFF"
+    StatusLabel.TextColor3 = flashEnabled and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(100, 100, 100)
+end)
+
+-- // [6] FLASH LOGIC //
+ProximityPromptService.PromptButtonHoldBegan:Connect(function(prompt)
+    if not flashEnabled then return end
+    if activeTriggers[prompt] then return end
     
-    SliderKnob.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            draggingSlider = true
-        end
-    end)
-end
-
-local function setupFunctionality()
-    setupDragging()
-    setupSlider()
-
-    -- Movimento da GUI
-    UserInputService.InputChanged:Connect(function(input)
-        if draggingFrame and input.UserInputType == Enum.UserInputType.MouseMovement then
-            local delta = input.Position - dragStart
-            MainFrame.Position = UDim2.new(
-                frameStartPos.X.Scale, frameStartPos.X.Offset + delta.X,
-                frameStartPos.Y.Scale, frameStartPos.Y.Offset + delta.Y
-            )
+    activeTriggers[prompt] = true
+    local start = os.clock()
+    local fired = false
+    local connection
+    
+    connection = RunService.PreRender:Connect(function()
+        if not prompt or not prompt.Parent then
+            connection:Disconnect()
+            activeTriggers[prompt] = nil
+            return
         end
         
-        if draggingSlider and input.UserInputType == Enum.UserInputType.MouseMovement then
-            local relativeX = (input.Position.X - SliderBar.AbsolutePosition.X) / SliderBar.AbsoluteSize.X
-            updateSliderVisual(math.clamp(relativeX, 0, 1))
+        local elapsed = (os.clock() - start) / prompt.HoldDuration
+        
+        if not fired and elapsed >= triggerPercent then
+            fired = true
+            connection:Disconnect()
+            activeTriggers[prompt] = nil
+            
+            local char = LocalPlayer.Character
+            local tool = char and char:FindFirstChildOfClass("Tool")
+            if tool then
+                tool:Activate()
+            end
         end
     end)
     
-    UserInputService.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            draggingSlider = false
-            draggingFrame = false
+    prompt.PromptButtonHoldEnded:Connect(function()
+        if not fired then
+            connection:Disconnect()
+            activeTriggers[prompt] = nil
         end
     end)
+end)
 
-    -- Spinning gradient accent
-    if CONFIG.Accent.GradientRotationSpeed ~= 0 then
-        local stroke = MainFrame:FindFirstChildWhichIsA("UIStroke")
-        local grad = stroke and stroke:FindFirstChildWhichIsA("UIGradient")
-        if grad then
-            RunService.Heartbeat:Connect(function(dt)
-                grad.Rotation = (grad.Rotation + CONFIG.Accent.GradientRotationSpeed * 60 * dt) % 360
-            end)
-        end
-    end
-
-    -- Toggle
-    ToggleButton.MouseButton1Click:Connect(function()
-        flashEnabled = not flashEnabled
-        StatusLabel.Text = flashEnabled and "ON" or "OFF"
-        StatusLabel.TextColor3 = flashEnabled and CONFIG.Toggle.OnColor or CONFIG.Toggle.OffColor
-    end)
-
-    -- Flash logic com slider ajustável
-    ProximityPromptService.PromptButtonHoldBegan:Connect(function(prompt)
-        if not flashEnabled then return end
-        if activeTriggers[prompt] then return end
-        activeTriggers[prompt] = true
-        local start = os.clock()
-        local fired = false
-
-        local conn
-        conn = RunService.PreRender:Connect(function()
-            if not prompt or not prompt.Parent then
-                conn:Disconnect()
-                activeTriggers[prompt] = nil
-                return
-            end
-            if not fired and (os.clock() - start) / prompt.HoldDuration >= sliderValue then
-                fired = true
-                conn:Disconnect()
-                activeTriggers[prompt] = nil
-                local char = LocalPlayer.Character
-                local tool = char and char:FindFirstChildOfClass("Tool")
-                if tool then tool:Activate() end
-            end
-        end)
-
-        prompt.PromptButtonHoldEnded:Connect(function()
-            if not fired then
-                conn:Disconnect()
-                activeTriggers[prompt] = nil
-            end
-        end)
-    end)
-end
-
--- // [7] INIT //
-createGUI()
-setupFunctionality()
-print("[GodHub] Loaded! Slider e GUI móveis!")
+print("[GodHub] Carregado! Compatível com PC e Mobile!")
+print("- PC: Arraste com o mouse")
+print("- Mobile: Arraste com o dedo")
