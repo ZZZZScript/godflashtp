@@ -6,6 +6,7 @@ local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local ProximityPromptService = game:GetService("ProximityPromptService")
 local CoreGui = game:GetService("CoreGui")
+local TweenService = game:GetService("TweenService")
 
 local LocalPlayer = Players.LocalPlayer
 
@@ -20,34 +21,34 @@ local CONFIG = {
         Name = "Main",
         Size = UDim2.new(0, 200, 0, 126),
         Position = UDim2.new(0.5, -100, 0.5, -59),
-        BackgroundColor3 = Color3.fromRGB(10, 15, 30),
-        BackgroundTransparency = 0.1,
+        BackgroundColor3 = Color3.fromRGB(20, 20, 20),
+        BackgroundTransparency = 0.05,
         BorderSizePixel = 0,
         Active = true,
     },
     TitleBar = {
         Height = 26,
         Text = "discord.gg/godhub",
-        TextColor3 = Color3.fromRGB(100, 200, 255),
+        TextColor3 = Color3.fromRGB(255, 255, 255),
         TextSize = 12,
     },
     Toggle = {
         Text = "Auto Flash",
-        TextColor3 = Color3.fromRGB(180, 220, 255),
+        TextColor3 = Color3.fromRGB(220, 220, 220),
         TextSize = 11,
-        OffColor = Color3.fromRGB(255, 100, 100),
-        OnColor = Color3.fromRGB(150, 255, 150),
+        OffColor = Color3.fromRGB(80, 80, 80),
+        OnColor = Color3.fromRGB(255, 255, 255),
         DefaultState = true,
     },
     Slider = {
         Label = "Trigger Percent",
         DefaultPercent = 92,
-        BarColor = Color3.fromRGB(35, 40, 50),
-        FillColor = Color3.fromRGB(100, 200, 255),
-        KnobColor = Color3.fromRGB(255, 255, 255),
+        BarColor = Color3.fromRGB(40, 40, 40),
+        FillColor = Color3.fromRGB(255, 255, 255),
+        KnobColor = Color3.fromRGB(200, 200, 200),
     },
     Accent = {
-        StrokeColor = Color3.fromRGB(100, 200, 255),
+        StrokeColor = Color3.fromRGB(255, 255, 255),
         GradientRotationSpeed = 1,
     },
 }
@@ -73,7 +74,7 @@ end
 
 local function createStroke(parent, color, thickness)
     local s = Instance.new("UIStroke")
-    s.Color = color or Color3.fromRGB(100, 200, 255)
+    s.Color = color or Color3.fromRGB(255, 255, 255)
     s.Thickness = thickness or 1.5
     s.Parent = parent
     return s
@@ -83,7 +84,7 @@ local function createGradient(parent)
     local g = Instance.new("UIGradient")
     g.Color = ColorSequence.new{
         ColorSequenceKeypoint.new(0,   Color3.fromRGB(0, 0, 0)),
-        ColorSequenceKeypoint.new(0.5, Color3.fromRGB(100, 200, 255)),
+        ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 255, 255)),
         ColorSequenceKeypoint.new(1,   Color3.fromRGB(0, 0, 0)),
     }
     g.Parent = parent
@@ -91,31 +92,32 @@ local function createGradient(parent)
 end
 
 local function makeDraggable(frame)
-    local dragging, dragInput, dragStart, startPos
+    local dragging = false
+    local dragInput = nil
+    local dragStart = nil
+    local startPos = nil
+    
     frame.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 then
             dragging = true
             dragStart = input.Position
             startPos = frame.Position
+            
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                end
+            end)
         end
     end)
+    
     frame.InputChanged:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseMovement and dragging then
-            dragInput = input
-        end
-    end)
-    UserInputService.InputChanged:Connect(function(input)
-        if input == dragInput and dragging then
             local delta = input.Position - dragStart
             frame.Position = UDim2.new(
                 startPos.X.Scale, startPos.X.Offset + delta.X,
                 startPos.Y.Scale, startPos.Y.Offset + delta.Y
             )
-        end
-    end)
-    frame.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            dragging = false
         end
     end)
 end
@@ -166,7 +168,7 @@ local function createGUI()
     ToggleFrame = Instance.new("Frame")
     ToggleFrame.Size = UDim2.new(1, -20, 0, 26)
     ToggleFrame.Position = UDim2.new(0, 10, 0, 30)
-    ToggleFrame.BackgroundColor3 = Color3.fromRGB(25, 35, 45)
+    ToggleFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
     ToggleFrame.Parent = MainFrame
     createCorner(ToggleFrame, 4)
     createStroke(ToggleFrame, CONFIG.Accent.StrokeColor, 1)
@@ -212,7 +214,7 @@ local function createGUI()
     SliderLeftLabel.Position = UDim2.new(0, 0, 0, 0)
     SliderLeftLabel.BackgroundTransparency = 1
     SliderLeftLabel.Text = CONFIG.Slider.Label
-    SliderLeftLabel.TextColor3 = Color3.fromRGB(180, 220, 255)
+    SliderLeftLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
     SliderLeftLabel.FontFace = Font.new("rbxasset://fonts/families/GothamSSm.json", Enum.FontWeight.Bold, Enum.FontStyle.Normal)
     SliderLeftLabel.TextSize = 11
     SliderLeftLabel.TextXAlignment = Enum.TextXAlignment.Left
@@ -223,7 +225,7 @@ local function createGUI()
     SliderRightLabel.Position = UDim2.new(1, -40, 0, 0)
     SliderRightLabel.BackgroundTransparency = 1
     SliderRightLabel.Text = CONFIG.Slider.DefaultPercent .. "%"
-    SliderRightLabel.TextColor3 = Color3.fromRGB(180, 220, 255)
+    SliderRightLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
     SliderRightLabel.FontFace = Font.new("rbxasset://fonts/families/GothamSSm.json", Enum.FontWeight.Bold, Enum.FontStyle.Normal)
     SliderRightLabel.TextSize = 11
     SliderRightLabel.TextXAlignment = Enum.TextXAlignment.Right
@@ -259,17 +261,30 @@ local function updateSliderVisual(v)
 end
 
 local function setupSlider()
+    local function updateFromMousePosition(input)
+        local relativeX = math.clamp((input.Position.X - SliderBar.AbsolutePosition.X) / SliderBar.AbsoluteSize.X, 0, 1)
+        updateSliderVisual(relativeX)
+    end
+    
     SliderBar.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 then
             manualOverride = true
             draggingSlider = true
-            updateSliderVisual(math.clamp((input.Position.X - SliderBar.AbsolutePosition.X) / SliderBar.AbsoluteSize.X, 0, 1))
+            updateFromMousePosition(input)
+        end
+    end)
+    
+    SliderKnob.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            manualOverride = true
+            draggingSlider = true
         end
     end)
 
     UserInputService.InputChanged:Connect(function(input)
         if draggingSlider and input.UserInputType == Enum.UserInputType.MouseMovement then
-            updateSliderVisual(math.clamp((input.Position.X - SliderBar.AbsolutePosition.X) / SliderBar.AbsoluteSize.X, 0, 1))
+            local relativeX = math.clamp((input.Position.X - SliderBar.AbsolutePosition.X) / SliderBar.AbsoluteSize.X, 0, 1)
+            updateSliderVisual(relativeX)
         end
     end)
 
