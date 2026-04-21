@@ -6,7 +6,6 @@ local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local ProximityPromptService = game:GetService("ProximityPromptService")
 local CoreGui = game:GetService("CoreGui")
-local TweenService = game:GetService("TweenService")
 
 local LocalPlayer = Players.LocalPlayer
 
@@ -41,8 +40,8 @@ local CONFIG = {
         DefaultState = true,
     },
     Slider = {
-        Label = "Trigger Percent",
-        DefaultPercent = 92,
+        Label = "Trigger Percent (Fixo 91%)",
+        DefaultPercent = 91,
         BarColor = Color3.fromRGB(40, 40, 40),
         FillColor = Color3.fromRGB(255, 255, 255),
         KnobColor = Color3.fromRGB(200, 200, 200),
@@ -59,10 +58,7 @@ local ToggleFrame, ToggleLabel, StatusLabel, ToggleButton
 local SliderContainer, SliderLeftLabel, SliderRightLabel, SliderBar, SliderFill, SliderKnob
 
 local flashEnabled = CONFIG.Toggle.DefaultState
-local sliderValue = CONFIG.Slider.DefaultPercent / 100
-local draggingSlider = false
-local manualOverride = false
-local triggerBump = false
+local sliderValue = 0.91 -- Fixo em 91%
 local activeTriggers = {}
 
 -- // [4] UTILITY //
@@ -93,7 +89,6 @@ end
 
 local function makeDraggable(frame)
     local dragging = false
-    local dragInput = nil
     local dragStart = nil
     local startPos = nil
     
@@ -102,17 +97,11 @@ local function makeDraggable(frame)
             dragging = true
             dragStart = input.Position
             startPos = frame.Position
-            
-            input.Changed:Connect(function()
-                if input.UserInputState == Enum.UserInputState.End then
-                    dragging = false
-                end
-            end)
         end
     end)
     
     frame.InputChanged:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseMovement and dragging then
+        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
             local delta = input.Position - dragStart
             frame.Position = UDim2.new(
                 startPos.X.Scale, startPos.X.Offset + delta.X,
@@ -120,13 +109,12 @@ local function makeDraggable(frame)
             )
         end
     end)
-end
-
-local function getPingBase(ping)
-    if ping <= 30 then return 0.91
-    elseif ping <= 70 then return 0.92
-    elseif ping <= 120 then return 0.93
-    else return 0.94 end
+    
+    frame.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = false
+        end
+    end)
 end
 
 -- // [5] GUI CREATION //
@@ -224,7 +212,7 @@ local function createGUI()
     SliderRightLabel.Size = UDim2.new(0, 40, 0, 16)
     SliderRightLabel.Position = UDim2.new(1, -40, 0, 0)
     SliderRightLabel.BackgroundTransparency = 1
-    SliderRightLabel.Text = CONFIG.Slider.DefaultPercent .. "%"
+    SliderRightLabel.Text = "91%"
     SliderRightLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
     SliderRightLabel.FontFace = Font.new("rbxasset://fonts/families/GothamSSm.json", Enum.FontWeight.Bold, Enum.FontStyle.Normal)
     SliderRightLabel.TextSize = 11
@@ -239,65 +227,22 @@ local function createGUI()
     createCorner(SliderBar, 4)
 
     SliderFill = Instance.new("Frame")
-    SliderFill.Size = UDim2.new(sliderValue, 0, 1, 0)
+    SliderFill.Size = UDim2.new(0.91, 0, 1, 0) -- Fixo em 91%
     SliderFill.BackgroundColor3 = CONFIG.Slider.FillColor
     SliderFill.Parent = SliderBar
     createCorner(SliderFill, 4)
 
     SliderKnob = Instance.new("Frame")
     SliderKnob.Size = UDim2.new(0, 10, 0, 10)
-    SliderKnob.Position = UDim2.new(sliderValue, -5, 0.5, -5)
+    SliderKnob.Position = UDim2.new(0.91, -5, 0.5, -5) -- Fixo em 91%
     SliderKnob.BackgroundColor3 = CONFIG.Slider.KnobColor
     SliderKnob.Parent = SliderBar
     createCorner(SliderKnob, 10)
 end
 
 -- // [6] FUNCTIONALITY //
-local function updateSliderVisual(v)
-    sliderValue = v
-    SliderFill.Size = UDim2.new(v, 0, 1, 0)
-    SliderKnob.Position = UDim2.new(v, -5, 0.5, -5)
-    SliderRightLabel.Text = math.floor(v * 100) .. "%"
-end
-
-local function setupSlider()
-    local function updateFromMousePosition(input)
-        local relativeX = math.clamp((input.Position.X - SliderBar.AbsolutePosition.X) / SliderBar.AbsoluteSize.X, 0, 1)
-        updateSliderVisual(relativeX)
-    end
-    
-    SliderBar.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            manualOverride = true
-            draggingSlider = true
-            updateFromMousePosition(input)
-        end
-    end)
-    
-    SliderKnob.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            manualOverride = true
-            draggingSlider = true
-        end
-    end)
-
-    UserInputService.InputChanged:Connect(function(input)
-        if draggingSlider and input.UserInputType == Enum.UserInputType.MouseMovement then
-            local relativeX = math.clamp((input.Position.X - SliderBar.AbsolutePosition.X) / SliderBar.AbsoluteSize.X, 0, 1)
-            updateSliderVisual(relativeX)
-        end
-    end)
-
-    UserInputService.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            draggingSlider = false
-        end
-    end)
-end
-
 local function setupFunctionality()
     makeDraggable(MainFrame)
-    setupSlider()
 
     -- Spinning gradient accent
     if CONFIG.Accent.GradientRotationSpeed ~= 0 then
@@ -317,16 +262,7 @@ local function setupFunctionality()
         StatusLabel.TextColor3 = flashEnabled and CONFIG.Toggle.OnColor or CONFIG.Toggle.OffColor
     end)
 
-    -- Auto ping-based slider
-    RunService.Heartbeat:Connect(function()
-        if not manualOverride then
-            local ping = LocalPlayer:GetNetworkPing() * 1000
-            local base = getPingBase(ping)
-            updateSliderVisual(triggerBump and base + 0.01 or base)
-        end
-    end)
-
-    -- Flash logic
+    -- Flash logic com trigger fixo em 91%
     ProximityPromptService.PromptButtonHoldBegan:Connect(function(prompt)
         if not flashEnabled then return end
         if activeTriggers[prompt] then return end
@@ -341,11 +277,11 @@ local function setupFunctionality()
                 activeTriggers[prompt] = nil
                 return
             end
-            if not fired and (os.clock() - start) / prompt.HoldDuration >= sliderValue then
+            -- Trigger fixo em 91% (0.91)
+            if not fired and (os.clock() - start) / prompt.HoldDuration >= 0.91 then
                 fired = true
                 conn:Disconnect()
                 activeTriggers[prompt] = nil
-                triggerBump = not triggerBump
                 local char = LocalPlayer.Character
                 local tool = char and char:FindFirstChildOfClass("Tool")
                 if tool then tool:Activate() end
@@ -364,4 +300,4 @@ end
 -- // [7] INIT //
 createGUI()
 setupFunctionality()
-print("[GodHub] Loaded!")
+print("[GodHub] Loaded! Trigger fixo em 91%")
