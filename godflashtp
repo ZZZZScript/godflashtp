@@ -1,542 +1,306 @@
--- // [1] (Services) //
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local CoreGui = game:GetService("CoreGui")
-local ContextActionService = game:GetService("ContextActionService")
+local StarterGui = game:GetService("StarterGui")
 
 local LocalPlayer = Players.LocalPlayer
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
--- // [2] (Remote Mapper) //
-local AdminRemote = nil
-task.spawn(function()
-	if not LocalPlayer.Character then LocalPlayer.CharacterAdded:Wait() end
-	task.wait(1)
-	local ok, net = pcall(function()
-		return ReplicatedStorage:WaitForChild("Packages"):WaitForChild("Net")
-	end)
-	if not ok or not net then return end
-	local children = net:GetChildren()
-	local byIdx, byName = {}, {}
-	for i, obj in ipairs(children) do
-		byIdx[i] = obj
-		byName[obj.Name] = i
-	end
-	local anchorIdx = byName["RF/a0e78691-cb9b-4efc-ac08-9c06fea70059"]
-	if anchorIdx then
-		local actual = byIdx[anchorIdx + 1]
-		if actual then AdminRemote = actual end
-	end
-end)
+-- ── CONFIGURATION ──
+local clonePos = Vector3.new(-333.4, -6.9, 32)
 
--- // [3] (Fire Admin Helper) //
-local function fireAdmin(...)
-	if not AdminRemote then return end
-	local a = {...}
-	task.spawn(function()
-		AdminRemote:InvokeServer(unpack(a))
-	end)
+local blockEnabled = false
+
+-- ── TELEPORT FUNCTION (LUMINA HUB STYLE) ──
+local function TeleportTo(position)
+    local char = LocalPlayer.Character
+    if not char then return false end
+    
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if not hrp then return false end
+    
+    hrp.CFrame = CFrame.new(position)
+    task.wait(0.1)
+    hrp.Position = position
+    task.wait(0.05)
+    hrp.CFrame = CFrame.new(position)
+    
+    return true
 end
 
--- // [4] (Cleanup Old GUI) //
-if CoreGui:FindFirstChild("CatHubAdmin") then CoreGui.CatHubAdmin:Destroy() end
+-- ── BLOCK OTHER PLAYERS ──
+local function blockOtherPlayers()
+    if not blockEnabled then return end
+    for _, plr in ipairs(Players:GetPlayers()) do
+        if plr ~= LocalPlayer then
+            pcall(function() 
+                StarterGui:SetCore("PromptBlockPlayer", plr)
+            end)
+            task.wait(0.05)
+        end
+    end
+end
 
--- // [5] (Screen GUI) //
-local gui = Instance.new("ScreenGui", CoreGui)
-gui.Name = "CatHubAdmin"
-gui.ResetOnSpawn = false
+-- ── FIND TOOL ──
+local function findTool(namePart)
+    for _, item in ipairs(LocalPlayer.Backpack:GetChildren()) do
+        if item:IsA("Tool") and item.Name:lower():find(namePart:lower()) then return item end
+    end
+    if LocalPlayer.Character then
+        for _, item in ipairs(LocalPlayer.Character:GetChildren()) do
+            if item:IsA("Tool") and item.Name:lower():find(namePart:lower()) then return item end
+        end
+    end
+    return nil
+end
 
--- // [6] (Main Frame) //
-local frame = Instance.new("Frame", gui)
-frame.Size = UDim2.fromOffset(260, 380)
-frame.Position = UDim2.new(0.5, -130, 0.5, -190)
-frame.BackgroundColor3 = Color3.fromRGB(12, 12, 14)
+-- ── USE QUANTUM CLONER ──
+local function UseQuantumCloner()
+    local char = LocalPlayer.Character
+    local hum = char and char:FindFirstChildOfClass("Humanoid")
+    
+    local clone = findTool("Quantum cloner") or findTool("quantum cloner") or findTool("Quantum")
+    
+    if clone and hum then
+        hum:EquipTool(clone)
+        task.wait(0.2)
+        pcall(function() clone:Activate() end)
+        return true
+    end
+    return false
+end
+
+-- ── BEAUTIFUL MENU (SAME AS FIRST ONE) ──
+if PlayerGui:FindFirstChild("KaijuHub") then PlayerGui.KaijuHub:Destroy() end
+
+local sg = Instance.new("ScreenGui")
+sg.Name = "KaijuHub"
+sg.ResetOnSpawn = false
+sg.Parent = PlayerGui
+
+local frame = Instance.new("Frame")
+frame.Name = "MainFrame"
+frame.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
+frame.BackgroundTransparency = 0.65 
+frame.Size = UDim2.new(0, 200, 0, 115) 
+frame.Position = UDim2.new(0.5, -100, 0.5, -57)
 frame.BorderSizePixel = 0
-frame.ClipsDescendants = true
-Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 14)
+frame.Active = true
+frame.Parent = sg
 
--- // [7] (Title Bar) //
-local titleBar = Instance.new("TextButton", frame)
-titleBar.Size = UDim2.new(1, 0, 0, 44)
-titleBar.BackgroundColor3 = Color3.fromRGB(20, 20, 24)
-titleBar.BorderSizePixel = 0
-titleBar.Text = ""
-titleBar.AutoButtonColor = false
-Instance.new("UICorner", titleBar).CornerRadius = UDim.new(0, 14)
+local frameCorner = Instance.new("UICorner")
+frameCorner.CornerRadius = UDim.new(0, 12)
+frameCorner.Parent = frame
 
--- // [8] (Title Bar Inner) //
-local titleBarInner = Instance.new("Frame", titleBar)
-titleBarInner.Size = UDim2.new(1, -16, 1, 0)
-titleBarInner.Position = UDim2.fromOffset(10, 0)
-titleBarInner.BackgroundTransparency = 1
+local border = Instance.new("UIStroke")
+border.Color = Color3.fromRGB(45, 45, 60)
+border.Thickness = 2
+border.Parent = frame
 
--- // [9] (Title Label) //
-local titleLabel = Instance.new("TextLabel", titleBarInner)
-titleLabel.Size = UDim2.new(0.6, 0, 0.6, 0)
-titleLabel.Position = UDim2.fromOffset(0, 6)
-titleLabel.BackgroundTransparency = 1
-titleLabel.Text = "CATHUB"
-titleLabel.Font = Enum.Font.GothamBlack
-titleLabel.TextSize = 16
-titleLabel.TextColor3 = Color3.fromRGB(250, 250, 255)
-titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+-- ── DRAG FUNCTION (FIXED) ──
+local dragging = false
+local dragStart = nil
+local startPos = nil
 
--- // [10] (Subtitle Label) //
-local subLabel = Instance.new("TextLabel", titleBarInner)
-subLabel.Size = UDim2.new(0.8, 0, 0.4, 0)
-subLabel.Position = UDim2.fromOffset(0, 26)
-subLabel.BackgroundTransparency = 1
-subLabel.Text = "ADMIN SPAMMER"
-subLabel.Font = Enum.Font.Gotham
-subLabel.TextSize = 10
-subLabel.TextColor3 = Color3.fromRGB(170, 170, 180)
-subLabel.TextXAlignment = Enum.TextXAlignment.Left
-
--- // [11] (Content Area) //
-local content = Instance.new("Frame", frame)
-content.Size = UDim2.new(1, -16, 1, -54)
-content.Position = UDim2.fromOffset(8, 49)
-content.BackgroundTransparency = 1
-
--- // [12] (Select Player Label) //
-local selectLabel = Instance.new("TextLabel", content)
-selectLabel.Size = UDim2.new(1, 0, 0, 24)
-selectLabel.BackgroundTransparency = 1
-selectLabel.Text = "PLAYERS"
-selectLabel.Font = Enum.Font.GothamMedium
-selectLabel.TextSize = 12
-selectLabel.TextColor3 = Color3.fromRGB(170, 170, 180)
-selectLabel.TextXAlignment = Enum.TextXAlignment.Left
-
--- // [13] (List Container) //
-local listContainer = Instance.new("Frame", content)
-listContainer.Size = UDim2.new(1, 0, 1, -29)
-listContainer.Position = UDim2.fromOffset(0, 29)
-listContainer.BackgroundColor3 = Color3.fromRGB(20, 20, 24)
-listContainer.BorderSizePixel = 0
-Instance.new("UICorner", listContainer).CornerRadius = UDim.new(0, 12)
-
--- // [14] (Scroll Frame) //
-local scroll = Instance.new("ScrollingFrame", listContainer)
-scroll.Size = UDim2.new(1, -6, 1, -6)
-scroll.Position = UDim2.fromOffset(3, 3)
-scroll.BackgroundTransparency = 1
-scroll.ScrollBarThickness = 3
-scroll.ScrollBarImageColor3 = Color3.fromRGB(255, 255, 255)
-scroll.ScrollBarImageTransparency = 0.5
-scroll.BorderSizePixel = 0
-scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
-
--- // [15] (List Layout) //
-local listLayout = Instance.new("UIListLayout", scroll)
-listLayout.Padding = UDim.new(0, 8)
-listLayout.SortOrder = Enum.SortOrder.Name
-
--- // [16] (Dragging) //
-local dragging, dragStart, startPos = false, nil, nil
-
-titleBar.InputBegan:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-		dragging = true
-		dragStart = input.Position
-		startPos = frame.Position
-	end
+frame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        dragStart = input.Position
+        startPos = frame.Position
+    end
 end)
 
 UserInputService.InputChanged:Connect(function(input)
-	if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-		local delta = input.Position - dragStart
-		frame.Position = UDim2.new(
-			startPos.X.Scale, startPos.X.Offset + delta.X,
-			startPos.Y.Scale, startPos.Y.Offset + delta.Y
-		)
-	end
+    if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+        local delta = input.Position - dragStart
+        frame.Position = UDim2.new(
+            startPos.X.Scale, 
+            startPos.X.Offset + delta.X,
+            startPos.Y.Scale, 
+            startPos.Y.Offset + delta.Y
+        )
+    end
 end)
 
 UserInputService.InputEnded:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-		dragging = false
-	end
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = false
+        dragStart = nil
+        startPos = nil
+    end
 end)
 
--- // [17] (Hotkey System) //
-local keybindConfigs = {
-	semiF = { key = Enum.KeyCode.F, active = false, players = {} },
-	semiG = { key = Enum.KeyCode.G, active = false, players = {} },
-	full = { key = Enum.KeyCode.H, active = false }
-}
+-- TITLE BAR (for better dragging experience)
+local titleBox = Instance.new("Frame")
+titleBox.Size = UDim2.new(1, 0, 0, 30)
+titleBox.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+titleBox.BackgroundTransparency = 0.75 
+titleBox.BorderSizePixel = 0
+titleBox.Parent = frame
 
-local function updateSemiF()
-	for userId, data in pairs(keybindConfigs.semiF.players) do
-		if data.card and data.card.Parent then
-			local bg = data.card:FindFirstChild("SemiFBG")
-			if bg then
-				bg.Visible = keybindConfigs.semiF.active
-			end
-		end
-	end
-end
+local titleCorner = Instance.new("UICorner")
+titleCorner.CornerRadius = UDim.new(0, 12)
+titleCorner.Parent = titleBox
 
-local function updateSemiG()
-	for userId, data in pairs(keybindConfigs.semiG.players) do
-		if data.card and data.card.Parent then
-			local bg = data.card:FindFirstChild("SemiGBG")
-			if bg then
-				bg.Visible = keybindConfigs.semiG.active
-			end
-		end
-	end
-end
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Size = UDim2.new(1, 0, 1, 0)
+titleLabel.BackgroundTransparency = 1
+titleLabel.Text = "Kaiju Hub - Quantum Cloner"
+titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+titleLabel.Font = Enum.Font.GothamBold
+titleLabel.TextSize = 11
+titleLabel.Parent = titleBox
 
-local function executeSemiF()
-	if not AdminRemote then return end
-	for userId, data in pairs(keybindConfigs.semiF.players) do
-		if data.player and data.player.Character then
-			fireAdmin("f888ee6e-c86d-46e1-93d7-0639d6635d42", data.player, "balloon")
-			fireAdmin("f888ee6e-c86d-46e1-93d7-0639d6635d42", data.player, "ragdoll")
-		end
-	end
-end
+-- Make the title bar draggable too
+titleBox.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        dragStart = input.Position
+        startPos = frame.Position
+    end
+end)
 
-local function executeSemiG()
-	if not AdminRemote then return end
-	for userId, data in pairs(keybindConfigs.semiG.players) do
-		if data.player and data.player.Character then
-			fireAdmin("f888ee6e-c86d-46e1-93d7-0639d6635d42", data.player, "jumpscare")
-			fireAdmin("f888ee6e-c86d-46e1-93d7-0639d6635d42", data.player, "rocket")
-		end
-	end
-end
+-- CONTAINER
+local container = Instance.new("Frame")
+container.Position = UDim2.new(0, 0, 0, 35)
+container.Size = UDim2.new(1, 0, 1, -45) 
+container.BackgroundTransparency = 1
+container.Parent = frame
 
-local function executeFull()
-	if not AdminRemote then return end
-	for userId, data in pairs(keybindConfigs.semiF.players) do
-		if data.player and data.player.Character then
-			fireAdmin("f888ee6e-c86d-46e1-93d7-0639d6635d42", data.player, "balloon")
-			fireAdmin("f888ee6e-c86d-46e1-93d7-0639d6635d42", data.player, "ragdoll")
-			fireAdmin("f888ee6e-c86d-46e1-93d7-0639d6635d42", data.player, "jumpscare")
-			fireAdmin("f888ee6e-c86d-46e1-93d7-0639d6635d42", data.player, "rocket")
-			fireAdmin("f888ee6e-c86d-46e1-93d7-0639d6635d42", data.player, "jail")
-		end
-	end
-end
+local layout = Instance.new("UIListLayout")
+layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+layout.SortOrder = Enum.SortOrder.LayoutOrder
+layout.Padding = UDim.new(0, 5) 
+layout.Parent = container
 
--- // [18] (Keybind UI) //
-local keybindFrame = Instance.new("Frame", frame)
-keybindFrame.Size = UDim2.new(1, 0, 0, 80)
-keybindFrame.Position = UDim2.new(0, 0, 1, -84)
-keybindFrame.BackgroundColor3 = Color3.fromRGB(16, 16, 20)
-keybindFrame.BorderSizePixel = 0
-Instance.new("UICorner", keybindFrame).CornerRadius = UDim.new(0, 12)
+-- PRE-BLOCK TOGGLE (ROUND)
+local toggleRow = Instance.new("Frame")
+toggleRow.Size = UDim2.new(0.9, 0, 0, 28)
+toggleRow.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
+toggleRow.BackgroundTransparency = 0.6 
+toggleRow.LayoutOrder = 1 
+toggleRow.Parent = container
 
-local function createKeybindButton(parent, text, yPos, configType)
-	local btn = Instance.new("TextButton", parent)
-	btn.Size = UDim2.new(0.9, 0, 0, 28)
-	btn.Position = UDim2.new(0.05, 0, 0, yPos)
-	btn.BackgroundColor3 = Color3.fromRGB(30, 30, 36)
-	btn.Text = text .. ": " .. string.sub(tostring(keybindConfigs[configType].key), 10)
-	btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-	btn.TextSize = 11
-	btn.Font = Enum.Font.GothamMedium
-	Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
-	
-	btn.MouseButton1Click:Connect(function()
-		local oldText = btn.Text
-		btn.Text = "PRESS ANY KEY..."
-		btn.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
-		
-		local connection
-		connection = UserInputService.InputBegan:Connect(function(input, gameProcessed)
-			if gameProcessed then return end
-			if input.KeyCode ~= Enum.KeyCode.Unknown then
-				keybindConfigs[configType].key = input.KeyCode
-				
-				if configType == "semiF" then
-					ContextActionService:BindAction("SemiF", function(actionName, inputState, inputObj)
-						if inputState == Enum.UserInputState.Begin then
-							executeSemiF()
-						end
-					end, false, input.KeyCode)
-				elseif configType == "semiG" then
-					ContextActionService:BindAction("SemiG", function(actionName, inputState, inputObj)
-						if inputState == Enum.UserInputState.Begin then
-							executeSemiG()
-						end
-					end, false, input.KeyCode)
-				elseif configType == "full" then
-					ContextActionService:BindAction("Full", function(actionName, inputState, inputObj)
-						if inputState == Enum.UserInputState.Begin then
-							executeFull()
-						end
-					end, false, input.KeyCode)
-				end
-				
-				btn.Text = text .. ": " .. string.sub(tostring(input.KeyCode), 10)
-				btn.BackgroundColor3 = Color3.fromRGB(30, 30, 36)
-				connection:Disconnect()
-			end
-		end)
-		
-		task.delay(5, function()
-			if connection and connection.Connected then
-				connection:Disconnect()
-				btn.Text = oldText
-				btn.BackgroundColor3 = Color3.fromRGB(30, 30, 36)
-			end
-		end)
-	end)
-	
-	return btn
-end
+local rowCorner = Instance.new("UICorner")
+rowCorner.CornerRadius = UDim.new(0, 8)
+rowCorner.Parent = toggleRow
 
-createKeybindButton(keybindFrame, "SEMI F", 6, "semiF")
-createKeybindButton(keybindFrame, "SEMI G", 40, "semiG")
-createKeybindButton(keybindFrame, "FULL", 74, "full")
+local toggleStroke = Instance.new("UIStroke")
+toggleStroke.Color = Color3.fromRGB(45, 45, 60)
+toggleStroke.Thickness = 1
+toggleStroke.Parent = toggleRow
 
--- // [19] (Mobile Toggle Buttons) //
-local mobileFrame = Instance.new("Frame", frame)
-mobileFrame.Size = UDim2.new(1, 0, 0, 36)
-mobileFrame.Position = UDim2.new(0, 0, 1, -120)
-mobileFrame.BackgroundColor3 = Color3.fromRGB(16, 16, 20)
-mobileFrame.BorderSizePixel = 0
-mobileFrame.Visible = UserInputService.TouchEnabled
-Instance.new("UICorner", mobileFrame).CornerRadius = UDim.new(0, 12)
+local toggleText = Instance.new("TextLabel")
+toggleText.Size = UDim2.new(0.6, 0, 1, 0)
+toggleText.Position = UDim2.new(0.05, 0, 0, 0)
+toggleText.BackgroundTransparency = 1
+toggleText.Text = "Pre-Block"
+toggleText.TextColor3 = Color3.fromRGB(200, 200, 200)
+toggleText.Font = Enum.Font.GothamBold
+toggleText.TextSize = 10 
+toggleText.TextXAlignment = Enum.TextXAlignment.Left
+toggleText.Parent = toggleRow
 
-local function createMobileButton(parent, text, xPos, callback)
-	local btn = Instance.new("TextButton", parent)
-	btn.Size = UDim2.new(0.3, 0, 0, 28)
-	btn.Position = UDim2.new(xPos, 0, 0.5, -14)
-	btn.BackgroundColor3 = Color3.fromRGB(30, 30, 36)
-	btn.Text = text
-	btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-	btn.TextSize = 11
-	btn.Font = Enum.Font.GothamMedium
-	Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
-	btn.MouseButton1Click:Connect(callback)
-	return btn
-end
+local toggleBtn = Instance.new("TextButton")
+toggleBtn.Size = UDim2.new(0, 30, 0, 16)
+toggleBtn.Position = UDim2.new(0.95, -30, 0.5, -8)
+toggleBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
+toggleBtn.BackgroundTransparency = 0.5 
+toggleBtn.Text = ""
+toggleBtn.Parent = toggleRow
 
-createMobileButton(mobileFrame, "SEMI F", 0.035, executeSemiF)
-createMobileButton(mobileFrame, "SEMI G", 0.365, executeSemiG)
-createMobileButton(mobileFrame, "FULL", 0.695, executeFull)
+local btnCorner = Instance.new("UICorner")
+btnCorner.CornerRadius = UDim.new(1, 0)
+btnCorner.Parent = toggleBtn
 
--- // [20] (Player Card State) //
-local playerCards = {}
+local dot = Instance.new("Frame")
+dot.Size = UDim2.new(0, 12, 0, 12)
+dot.Position = UDim2.new(0, 2, 0.5, -6)
+dot.BackgroundColor3 = Color3.fromRGB(150, 150, 170)
+dot.Parent = toggleBtn
 
--- // [21] (Create Player Card with Toggles) //
-local function createPlayerCard(plr)
-	if plr == LocalPlayer or playerCards[plr.UserId] then return end
+local dotCorner = Instance.new("UICorner")
+dotCorner.CornerRadius = UDim.new(1, 0)
+dotCorner.Parent = dot
 
-	local card = Instance.new("TextButton", scroll)
-	card.Name = plr.Name
-	card.Size = UDim2.new(1, -4, 0, 72)
-	card.BackgroundColor3 = Color3.fromRGB(30, 30, 36)
-	card.BorderSizePixel = 0
-	card.Text = ""
-	card.AutoButtonColor = false
-	Instance.new("UICorner", card).CornerRadius = UDim.new(0, 10)
+toggleBtn.MouseButton1Click:Connect(function()
+    blockEnabled = not blockEnabled
+    TweenService:Create(dot, TweenInfo.new(0.2), {Position = blockEnabled and UDim2.new(1, -14, 0.5, -6) or UDim2.new(0, 2, 0.5, -6)}):Play()
+    TweenService:Create(toggleBtn, TweenInfo.new(0.2), {BackgroundColor3 = blockEnabled and Color3.fromRGB(60, 80, 200) or Color3.fromRGB(50, 50, 60)}):Play()
+end)
 
-	-- Avatar
-	local avatar = Instance.new("ImageLabel", card)
-	avatar.Size = UDim2.fromOffset(36, 36)
-	avatar.Position = UDim2.fromOffset(8, 8)
-	avatar.BackgroundColor3 = Color3.fromRGB(20, 20, 24)
-	avatar.Image = "rbxthumb://type=AvatarHeadShot&id=" .. plr.UserId .. "&w=150&h=150"
-	Instance.new("UICorner", avatar).CornerRadius = UDim.new(1, 0)
+-- MAIN BUTTON
+local tpBtn = Instance.new("TextButton")
+tpBtn.Size = UDim2.new(0.9, 0, 0, 34)
+tpBtn.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
+tpBtn.BackgroundTransparency = 0.6 
+tpBtn.LayoutOrder = 2
+tpBtn.Text = "⚡ QUANTUM CLONER ⚡"
+tpBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+tpBtn.Font = Enum.Font.GothamBold
+tpBtn.TextSize = 11
+tpBtn.Parent = container
 
-	-- Info Frame
-	local info = Instance.new("Frame", card)
-	info.Size = UDim2.new(1, -60, 0.6, 0)
-	info.Position = UDim2.fromOffset(46, 6)
-	info.BackgroundTransparency = 1
+local tpCorner = Instance.new("UICorner")
+tpCorner.CornerRadius = UDim.new(0, 8)
+tpCorner.Parent = tpBtn
 
-	local displayName = Instance.new("TextLabel", info)
-	displayName.Size = UDim2.new(1, 0, 0, 22)
-	displayName.BackgroundTransparency = 1
-	displayName.Text = plr.DisplayName
-	displayName.Font = Enum.Font.GothamBold
-	displayName.TextSize = 14
-	displayName.TextColor3 = Color3.fromRGB(250, 250, 255)
-	displayName.TextXAlignment = Enum.TextXAlignment.Left
-	displayName.TextTruncate = Enum.TextTruncate.AtEnd
+local tpStroke = Instance.new("UIStroke")
+tpStroke.Color = Color3.fromRGB(45, 45, 60)
+tpStroke.Thickness = 1
+tpStroke.Parent = tpBtn
 
-	local username = Instance.new("TextLabel", info)
-	username.Size = UDim2.new(1, 0, 0, 18)
-	username.Position = UDim2.fromOffset(0, 20)
-	username.BackgroundTransparency = 1
-	username.Text = "@" .. plr.Name
-	username.Font = Enum.Font.Gotham
-	username.TextSize = 11
-	username.TextColor3 = Color3.fromRGB(170, 170, 180)
-	username.TextXAlignment = Enum.TextXAlignment.Left
+-- DISCORD
+local discordLabel = Instance.new("TextLabel")
+discordLabel.Size = UDim2.new(1, 0, 0, 12)
+discordLabel.Position = UDim2.new(0, 0, 1, -14) 
+discordLabel.BackgroundTransparency = 1
+discordLabel.Text = ".gg/VSAYUmzqy"
+discordLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+discordLabel.Font = Enum.Font.Gotham
+discordLabel.TextSize = 8
+discordLabel.Parent = frame
 
-	-- Toggle Frame
-	local toggleFrame = Instance.new("Frame", card)
-	toggleFrame.Size = UDim2.new(1, -16, 0, 28)
-	toggleFrame.Position = UDim2.new(0, 8, 1, -32)
-	toggleFrame.BackgroundTransparency = 1
+-- ── EXECUTE ──
+tpBtn.MouseButton1Click:Connect(function()
+    local char = LocalPlayer.Character
+    local hum = char and char:FindFirstChildOfClass("Humanoid")
+    
+    if hum then
+        print("===== QUANTUM CLONER STARTED =====")
+        
+        -- Teleport
+        print("📍 Teleporting...")
+        TeleportTo(clonePos)
+        task.wait(0.3)
+        
+        -- Pre-Block (if enabled)
+        if blockEnabled then
+            print("🚫 Blocking players...")
+            blockOtherPlayers()
+        end
+        
+        -- Use clone
+        print("🔬 Using Quantum Cloner...")
+        local success = UseQuantumCloner()
+        
+        if success then
+            print("✅ Quantum Cloner activated!")
+            tpBtn.Text = "✅ SUCCESS!"
+            task.wait(1.5)
+            tpBtn.Text = "⚡ QUANTUM CLONER ⚡"
+        else
+            print("❌ Quantum Cloner not found!")
+            tpBtn.Text = "❌ FAILED!"
+            task.wait(1.5)
+            tpBtn.Text = "⚡ QUANTUM CLONER ⚡"
+        end
+        
+        print("===== FINISHED =====")
+    end
+end)
 
-	-- Semi F Toggle
-	local semiFBtn = Instance.new("TextButton", toggleFrame)
-	semiFBtn.Size = UDim2.new(0.3, 0, 1, 0)
-	semiFBtn.Position = UDim2.new(0, 0, 0, 0)
-	semiFBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 48)
-	semiFBtn.Text = "SEMI F"
-	semiFBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
-	semiFBtn.TextSize = 10
-	semiFBtn.Font = Enum.Font.GothamMedium
-	Instance.new("UICorner", semiFBtn).CornerRadius = UDim.new(0, 6)
-	
-	local semiFBG = Instance.new("Frame", semiFBtn)
-	semiFBG.Size = UDim2.new(1, 0, 1, 0)
-	semiFBG.BackgroundColor3 = Color3.fromRGB(80, 120, 200)
-	semiFBG.BackgroundTransparency = 0.5
-	semiFBG.Visible = false
-	Instance.new("UICorner", semiFBG).CornerRadius = UDim.new(0, 6)
-	
-	local semiFText = Instance.new("TextLabel", semiFBtn)
-	semiFText.Size = UDim2.new(1, 0, 1, 0)
-	semiFText.BackgroundTransparency = 1
-	semiFText.Text = "SEMI F"
-	semiFText.TextColor3 = Color3.fromRGB(255, 255, 255)
-	semiFText.TextSize = 10
-	semiFText.Font = Enum.Font.GothamMedium
-	semiFText.ZIndex = 2
-
-	-- Semi G Toggle
-	local semiGBtn = Instance.new("TextButton", toggleFrame)
-	semiGBtn.Size = UDim2.new(0.3, 0, 1, 0)
-	semiGBtn.Position = UDim2.new(0.35, 0, 0, 0)
-	semiGBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 48)
-	semiGBtn.Text = "SEMI G"
-	semiGBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
-	semiGBtn.TextSize = 10
-	semiGBtn.Font = Enum.Font.GothamMedium
-	Instance.new("UICorner", semiGBtn).CornerRadius = UDim.new(0, 6)
-	
-	local semiGBG = Instance.new("Frame", semiGBtn)
-	semiGBG.Size = UDim2.new(1, 0, 1, 0)
-	semiGBG.BackgroundColor3 = Color3.fromRGB(80, 120, 200)
-	semiGBG.BackgroundTransparency = 0.5
-	semiGBG.Visible = false
-	Instance.new("UICorner", semiGBG).CornerRadius = UDim.new(0, 6)
-	
-	local semiGText = Instance.new("TextLabel", semiGBtn)
-	semiGText.Size = UDim2.new(1, 0, 1, 0)
-	semiGText.BackgroundTransparency = 1
-	semiGText.Text = "SEMI G"
-	semiGText.TextColor3 = Color3.fromRGB(255, 255, 255)
-	semiGText.TextSize = 10
-	semiGText.Font = Enum.Font.GothamMedium
-	semiGText.ZIndex = 2
-
-	-- Solo Spam Button
-	local soloBtn = Instance.new("TextButton", toggleFrame)
-	soloBtn.Size = UDim2.new(0.3, 0, 1, 0)
-	soloBtn.Position = UDim2.new(0.7, 0, 0, 0)
-	soloBtn.BackgroundColor3 = Color3.fromRGB(60, 40, 40)
-	soloBtn.Text = "SPAM"
-	soloBtn.TextColor3 = Color3.fromRGB(255, 200, 200)
-	soloBtn.TextSize = 10
-	soloBtn.Font = Enum.Font.GothamMedium
-	Instance.new("UICorner", soloBtn).CornerRadius = UDim.new(0, 6)
-
-	-- Store card data
-	playerCards[plr.UserId] = {
-		card = card,
-		player = plr,
-		semiFBG = semiFBG,
-		semiGBG = semiGBG
-	}
-	
-	-- Add to toggle groups
-	keybindConfigs.semiF.players[plr.UserId] = playerCards[plr.UserId]
-	keybindConfigs.semiG.players[plr.UserId] = playerCards[plr.UserId]
-
-	-- Toggle handlers
-	semiFBtn.MouseButton1Click:Connect(function()
-		if keybindConfigs.semiF.players[plr.UserId] then
-			keybindConfigs.semiF.players[plr.UserId] = nil
-			semiFBG.Visible = false
-			semiFBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 48)
-		else
-			keybindConfigs.semiF.players[plr.UserId] = playerCards[plr.UserId]
-			semiFBG.Visible = keybindConfigs.semiF.active
-			semiFBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 80)
-		end
-	end)
-
-	semiGBtn.MouseButton1Click:Connect(function()
-		if keybindConfigs.semiG.players[plr.UserId] then
-			keybindConfigs.semiG.players[plr.UserId] = nil
-			semiGBG.Visible = false
-			semiGBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 48)
-		else
-			keybindConfigs.semiG.players[plr.UserId] = playerCards[plr.UserId]
-			semiGBG.Visible = keybindConfigs.semiG.active
-			semiGBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 80)
-		end
-	end)
-
-	soloBtn.MouseButton1Click:Connect(function()
-		if not AdminRemote then return end
-		TweenService:Create(card, TweenInfo.new(0.08), {BackgroundColor3 = Color3.fromRGB(120, 40, 40)}):Play()
-		task.delay(0.15, function()
-			TweenService:Create(card, TweenInfo.new(0.12), {BackgroundColor3 = Color3.fromRGB(30, 30, 36)}):Play()
-		end)
-		
-		fireAdmin("f888ee6e-c86d-46e1-93d7-0639d6635d42", plr, "balloon")
-		fireAdmin("f888ee6e-c86d-46e1-93d7-0639d6635d42", plr, "ragdoll")
-		fireAdmin("f888ee6e-c86d-46e1-93d7-0639d6635d42", plr, "jumpscare")
-		fireAdmin("f888ee6e-c86d-46e1-93d7-0639d6635d42", plr, "rocket")
-		fireAdmin("f888ee6e-c86d-46e1-93d7-0639d6635d42", plr, "jail")
-	end)
-
-	-- Hover effects
-	card.MouseEnter:Connect(function()
-		TweenService:Create(card, TweenInfo.new(0.12), {BackgroundColor3 = Color3.fromRGB(42, 42, 50)}):Play()
-	end)
-	card.MouseLeave:Connect(function()
-		TweenService:Create(card, TweenInfo.new(0.12), {BackgroundColor3 = Color3.fromRGB(30, 30, 36)}):Play()
-	end)
-end
-
--- // [22] (Remove Player Card) //
-local function removePlayerCard(plr)
-	keybindConfigs.semiF.players[plr.UserId] = nil
-	keybindConfigs.semiG.players[plr.UserId] = nil
-	if playerCards[plr.UserId] then
-		if playerCards[plr.UserId].card then
-			playerCards[plr.UserId].card:Destroy()
-		end
-		playerCards[plr.UserId] = nil
-	end
-end
-
--- // [23] (Populate Players) //
-for _, plr in ipairs(Players:GetPlayers()) do
-	createPlayerCard(plr)
-end
-
-Players.PlayerAdded:Connect(createPlayerCard)
-Players.PlayerRemoving:Connect(removePlayerCard)
-
--- // [24] (Setup default keybinds) //
-ContextActionService:BindAction("SemiF", function(actionName, inputState, inputObj)
-	if inputState == Enum.UserInputState.Begin then
-		executeSemiF()
-	end
-end, false, keybindConfigs.semiF.key)
-
-ContextActionService:BindAction("SemiG", function(actionName, inputState, inputObj)
-	if inputState == Enum.UserInputState.Begin then
-		executeSemiG()
-	end
-end, false, keybindConfigs.semiG.key)
-
-ContextActionService:BindAction("Full", function(actionName, inputState, inputObj)
-	if inputState == Enum.UserInputState.Begin then
-		executeFull()
-	end
-end, false, keybindConfigs.full.key)
+print("✅ Kaiju Hub - Quantum Cloner LOADED!")
+print("📍 Clone position: X=-333.4 Y=-6.9 Z=32")
+print("🔒 Pre-Block: click the round toggle to activate")
+print("💡 Drag the menu by clicking on the blue title bar")
