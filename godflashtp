@@ -97,40 +97,7 @@ border.Color = Color3.fromRGB(45, 45, 60)
 border.Thickness = 2
 border.Parent = frame
 
--- ── DRAG FUNCTION (FIXED) ──
-local dragging = false
-local dragStart = nil
-local startPos = nil
-
-frame.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        dragging = true
-        dragStart = input.Position
-        startPos = frame.Position
-    end
-end)
-
-UserInputService.InputChanged:Connect(function(input)
-    if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-        local delta = input.Position - dragStart
-        frame.Position = UDim2.new(
-            startPos.X.Scale, 
-            startPos.X.Offset + delta.X,
-            startPos.Y.Scale, 
-            startPos.Y.Offset + delta.Y
-        )
-    end
-end)
-
-UserInputService.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        dragging = false
-        dragStart = nil
-        startPos = nil
-    end
-end)
-
--- TITLE BAR (for better dragging experience)
+-- TITLE BAR
 local titleBox = Instance.new("Frame")
 titleBox.Size = UDim2.new(1, 0, 0, 30)
 titleBox.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
@@ -150,15 +117,6 @@ titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 titleLabel.Font = Enum.Font.GothamBold
 titleLabel.TextSize = 11
 titleLabel.Parent = titleBox
-
--- Make the title bar draggable too
-titleBox.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        dragging = true
-        dragStart = input.Position
-        startPos = frame.Position
-    end
-end)
 
 -- CONTAINER
 local container = Instance.new("Frame")
@@ -261,6 +219,46 @@ discordLabel.Font = Enum.Font.Gotham
 discordLabel.TextSize = 8
 discordLabel.Parent = frame
 
+-- ── DRAG FUNCTION (SAME AS LUMINA HUB - WORKING) ──
+do
+    local dragging = false
+    local dragStart = nil
+    local startPos = nil
+    
+    local function beginDrag(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or 
+           input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPos = frame.Position
+        end
+    end
+    
+    local function endDrag(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or 
+           input.UserInputType == Enum.UserInputType.Touch then
+            dragging = false
+        end
+    end
+    
+    local function moveDrag(input)
+        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or 
+                         input.UserInputType == Enum.UserInputType.Touch) then
+            local delta = input.Position - dragStart
+            frame.Position = UDim2.new(
+                startPos.X.Scale, 
+                startPos.X.Offset + delta.X,
+                startPos.Y.Scale, 
+                startPos.Y.Offset + delta.Y
+            )
+        end
+    end
+    
+    titleBox.InputBegan:Connect(beginDrag)
+    titleBox.InputEnded:Connect(endDrag)
+    UserInputService.InputChanged:Connect(moveDrag)
+end
+
 -- ── EXECUTE ──
 tpBtn.MouseButton1Click:Connect(function()
     local char = LocalPlayer.Character
@@ -303,4 +301,4 @@ end)
 print("✅ Kaiju Hub - Quantum Cloner LOADED!")
 print("📍 Clone position: X=-333.4 Y=-6.9 Z=32")
 print("🔒 Pre-Block: click the round toggle to activate")
-print("💡 Drag the menu by clicking on the blue title bar")
+print("💡 Drag the menu by clicking and holding on the title bar")
