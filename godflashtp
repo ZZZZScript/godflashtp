@@ -1,6 +1,6 @@
 -- =============================================
 -- LAW HUB - FUN HUB STYLE
--- Instant Steal | Active Potion | Unlock Base | Actions
+-- Instant Steal | Active Potion | Unlock Base (3 floors) | Actions
 -- =============================================
 
 local Players = game:GetService("Players")
@@ -34,6 +34,11 @@ local Humanoid = nil
 local StealLoop = nil
 local PotionConnection = nil
 local UIPanels = {}
+
+-- DRAG SYSTEM
+local Dragging = false
+local DragStart = nil
+local StartPos = nil
 
 -- =============================================
 -- UTILITIES
@@ -229,7 +234,7 @@ local function StopPotionWatcher()
 end
 
 -- =============================================
--- 3. UNLOCK BASE (OTHER PLAYERS)
+-- 3. UNLOCK BASE (3 BUTTONS - LIKE FUN HUB)
 -- =============================================
 local function FindOtherBase()
     local plots = workspace:FindFirstChild("Plots")
@@ -246,16 +251,43 @@ local function FindOtherBase()
     return nil
 end
 
-local function DoUnlock()
+local function UnlockFloor(floorNumber)
     local plot = FindOtherBase()
-    if not plot then return end
+    if not plot then
+        print("No other player base found")
+        return
+    end
+    
+    -- Find position based on floor
+    local targetPos = nil
+    if floorNumber == 1 then
+        targetPos = Vector3.new(-368, -7, 42)
+    elseif floorNumber == 2 then
+        targetPos = Vector3.new(-368, -7, 69)
+    elseif floorNumber == 3 then
+        targetPos = Vector3.new(-352, 25, 60)
+    end
+    
+    -- Teleport to position
+    if targetPos and RootPart then
+        RootPart.CFrame = CFrame.new(targetPos)
+        RootPart.AssemblyLinearVelocity = Vector3.zero
+        task.wait(0.3)
+    end
+    
+    -- Find and fire unlock prompt
     for _, obj in pairs(plot:GetDescendants()) do
         if obj:IsA("ProximityPrompt") and obj.Enabled then
             local txt = (obj.ActionText or ""):lower()
             if txt:find("unlock") then
                 local oldDist = obj.MaxActivationDistance
                 obj.MaxActivationDistance = 9999
-                pcall(function() fireproximityprompt(obj) end)
+                pcall(function() 
+                    fireproximityprompt(obj, 9999)
+                    obj:InputHoldBegin()
+                    task.wait(0.1)
+                    obj:InputHoldEnd()
+                end)
                 task.delay(0.3, function() obj.MaxActivationDistance = oldDist end)
                 break
             end
@@ -372,7 +404,7 @@ local function CreateToggle(parent, y, label, desc, id, callback)
 end
 
 -- =============================================
--- CREATE UI PANELS (APPEAR WHEN TOGGLE ON)
+-- CREATE UI PANELS
 -- =============================================
 local function ShowStealPanel(show)
     if show then
@@ -449,8 +481,8 @@ local function ShowUnlockPanel(show)
         sg.Parent = LocalPlayer.PlayerGui
         
         local f = Instance.new("Frame")
-        f.Size = UDim2.new(0, 200, 0, 90)
-        f.Position = UDim2.new(0.5, -100, 0.7, 0)
+        f.Size = UDim2.new(0, 220, 0, 130)
+        f.Position = UDim2.new(0.5, -110, 0.7, 0)
         f.BackgroundColor3 = Colors.BG
         f.BackgroundTransparency = 0.1
         f.BorderSizePixel = 0
@@ -459,31 +491,58 @@ local function ShowUnlockPanel(show)
         MakeStroke(f, Colors.Primary, 1.5)
         
         local title = Instance.new("TextLabel")
-        title.Size = UDim2.new(1, 0, 0, 30)
+        title.Size = UDim2.new(1, 0, 0, 35)
         title.BackgroundTransparency = 1
         title.Text = "🔓 UNLOCK BASE"
         title.Font = Enum.Font.GothamBold
-        title.TextSize = 12
+        title.TextSize = 13
         title.TextColor3 = Colors.Primary
         title.Parent = f
         
-        local btn = Instance.new("TextButton")
-        btn.Size = UDim2.new(0.8, 0, 0, 40)
-        btn.Position = UDim2.new(0.1, 0, 0, 40)
-        btn.BackgroundColor3 = Colors.Panel
-        btn.Text = "UNLOCK"
-        btn.Font = Enum.Font.GothamBold
-        btn.TextSize = 14
-        btn.TextColor3 = Colors.Text
-        btn.Parent = f
-        MakeCorner(btn, 8)
-        MakeStroke(btn, Colors.Primary, 1.5)
+        local container = Instance.new("Frame")
+        container.Size = UDim2.new(1, -16, 1, -45)
+        container.Position = UDim2.new(0, 8, 0, 40)
+        container.BackgroundTransparency = 1
+        container.Parent = f
         
-        btn.MouseButton1Click:Connect(function()
-            Tween(btn, {BackgroundColor3 = Colors.Primary}, 0.1)
-            task.delay(0.15, function() Tween(btn, {BackgroundColor3 = Colors.Panel}, 0.1) end)
-            DoUnlock()
-        end)
+        local layout = Instance.new("UIListLayout")
+        layout.Padding = UDim.new(0, 8)
+        layout.FillDirection = Enum.FillDirection.Horizontal
+        layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+        layout.Parent = container
+        
+        -- 3 BUTTONS FOR 3 FLOORS (LIKE FUN HUB)
+        local floors = {
+            {num = 1, y = -7, x = 42},
+            {num = 2, y = -7, x = 69},
+            {num = 3, y = 25, x = 60},
+        }
+        
+        for _, floor in ipairs(floors) do
+            local btn = Instance.new("TextButton")
+            btn.Size = UDim2.new(0, 60, 0, 50)
+            btn.BackgroundColor3 = Colors.Panel
+            btn.Text = floor.num
+            btn.Font = Enum.Font.GothamBold
+            btn.TextSize = 20
+            btn.TextColor3 = Colors.Text
+            btn.Parent = container
+            MakeCorner(btn, 10)
+            MakeStroke(btn, Colors.Primary, 1.5)
+            
+            btn.MouseEnter:Connect(function()
+                Tween(btn, {BackgroundColor3 = Color3.fromRGB(45, 45, 45)}, 0.1)
+            end)
+            btn.MouseLeave:Connect(function()
+                Tween(btn, {BackgroundColor3 = Colors.Panel}, 0.1)
+            end)
+            
+            btn.MouseButton1Click:Connect(function()
+                Tween(btn, {BackgroundColor3 = Colors.Primary}, 0.1)
+                task.delay(0.15, function() Tween(btn, {BackgroundColor3 = Colors.Panel}, 0.1) end)
+                UnlockFloor(floor.num)
+            end)
+        end
         
         UIPanels.unlock = sg
     else
@@ -569,7 +628,7 @@ local function ShowActionsPanel(show)
 end
 
 -- =============================================
--- CREATE MAIN MENU (DRAGGABLE)
+-- CREATE MAIN MENU (WITH DRAG)
 -- =============================================
 local MainMenu = nil
 local LawButton = nil
@@ -584,27 +643,79 @@ local function CreateMainMenu()
     sg.Parent = LocalPlayer.PlayerGui
     
     local frame = Instance.new("Frame")
-    frame.Size = UDim2.new(0, 300, 0, 400)
-    frame.Position = UDim2.new(0.5, -150, 0.5, -200)
+    frame.Size = UDim2.new(0, 300, 0, 420)
+    frame.Position = UDim2.new(0.5, -150, 0.5, -210)
     frame.AnchorPoint = Vector2.new(0.5, 0.5)
     frame.BackgroundColor3 = Colors.BG
     frame.BackgroundTransparency = 0.05
     frame.BorderSizePixel = 0
     frame.Active = true
-    frame.Draggable = true
     frame.Parent = sg
     MakeCorner(frame, 12)
     MakeStroke(frame, Colors.Primary, 2)
     
-    -- Title
+    -- DRAG SYSTEM - Title bar
+    local titleBar = Instance.new("Frame")
+    titleBar.Size = UDim2.new(1, 0, 0, 50)
+    titleBar.BackgroundTransparency = 1
+    titleBar.Parent = frame
+    
+    -- Title (clickable for drag)
     local title = Instance.new("TextLabel")
-    title.Size = UDim2.new(1, 0, 0, 50)
+    title.Size = UDim2.new(1, 0, 1, 0)
     title.BackgroundTransparency = 1
     title.Text = "LAW HUB"
     title.Font = Enum.Font.GothamBlack
     title.TextSize = 24
     title.TextColor3 = Colors.Primary
-    title.Parent = frame
+    title.Parent = titleBar
+    
+    -- DRAG HANDLER
+    local function StartDrag(input)
+        Dragging = true
+        DragStart = input.Position
+        StartPos = frame.Position
+    end
+    
+    local function OnDrag(input)
+        if Dragging then
+            local delta = input.Position - DragStart
+            frame.Position = UDim2.new(
+                StartPos.X.Scale,
+                StartPos.X.Offset + delta.X,
+                StartPos.Y.Scale,
+                StartPos.Y.Offset + delta.Y
+            )
+        end
+    end
+    
+    local function StopDrag()
+        Dragging = false
+    end
+    
+    titleBar.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            StartDrag(input)
+        end
+    end)
+    
+    titleBar.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            StopDrag()
+        end
+    end)
+    
+    UserInputService.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement then
+            OnDrag(input)
+        end
+    end)
+    
+    UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            StopDrag()
+        end
+    end)
     
     -- Separator
     local line = Instance.new("Frame")
@@ -620,11 +731,11 @@ local function CreateMainMenu()
     scroll.BackgroundTransparency = 1
     scroll.ScrollBarThickness = 3
     scroll.ScrollBarImageColor3 = Colors.Primary
-    scroll.CanvasSize = UDim2.new(0, 0, 0, 280)
+    scroll.CanvasSize = UDim2.new(0, 0, 0, 300)
     scroll.Parent = frame
     
     local container = Instance.new("Frame")
-    container.Size = UDim2.new(1, 0, 0, 280)
+    container.Size = UDim2.new(1, 0, 0, 300)
     container.BackgroundTransparency = 1
     container.Parent = scroll
     
@@ -722,4 +833,5 @@ CreateMainMenu()
 
 print("✅ LAW HUB LOADED")
 print("📌 Click 'LAW' button to open menu")
-print("⚡ Drag the menu by its title bar")
+print("🖱️ Drag the menu by the title bar")
+print("🔓 Unlock Base has 3 floor buttons (1, 2, 3)")
