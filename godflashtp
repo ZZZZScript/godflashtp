@@ -1,5 +1,5 @@
 -- =============================================
--- LAW HUB - FUN HUB STYLE
+-- LAW HUB - FINAL FIXED VERSION
 -- Instant Steal | Active Potion | Unlock Base (3 floors) | Actions
 -- =============================================
 
@@ -34,11 +34,6 @@ local Humanoid = nil
 local StealLoop = nil
 local PotionConnection = nil
 local UIPanels = {}
-
--- DRAG SYSTEM
-local Dragging = false
-local DragStart = nil
-local StartPos = nil
 
 -- =============================================
 -- UTILITIES
@@ -511,18 +506,14 @@ local function ShowUnlockPanel(show)
         layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
         layout.Parent = container
         
-        -- 3 BUTTONS FOR 3 FLOORS (LIKE FUN HUB)
-        local floors = {
-            {num = 1, y = -7, x = 42},
-            {num = 2, y = -7, x = 69},
-            {num = 3, y = 25, x = 60},
-        }
+        -- 3 BUTTONS FOR 3 FLOORS
+        local floors = {1, 2, 3}
         
-        for _, floor in ipairs(floors) do
+        for _, floorNum in ipairs(floors) do
             local btn = Instance.new("TextButton")
             btn.Size = UDim2.new(0, 60, 0, 50)
             btn.BackgroundColor3 = Colors.Panel
-            btn.Text = floor.num
+            btn.Text = tostring(floorNum)
             btn.Font = Enum.Font.GothamBold
             btn.TextSize = 20
             btn.TextColor3 = Colors.Text
@@ -540,7 +531,7 @@ local function ShowUnlockPanel(show)
             btn.MouseButton1Click:Connect(function()
                 Tween(btn, {BackgroundColor3 = Colors.Primary}, 0.1)
                 task.delay(0.15, function() Tween(btn, {BackgroundColor3 = Colors.Panel}, 0.1) end)
-                UnlockFloor(floor.num)
+                UnlockFloor(floorNum)
             end)
         end
         
@@ -628,11 +619,17 @@ local function ShowActionsPanel(show)
 end
 
 -- =============================================
--- CREATE MAIN MENU (WITH DRAG)
+-- CREATE MAIN MENU (WITH WORKING DRAG)
 -- =============================================
 local MainMenu = nil
 local LawButton = nil
 local MenuVisible = true
+
+-- DRAG VARIABLES
+local dragFrame = nil
+local dragging = false
+local dragStart = nil
+local startPos = nil
 
 local function CreateMainMenu()
     if MainMenu then MainMenu:Destroy() end
@@ -654,80 +651,32 @@ local function CreateMainMenu()
     MakeCorner(frame, 12)
     MakeStroke(frame, Colors.Primary, 2)
     
-    -- DRAG SYSTEM - Title bar
+    -- DRAG HANDLER - Title bar (clicable)
     local titleBar = Instance.new("Frame")
-    titleBar.Size = UDim2.new(1, 0, 0, 50)
+    titleBar.Size = UDim2.new(1, 0, 0, 45)
     titleBar.BackgroundTransparency = 1
     titleBar.Parent = frame
     
-    -- Title (clickable for drag)
     local title = Instance.new("TextLabel")
     title.Size = UDim2.new(1, 0, 1, 0)
     title.BackgroundTransparency = 1
     title.Text = "LAW HUB"
     title.Font = Enum.Font.GothamBlack
-    title.TextSize = 24
+    title.TextSize = 22
     title.TextColor3 = Colors.Primary
     title.Parent = titleBar
-    
-    -- DRAG HANDLER
-    local function StartDrag(input)
-        Dragging = true
-        DragStart = input.Position
-        StartPos = frame.Position
-    end
-    
-    local function OnDrag(input)
-        if Dragging then
-            local delta = input.Position - DragStart
-            frame.Position = UDim2.new(
-                StartPos.X.Scale,
-                StartPos.X.Offset + delta.X,
-                StartPos.Y.Scale,
-                StartPos.Y.Offset + delta.Y
-            )
-        end
-    end
-    
-    local function StopDrag()
-        Dragging = false
-    end
-    
-    titleBar.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            StartDrag(input)
-        end
-    end)
-    
-    titleBar.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            StopDrag()
-        end
-    end)
-    
-    UserInputService.InputChanged:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseMovement then
-            OnDrag(input)
-        end
-    end)
-    
-    UserInputService.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            StopDrag()
-        end
-    end)
     
     -- Separator
     local line = Instance.new("Frame")
     line.Size = UDim2.new(0.9, 0, 0, 2)
-    line.Position = UDim2.new(0.05, 0, 0, 52)
+    line.Position = UDim2.new(0.05, 0, 0, 48)
     line.BackgroundColor3 = Colors.Primary
     line.Parent = frame
     
     -- Scroll frame
     local scroll = Instance.new("ScrollingFrame")
     scroll.Size = UDim2.new(1, 0, 1, -75)
-    scroll.Position = UDim2.new(0, 0, 0, 60)
+    scroll.Position = UDim2.new(0, 0, 0, 55)
     scroll.BackgroundTransparency = 1
     scroll.ScrollBarThickness = 3
     scroll.ScrollBarImageColor3 = Colors.Primary
@@ -768,7 +717,7 @@ local function CreateMainMenu()
     end)
     
     -- Toggle 4: Actions Panel
-    CreateToggle(container, 185, "ACTIONS PANEL", "Rejoin, Kick, Ragdoll, Reset", "actions", function(on)
+    CreateToggle(container, 185, "UNLOCK BASE", "Rejoin, Kick, Ragdoll, Reset", "actions", function(on)
         Toggles.actions = on
         ShowActionsPanel(on)
     end)
@@ -783,6 +732,53 @@ local function CreateMainMenu()
     footer.TextSize = 9
     footer.TextColor3 = Color3.fromRGB(100, 100, 100)
     footer.Parent = frame
+    
+    -- DRAG FUNCTIONS
+    local function startDrag(input)
+        dragging = true
+        dragStart = input.Position
+        startPos = frame.Position
+    end
+    
+    local function onDrag(input)
+        if dragging then
+            local delta = input.Position - dragStart
+            frame.Position = UDim2.new(
+                startPos.X.Scale,
+                startPos.X.Offset + delta.X,
+                startPos.Y.Scale,
+                startPos.Y.Offset + delta.Y
+            )
+        end
+    end
+    
+    local function stopDrag()
+        dragging = false
+    end
+    
+    titleBar.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            startDrag(input)
+        end
+    end)
+    
+    titleBar.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            stopDrag()
+        end
+    end)
+    
+    UserInputService.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement then
+            onDrag(input)
+        end
+    end)
+    
+    UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            stopDrag()
+        end
+    end)
     
     MainMenu = sg
 end
@@ -833,5 +829,5 @@ CreateMainMenu()
 
 print("✅ LAW HUB LOADED")
 print("📌 Click 'LAW' button to open menu")
-print("🖱️ Drag the menu by the title bar")
-print("🔓 Unlock Base has 3 floor buttons (1, 2, 3)")
+print("🖱️ DRAG the menu by the title bar (LAW HUB text)")
+print("🔓 Unlock Base has 3 buttons (1, 2, 3)")
