@@ -1,6 +1,6 @@
 -- =============================================
--- LAW HUB - FUN HUB STYLE (COMPLETELY FIXED)
--- Instant Steal | Active Potion | Unlock Base | Actions
+-- LAW HUB - FUN HUB STYLE (FULLY WORKING)
+-- Instant Steal | Active Potion | Unlock Base (3 floors) | Actions
 -- =============================================
 
 local Players = game:GetService("Players")
@@ -71,42 +71,43 @@ Humanoid = char:FindFirstChildOfClass("Humanoid")
 -- =============================================
 -- 1. INSTANT STEAL (IGUAL FUN HUB)
 -- =============================================
-local function FindStealPrompt()
-    local plots = workspace:FindFirstChild("Plots")
-    if not plots or not RootPart then return nil end
-    local closest = nil
-    local minDist = math.huge
-    for _, plot in pairs(plots:GetChildren()) do
-        for _, obj in pairs(plot:GetDescendants()) do
-            if obj:IsA("ProximityPrompt") and obj.ActionText == "Steal" and obj.Enabled then
-                local part = obj.Parent
-                local pos = nil
-                if part:IsA("BasePart") then
-                    pos = part.Position
-                elseif part:IsA("Model") and part.PrimaryPart then
-                    pos = part.PrimaryPart.Position
-                end
-                if pos then
-                    local d = (RootPart.Position - pos).Magnitude
-                    if d < minDist then
-                        minDist = d
-                        closest = obj
-                    end
-                end
+local function GetAdminFrames()
+    local adminPanel = LocalPlayer.PlayerGui:FindFirstChild("AdminPanel")
+    if not adminPanel then return nil, nil end
+    local panel = adminPanel:FindFirstChild("AdminPanel")
+    if not panel then return nil, nil end
+    local content = panel:FindFirstChild("Content")
+    local profiles = panel:FindFirstChild("Profiles")
+    if not content or not profiles then return nil, nil end
+    return content:FindFirstChild("ScrollingFrame"), profiles:FindFirstChild("ScrollingFrame")
+end
+
+local function FireButton(guiObject)
+    local ok, conns = pcall(getconnections, guiObject.Activated)
+    if ok and type(conns) == "table" then
+        for _, conn in ipairs(conns) do
+            if type(conn.Function) == "function" then
+                task.spawn(conn.Function)
             end
         end
     end
-    return closest
 end
 
-local function FirePrompt(prompt)
-    if not prompt then return end
-    pcall(function()
-        fireproximityprompt(prompt, 9999)
-        prompt:InputHoldBegin()
-        task.wait(0.05)
-        prompt:InputHoldEnd()
-    end)
+local function RunCommandOnPlayer(commandName, target)
+    local commandFrame, profileFrame = GetAdminFrames()
+    if not commandFrame or not profileFrame then return end
+    
+    local profileButton = profileFrame:FindFirstChild(target.Name)
+    local commandButton = commandFrame:FindFirstChild(commandName)
+    if not profileButton or not commandButton then return end
+    
+    FireButton(profileButton)
+    task.wait(0.05)
+    FireButton(commandButton)
+    task.wait(0.05)
+    FireButton(profileButton)
+    task.wait(0.05)
+    FireButton(commandButton)
 end
 
 local function GetMyPlot()
@@ -162,7 +163,14 @@ local function DoSteal()
         task.wait(0.1)
         TeleportTo(Vector3.new(-353, -7, 44))
     end
-    FirePrompt(FindStealPrompt())
+    
+    -- Usa o admin panel para roubar (igual balloon/ragdoll)
+    for _, plr in pairs(Players:GetPlayers()) do
+        if plr ~= LocalPlayer then
+            RunCommandOnPlayer("steal", plr)
+            break
+        end
+    end
 end
 
 local function StartStealLoop()
@@ -281,51 +289,21 @@ local function UnlockFloor(floorNumber)
 end
 
 -- =============================================
--- 4. ACTIONS (RAGDOLL EM OUTROS)
+-- 4. ACTIONS (RAGDOLL E BALLOON IGUAIS)
 -- =============================================
-local function GetAdminFrames()
-    local adminPanel = LocalPlayer.PlayerGui:FindFirstChild("AdminPanel")
-    if not adminPanel then return nil, nil end
-    local panel = adminPanel:FindFirstChild("AdminPanel")
-    if not panel then return nil, nil end
-    local content = panel:FindFirstChild("Content")
-    local profiles = panel:FindFirstChild("Profiles")
-    if not content or not profiles then return nil, nil end
-    return content:FindFirstChild("ScrollingFrame"), profiles:FindFirstChild("ScrollingFrame")
-end
-
-local function FireButton(guiObject)
-    local ok, conns = pcall(getconnections, guiObject.Activated)
-    if ok and type(conns) == "table" then
-        for _, conn in ipairs(conns) do
-            if type(conn.Function) == "function" then
-                task.spawn(conn.Function)
-            end
+local function RagdollPlayer()
+    for _, plr in pairs(Players:GetPlayers()) do
+        if plr ~= LocalPlayer then
+            RunCommandOnPlayer("ragdoll", plr)
+            break
         end
     end
 end
 
-local function RunCommandOnPlayer(commandName, target)
-    local commandFrame, profileFrame = GetAdminFrames()
-    if not commandFrame or not profileFrame then return end
-    
-    local profileButton = profileFrame:FindFirstChild(target.Name)
-    local commandButton = commandFrame:FindFirstChild(commandName)
-    if not profileButton or not commandButton then return end
-    
-    FireButton(profileButton)
-    task.wait(0.05)
-    FireButton(commandButton)
-    task.wait(0.05)
-    FireButton(profileButton)
-    task.wait(0.05)
-    FireButton(commandButton)
-end
-
-local function RagdollOtherPlayer()
+local function BalloonPlayer()
     for _, plr in pairs(Players:GetPlayers()) do
         if plr ~= LocalPlayer then
-            RunCommandOnPlayer("ragdoll", plr)
+            RunCommandOnPlayer("balloon", plr)
             break
         end
     end
@@ -576,8 +554,8 @@ local function ShowActionsPanel(show)
         sg.Parent = LocalPlayer.PlayerGui
         
         local f = Instance.new("Frame")
-        f.Size = UDim2.new(0, 220, 0, 250)
-        f.Position = UDim2.new(0.5, -110, 0.45, 0)
+        f.Size = UDim2.new(0, 220, 0, 280)
+        f.Position = UDim2.new(0.5, -110, 0.4, 0)
         f.BackgroundColor3 = Colors.BG
         f.BackgroundTransparency = 0.1
         f.BorderSizePixel = 0
@@ -609,13 +587,14 @@ local function ShowActionsPanel(show)
         local buttons = {
             {"🔄 REJOIN", Rejoin},
             {"💀 KICK SELF", KickSelf},
-            {"🏃 RAGDOLL", RagdollOtherPlayer},
+            {"🎈 BALLOON", BalloonPlayer},
+            {"🏃 RAGDOLL", RagdollPlayer},
             {"🔄 RESET", ResetChar},
         }
         
         for _, btnData in ipairs(buttons) do
             local btn = Instance.new("TextButton")
-            btn.Size = UDim2.new(1, 0, 0, 45)
+            btn.Size = UDim2.new(1, 0, 0, 42)
             btn.BackgroundColor3 = Colors.Panel
             btn.Text = btnData[1]
             btn.Font = Enum.Font.GothamBold
@@ -710,13 +689,13 @@ local function CreateMainMenu()
     container.Parent = scroll
     
     -- Switches
-    CreateToggle(container, 5, "INSTANT STEAL", "Auto teleport + steal", "steal", function(on)
+    CreateToggle(container, 5, "INSTANT STEAL", "Auto steal from other players", "steal", function(on)
         Toggles.steal = on
         if on then StartStealLoop() else StopStealLoop() end
         ShowStealPanel(on)
     end)
     
-    CreateToggle(container, 65, "ACTIVE POTION", "Auto use potion on steal", "potion", function(on)
+    CreateToggle(container, 65, "ACTIVE POTION", "Auto use potion when stealing", "potion", function(on)
         Toggles.potion = on
         if on then StartPotionWatcher() else StopPotionWatcher() end
         ShowPotionPanel(on)
@@ -727,7 +706,7 @@ local function CreateMainMenu()
         ShowUnlockPanel(on)
     end)
     
-    CreateToggle(container, 185, "ACTIONS PANEL", "Rejoin, Kick, Ragdoll, Reset", "actions", function(on)
+    CreateToggle(container, 185, "ACTIONS PANEL", "Rejoin, Kick, Balloon, Ragdoll, Reset", "actions", function(on)
         Toggles.actions = on
         ShowActionsPanel(on)
     end)
@@ -818,4 +797,4 @@ print("✅ LAW HUB CARREGADO")
 print("📌 Clique no botão LAW para abrir/fechar")
 print("🖱️ ARRASTE o menu pela barra superior (LAW HUB)")
 print("🔓 Unlock Base: 3 botões (1, 2, 3)")
-print("🏃 Ragdoll ataca outros jogadores")
+print("🎈 BALLOON e RAGDOLL atacam outros jogadores via AdminPanel")
