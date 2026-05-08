@@ -1,5 +1,5 @@
 -- =============================================
--- LAW HUB - FIXED VERSION (Baseado no primeiro que funcionava)
+-- LAW HUB - FIRST WORKING VERSION (FIXED)
 -- =============================================
 
 local Players = game:GetService("Players")
@@ -27,16 +27,17 @@ local Toggles = {
     actions = false,
 }
 
-local PotionEnabled = false  -- Potion Steal toggle
-local SpeedEnabled = false    -- Steal Speed toggle
+-- VARIAVEIS DO INSTANT STEAL
+local PotionEnabled = false
+local SpeedEnabled = false
 local currentSpeed = 28
 local currentKeybind = Enum.KeyCode.R
 local listening = false
+local teleporting = false
 
--- VARIAVEIS
+-- VARIAVEIS GERAIS
 local RootPart = nil
 local Humanoid = nil
-local StealLoop = nil
 local UIPanels = {}
 
 -- =============================================
@@ -163,12 +164,18 @@ local function UseGiantPotion()
 end
 
 local function DoTeleportAndSteal()
-    local myPlot = GetMyPlot()
-    if not myPlot then return end
+    if teleporting then return end
+    teleporting = true
     
-    -- USAR POÇÃO SE ATIVADO
+    -- ATIVA POTION SE LIGADO
     if PotionEnabled then
         UseGiantPotion()
+    end
+    
+    local myPlot = GetMyPlot()
+    if not myPlot then
+        teleporting = false
+        return
     end
     
     EquipCarpet()
@@ -189,12 +196,11 @@ local function DoTeleportAndSteal()
         TeleportTo(Vector3.new(-353, -7, 44))
     end
     
-    -- SPEED DURANTE O ROUBO SE ATIVADO
+    -- ATIVA SPEED DURANTE O ROUBO SE LIGADO
     if SpeedEnabled and Humanoid then
         local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-        local dir = Humanoid.MoveDirection
-        if hrp and dir.Magnitude > 0 then
-            hrp.AssemblyLinearVelocity = Vector3.new(dir.X * currentSpeed, hrp.AssemblyLinearVelocity.Y, dir.Z * currentSpeed)
+        if hrp then
+            hrp.AssemblyLinearVelocity = Vector3.new(hrp.AssemblyLinearVelocity.X * 1.5, hrp.AssemblyLinearVelocity.Y, hrp.AssemblyLinearVelocity.Z * 1.5)
         end
     end
     
@@ -206,23 +212,9 @@ local function DoTeleportAndSteal()
             break
         end
     end
-end
-
-local function StartStealLoop()
-    if StealLoop then StealLoop:Disconnect() end
-    StealLoop = RunService.Heartbeat:Connect(function()
-        if Toggles.steal and Humanoid and Humanoid.Health > 0 then
-            DoTeleportAndSteal()
-            task.wait(1.5)
-        end
-    end)
-end
-
-local function StopStealLoop()
-    if StealLoop then
-        StealLoop:Disconnect()
-        StealLoop = nil
-    end
+    
+    task.wait(0.5)
+    teleporting = false
 end
 
 -- =============================================
@@ -492,7 +484,7 @@ local function ShowStealPanel(show)
         sldKnob.BackgroundColor3 = Colors.Text
         MakeCorner(sldKnob, 6)
         
-        -- FUNÇÕES DOS BOTÕES
+        -- FUNÇÕES
         local function UpdateSlider(x)
             local percent = math.clamp((x - sldBar.AbsolutePosition.X) / sldBar.AbsoluteSize.X, 0, 1)
             sldFill.Size = UDim2.new(percent, 0, 1, 0)
@@ -516,7 +508,7 @@ local function ShowStealPanel(show)
             end)
         end)
         
-        -- TELEPORT (SOMENTE QUANDO CLICA)
+        -- TELEPORT (SÓ QUANDO CLICA)
         teleBtn.MouseButton1Click:Connect(function()
             DoTeleportAndSteal()
             teleBtn.BackgroundColor3 = Colors.Primary
@@ -577,7 +569,7 @@ local function ShowStealPanel(show)
             end
         end)
         
-        -- KEYBIND GLOBAL (SOMENTE QUANDO PRESSIONA A TECLA)
+        -- KEYBIND GLOBAL (SÓ QUANDO PRESSIONA TECLA)
         UserInputService.InputBegan:Connect(function(input)
             if input.UserInputType == Enum.UserInputType.Keyboard and input.KeyCode == currentKeybind then
                 DoTeleportAndSteal()
@@ -802,7 +794,7 @@ local function CreateToggle(parent, y, label, desc, id, callback)
 end
 
 -- =============================================
--- MAIN MENU
+-- MAIN MENU (IGUAL O PRIMEIRO QUE FUNCIONAVA)
 -- =============================================
 local MainMenu = nil
 local LawButton = nil
@@ -823,61 +815,51 @@ local function CreateMainMenu()
     frame.BackgroundTransparency = 0.05
     frame.BorderSizePixel = 0
     frame.Active = true
+    frame.Draggable = true
     frame.Parent = sg
     MakeCorner(frame, 12)
     MakeStroke(frame, Colors.Primary, 2)
     
-    -- TITLE BAR (DRAG AQUI)
-    local titleBar = Instance.new("Frame")
-    titleBar.Size = UDim2.new(1, 0, 0, 45)
-    titleBar.BackgroundColor3 = Colors.Panel
-    titleBar.BackgroundTransparency = 0.5
-    titleBar.Parent = frame
-    MakeCorner(titleBar, 12)
-    
-    local title = Instance.new("TextLabel")
-    title.Size = UDim2.new(1, 0, 1, 0)
+    -- Título
+    local title = Instance.new("TextLabel", frame)
+    title.Size = UDim2.new(1, 0, 0, 50)
     title.BackgroundTransparency = 1
     title.Text = "LAW HUB"
     title.Font = Enum.Font.GothamBlack
-    title.TextSize = 22
+    title.TextSize = 24
     title.TextColor3 = Colors.Primary
-    title.Parent = titleBar
     
-    local line = Instance.new("Frame")
+    -- Separador
+    local line = Instance.new("Frame", frame)
     line.Size = UDim2.new(0.9, 0, 0, 2)
-    line.Position = UDim2.new(0.05, 0, 0, 48)
+    line.Position = UDim2.new(0.05, 0, 0, 52)
     line.BackgroundColor3 = Colors.Primary
-    line.Parent = frame
     
-    local scroll = Instance.new("ScrollingFrame")
+    -- Scroll
+    local scroll = Instance.new("ScrollingFrame", frame)
     scroll.Size = UDim2.new(1, 0, 1, -75)
-    scroll.Position = UDim2.new(0, 0, 0, 55)
+    scroll.Position = UDim2.new(0, 0, 0, 60)
     scroll.BackgroundTransparency = 1
     scroll.ScrollBarThickness = 3
     scroll.ScrollBarImageColor3 = Colors.Primary
     scroll.CanvasSize = UDim2.new(0, 0, 0, 300)
-    scroll.Parent = frame
     
-    local container = Instance.new("Frame")
+    local container = Instance.new("Frame", scroll)
     container.Size = UDim2.new(1, 0, 0, 300)
     container.BackgroundTransparency = 1
-    container.Parent = scroll
     
     -- Toggles
     CreateToggle(container, 5, "INSTANT STEAL V2", "Auto teleport + steal", "steal", function(on)
         Toggles.steal = on
         if on then
             ShowStealPanel(true)
-            StartStealLoop()
         else
             ShowStealPanel(false)
-            StopStealLoop()
         end
     end)
     
     CreateToggle(container, 65, "ACTIVE POTION", "Potion Teleport Helper", "potion", function(on)
-        -- Apenas visual, sem função
+        -- Apenas visual
     end)
     
     CreateToggle(container, 125, "UNLOCK BASE", "Unlock other player's base", "unlock", function(on)
@@ -888,7 +870,8 @@ local function CreateMainMenu()
         ShowActionsPanel(on)
     end)
     
-    local footer = Instance.new("TextLabel")
+    -- Footer
+    local footer = Instance.new("TextLabel", frame)
     footer.Size = UDim2.new(1, 0, 0, 22)
     footer.Position = UDim2.new(0, 0, 1, -24)
     footer.BackgroundTransparency = 1
@@ -896,50 +879,17 @@ local function CreateMainMenu()
     footer.Font = Enum.Font.Gotham
     footer.TextSize = 9
     footer.TextColor3 = Color3.fromRGB(100, 100, 100)
-    footer.Parent = frame
-    
-    -- DRAG SYSTEM
-    local dragging = false
-    local dragStart = nil
-    local frameStart = nil
-    
-    titleBar.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            dragging = true
-            dragStart = input.Position
-            frameStart = frame.Position
-        end
-    end)
-    
-    titleBar.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            dragging = false
-        end
-    end)
-    
-    UserInputService.InputChanged:Connect(function(input)
-        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-            local delta = input.Position - dragStart
-            frame.Position = UDim2.new(
-                frameStart.X.Scale,
-                frameStart.X.Offset + delta.X,
-                frameStart.Y.Scale,
-                frameStart.Y.Offset + delta.Y
-            )
-        end
-    end)
     
     MainMenu = sg
 end
 
 -- =============================================
--- FLOATING LAW BUTTON
+-- BOTÃO LAW
 -- =============================================
 local function CreateLawButton()
     if LawButton then LawButton:Destroy() end
     
     local btn = Instance.new("TextButton")
-    btn.Name = "LawButton"
     btn.Size = UDim2.new(0, 70, 0, 32)
     btn.Position = UDim2.new(1, -80, 0, 10)
     btn.BackgroundColor3 = Colors.BG
@@ -964,13 +914,12 @@ local function CreateLawButton()
 end
 
 -- =============================================
--- INITIALIZE
+-- INICIAR
 -- =============================================
 CreateLawButton()
 CreateMainMenu()
 
 print("✅ LAW HUB CARREGADO!")
 print("📌 Clique no botão LAW para abrir/fechar")
-print("🖱️ ARRASTE o menu pela barra superior (LAW HUB)")
-print("⚡ Teleport só vai quando clicar no botão Teleport ou tecla R")
-print("⚡ Potion Steal e Steal Speed funcionam só no momento do TP")
+print("⚡ Teleport só vai quando clicar no botão ou tecla R")
+print("⚡ Potion Steal e Steal Speed funcionam no momento do TP")
