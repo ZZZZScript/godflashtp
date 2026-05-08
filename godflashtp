@@ -1,6 +1,6 @@
 -- =============================================
--- LAW HUB - COMPLETE WITH INSTANT STEAL V2 (Like Fun Hub)
--- Instant Steal V2 | Active Potion | Unlock Base (3 floors) | Actions
+-- LAW HUB - EXACTLY LIKE FUN HUB
+-- Instant Steal V2 (Keybind R | Teleport | Activate | Potion Reset | Energy Speed)
 -- =============================================
 
 local Players = game:GetService("Players")
@@ -20,7 +20,6 @@ local Colors = {
     ToggleOn = Color3.fromRGB(255, 215, 0),
     ToggleOff = Color3.fromRGB(50, 50, 50),
     Button = Color3.fromRGB(40, 40, 40),
-    ButtonHover = Color3.fromRGB(60, 60, 60),
 }
 
 -- ESTADOS
@@ -34,19 +33,67 @@ local Toggles = {
 -- VARIÁVEIS DO INSTANT STEAL V2
 local InstantStealUI = nil
 local InstantStealEnabled = false
-local PotionStealEnabled = false
-local StealSpeedEnabled = false
+local PotionResetEnabled = false  -- Isso é o "Potion Steal" que reseta
+local EnergySpeedEnabled = false   -- Isso é o "Steal Speed" que dá energia/velocidade
 local currentSpeed = 28
 local currentKeybind = Enum.KeyCode.R
 local listening = false
 local teleporting = false
+local fflagsSet = false
 
 -- OUTRAS VARIÁVEIS
 local RootPart = nil
 local Humanoid = nil
 local StealLoop = nil
-local PotionConnection = nil
 local UIPanels = {}
+
+-- FFLAGS para reset (igual Fun Hub)
+local fflags = {
+    GameNetPVHeaderRotationalVelocityZeroCutoffExponent = -5000,
+    LargeReplicatorWrite5 = true,
+    LargeReplicatorEnabled9 = true,
+    AngularVelociryLimit = 360,
+    TimestepArbiterVelocityCriteriaThresholdTwoDt = 2147483646,
+    S2PhysicsSenderRate = 15000,
+    DisableDPIScale = true,
+    MaxDataPacketPerSend = 2147483647,
+    PhysicsSenderMaxBandwidthBps = 20000,
+    TimestepArbiterHumanoidLinearVelThreshold = 21,
+    MaxMissedWorldStepsRemembered = -2147483648,
+    PlayerHumanoidPropertyUpdateRestrict = true,
+    SimDefaultHumanoidTimestepMultiplier = 0,
+    StreamJobNOUVolumeLengthCap = 2147483647,
+    DebugSendDistInSteps = -2147483648,
+    GameNetDontSendRedundantNumTimes = 1,
+    CheckPVLinearVelocityIntegrateVsDeltaPositionThresholdPercent = 1,
+    CheckPVDifferencesForInterpolationMinVelThresholdStudsPerSecHundredth = 1,
+    LargeReplicatorSerializeRead3 = true,
+    ReplicationFocusNouExtentsSizeCutoffForPauseStuds = 2147483647,
+    CheckPVCachedVelThresholdPercent = 10,
+    CheckPVDifferencesForInterpolationMinRotVelThresholdRadsPerSecHundredth = 1,
+    GameNetDontSendRedundantDeltaPositionMillionth = 1,
+    InterpolationFrameVelocityThresholdMillionth = 5,
+    StreamJobNOUVolumeCap = 2147483647,
+    InterpolationFrameRotVelocityThresholdMillionth = 5,
+    CheckPVCachedRotVelThresholdPercent = 10,
+    WorldStepMax = 30,
+    InterpolationFramePositionThresholdMillionth = 5,
+    TimestepArbiterHumanoidTurningVelThreshold = 1,
+    SimOwnedNOUCountThresholdMillionth = 2147483647,
+    GameNetPVHeaderLinearVelocityZeroCutoffExponent = -5000,
+    NextGenReplicatorEnabledWrite4 = true,
+    TimestepArbiterOmegaThou = 1073741823,
+    MaxAcceptableUpdateDelay = 1,
+    LargeReplicatorSerializeWrite4 = true
+}
+
+local function SetFFlags()
+    for k, v in pairs(fflags) do
+        pcall(function()
+            setfflag(k, tostring(v))
+        end)
+    end
+end
 
 -- =============================================
 -- UTILIDADES
@@ -82,10 +129,9 @@ RootPart = char:FindFirstChild("HumanoidRootPart")
 Humanoid = char:FindFirstChildOfClass("Humanoid")
 
 -- =============================================
--- INSTANT STEAL V2 (IGUAL DA IMAGEM)
+-- INSTANT STEAL V2 (IGUAL FUN HUB)
 -- =============================================
 
--- Funções auxiliares
 local function GetAdminFrames()
     local adminPanel = LocalPlayer.PlayerGui:FindFirstChild("AdminPanel")
     if not adminPanel then return nil, nil end
@@ -159,20 +205,61 @@ local function EquipCarpet()
     end
 end
 
-local function UseGiantPotion()
-    local bp = LocalPlayer:FindFirstChild("Backpack")
+-- RESET (Potion Reset) - Isso reseta o personagem para o teleport funcionar
+local function DoReset()
+    if not fflagsSet then
+        for i = 1, 10 do
+            SetFFlags()
+        end
+        fflagsSet = true
+    end
+    
     local char = LocalPlayer.Character
-    if not bp or not char then return end
-    local potion = bp:FindFirstChild("Giant Potion")
-    if potion then
-        potion.Parent = char
-        pcall(function() potion:Activate() end)
+    if char then
+        char:Destroy()
     end
 end
 
+-- Energy Speed (Steal Speed)
+local EnergyConnection = nil
+local function StartEnergySpeed()
+    if EnergyConnection then EnergyConnection:Disconnect() end
+    EnergyConnection = RunService.Heartbeat:Connect(function()
+        if InstantStealEnabled and EnergySpeedEnabled and Humanoid then
+            local moveDir = Humanoid.MoveDirection
+            local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+            if hrp and moveDir.Magnitude > 0 then
+                hrp.AssemblyLinearVelocity = Vector3.new(
+                    moveDir.X * currentSpeed,
+                    hrp.AssemblyLinearVelocity.Y,
+                    moveDir.Z * currentSpeed
+                )
+            end
+        end
+    end)
+end
+
+local function StopEnergySpeed()
+    if EnergyConnection then
+        EnergyConnection:Disconnect()
+        EnergyConnection = nil
+    end
+end
+
+-- Teleport e Steal principal
 local function DoTeleportAndSteal()
     if teleporting then return end
     teleporting = true
+    
+    -- RESET primeiro se Potion Reset estiver ativo (igual Fun Hub)
+    if PotionResetEnabled then
+        DoReset()
+        task.wait(1.5)
+        local newChar = LocalPlayer.CharacterAdded:Wait()
+        RootPart = newChar:FindFirstChild("HumanoidRootPart")
+        Humanoid = newChar:FindFirstChildOfClass("Humanoid")
+        task.wait(0.5)
+    end
     
     local myPlot = GetMyPlot()
     if not myPlot then
@@ -198,14 +285,9 @@ local function DoTeleportAndSteal()
         TeleportTo(Vector3.new(-352.860, -7.002, 44.180))
     end
     
-    -- Ativar poção se estiver habilitado
-    if PotionStealEnabled then
-        UseGiantPotion()
-    end
-    
     task.wait(0.2)
     
-    -- Roubar do primeiro jogador disponível
+    -- Roubar
     for _, plr in pairs(Players:GetPlayers()) do
         if plr ~= LocalPlayer then
             RunCommandOnPlayer("steal", plr)
@@ -235,30 +317,8 @@ local function StopStealLoop()
     end
 end
 
--- Speed Boost para Steal Speed
-local function StartStealSpeed()
-    if StealSpeedEnabled then
-        local char = LocalPlayer.Character
-        local hrp = char and char:FindFirstChild("HumanoidRootPart")
-        if hrp then
-            RunService.Heartbeat:Connect(function()
-                if InstantStealEnabled and StealSpeedEnabled and Humanoid then
-                    local moveDir = Humanoid.MoveDirection
-                    if moveDir.Magnitude > 0 then
-                        hrp.AssemblyLinearVelocity = Vector3.new(
-                            moveDir.X * currentSpeed,
-                            hrp.AssemblyLinearVelocity.Y,
-                            moveDir.Z * currentSpeed
-                        )
-                    end
-                end
-            end)
-        end
-    end
-end
-
 -- =============================================
--- INSTANT STEAL V2 UI (IGUAL DA IMAGEM)
+-- INSTANT STEAL V2 UI (IGUAL FUN HUB)
 -- =============================================
 local function CreateInstantStealUI()
     if InstantStealUI then InstantStealUI:Destroy() end
@@ -269,8 +329,8 @@ local function CreateInstantStealUI()
     sg.Parent = LocalPlayer.PlayerGui
     
     local main = Instance.new("Frame")
-    main.Size = UDim2.new(0, 240, 0, 320)
-    main.Position = UDim2.new(0.5, -120, 0.35, 0)
+    main.Size = UDim2.new(0, 250, 0, 340)
+    main.Position = UDim2.new(0.5, -125, 0.35, 0)
     main.BackgroundColor3 = Colors.BG
     main.BackgroundTransparency = 0.1
     main.BorderSizePixel = 0
@@ -371,7 +431,7 @@ local function CreateInstantStealUI()
     optionsLabel.TextXAlignment = Enum.TextXAlignment.Left
     optionsLabel.Parent = main
     
-    -- Toggle Potion Steal
+    -- Toggle Potion Steal (RESET para teleport)
     local potionRow = Instance.new("Frame")
     potionRow.Size = UDim2.new(1, -16, 0, 30)
     potionRow.Position = UDim2.new(0, 8, 0, 218)
@@ -384,7 +444,7 @@ local function CreateInstantStealUI()
     potionLabel.Size = UDim2.new(1, -50, 1, 0)
     potionLabel.Position = UDim2.new(0, 8, 0, 0)
     potionLabel.BackgroundTransparency = 1
-    potionLabel.Text = "Potion Steal"
+    potionLabel.Text = "Potion Steal (Reset)"
     potionLabel.Font = Enum.Font.GothamBold
     potionLabel.TextSize = 11
     potionLabel.TextColor3 = Colors.Text
@@ -407,7 +467,7 @@ local function CreateInstantStealUI()
     potionKnob.Parent = potionSwitch
     MakeCorner(potionKnob, 7)
     
-    -- Toggle Steal Speed
+    -- Toggle Steal Speed (ENERGY)
     local speedRow = Instance.new("Frame")
     speedRow.Size = UDim2.new(1, -16, 0, 30)
     speedRow.Position = UDim2.new(0, 8, 0, 252)
@@ -420,7 +480,7 @@ local function CreateInstantStealUI()
     speedLabel.Size = UDim2.new(1, -50, 1, 0)
     speedLabel.Position = UDim2.new(0, 8, 0, 0)
     speedLabel.BackgroundTransparency = 1
-    speedLabel.Text = "Steal Speed"
+    speedLabel.Text = "Steal Speed (Energy)"
     speedLabel.Font = Enum.Font.GothamBold
     speedLabel.TextSize = 11
     speedLabel.TextColor3 = Colors.Text
@@ -482,7 +542,7 @@ local function CreateInstantStealUI()
     sliderKnob.Parent = sliderBar
     MakeCorner(sliderKnob, 6)
     
-    -- Cliques dos botões
+    -- Funções dos botões
     local function updateSlider(x)
         local percent = math.clamp((x - sliderBar.AbsolutePosition.X) / sliderBar.AbsoluteSize.X, 0, 1)
         sliderFill.Size = UDim2.new(percent, 0, 1, 0)
@@ -491,7 +551,7 @@ local function CreateInstantStealUI()
         sliderLabel.Text = "Speed: " .. currentSpeed
     end
     
-    -- Keybind logic
+    -- Keybind
     keybindBtn.MouseButton1Click:Connect(function()
         if listening then return end
         listening = true
@@ -506,29 +566,31 @@ local function CreateInstantStealUI()
         end)
     end)
     
-    -- Teleport button
+    -- Teleport
     teleportBtn.MouseButton1Click:Connect(function()
         DoTeleportAndSteal()
     end)
     
-    -- Activate button (ativa o toggle)
+    -- Activate
     activateBtn.MouseButton1Click:Connect(function()
         InstantStealEnabled = not InstantStealEnabled
         if InstantStealEnabled then
             StartStealLoop()
+            if EnergySpeedEnabled then StartEnergySpeed() end
             activateBtn.BackgroundColor3 = Colors.Primary
             activateBtn.TextColor3 = Colors.BG
         else
             StopStealLoop()
+            StopEnergySpeed()
             activateBtn.BackgroundColor3 = Colors.Button
             activateBtn.TextColor3 = Colors.Text
         end
     end)
     
-    -- Potion Steal toggle
+    -- Potion Steal (Reset)
     potionSwitch.MouseButton1Click:Connect(function()
-        PotionStealEnabled = not PotionStealEnabled
-        if PotionStealEnabled then
+        PotionResetEnabled = not PotionResetEnabled
+        if PotionResetEnabled then
             potionSwitch.BackgroundColor3 = Colors.ToggleOn
             potionKnob.Position = UDim2.new(1, -16, 0.5, -7)
             potionKnob.BackgroundColor3 = Color3.fromRGB(255,255,255)
@@ -539,22 +601,23 @@ local function CreateInstantStealUI()
         end
     end)
     
-    -- Steal Speed toggle
+    -- Steal Speed (Energy)
     speedSwitch.MouseButton1Click:Connect(function()
-        StealSpeedEnabled = not StealSpeedEnabled
-        if StealSpeedEnabled then
+        EnergySpeedEnabled = not EnergySpeedEnabled
+        if EnergySpeedEnabled then
             speedSwitch.BackgroundColor3 = Colors.ToggleOn
             speedKnob.Position = UDim2.new(1, -16, 0.5, -7)
             speedKnob.BackgroundColor3 = Color3.fromRGB(255,255,255)
-            StartStealSpeed()
+            if InstantStealEnabled then StartEnergySpeed() end
         else
             speedSwitch.BackgroundColor3 = Colors.ToggleOff
             speedKnob.Position = UDim2.new(0, 2, 0.5, -7)
             speedKnob.BackgroundColor3 = Color3.fromRGB(150,150,150)
+            StopEnergySpeed()
         end
     end)
     
-    -- Slider drag
+    -- Slider
     local draggingSlider = false
     sliderKnob.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 then
@@ -577,7 +640,7 @@ local function CreateInstantStealUI()
         end
     end)
     
-    -- Keybind para teleport
+    -- Keybind global
     UserInputService.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.Keyboard and input.KeyCode == currentKeybind then
             DoTeleportAndSteal()
@@ -586,41 +649,6 @@ local function CreateInstantStealUI()
     
     InstantStealUI = sg
     return sg
-end
-
--- =============================================
--- ACTIVE POTION WATCHER
--- =============================================
-local function StartPotionWatcher()
-    if PotionConnection then PotionConnection:Disconnect() end
-    local gui = LocalPlayer:WaitForChild("PlayerGui")
-    
-    local function CheckText(text)
-        if Toggles.active_potion and text and string.find(string.lower(text), "steal") then
-            UseGiantPotion()
-        end
-    end
-    
-    for _, obj in pairs(gui:GetDescendants()) do
-        if obj:IsA("TextLabel") then
-            CheckText(obj.Text)
-            obj:GetPropertyChangedSignal("Text"):Connect(function() CheckText(obj.Text) end)
-        end
-    end
-    
-    PotionConnection = gui.DescendantAdded:Connect(function(d)
-        if d:IsA("TextLabel") then
-            CheckText(d.Text)
-            d:GetPropertyChangedSignal("Text"):Connect(function() CheckText(d.Text) end)
-        end
-    end)
-end
-
-local function StopPotionWatcher()
-    if PotionConnection then
-        PotionConnection:Disconnect()
-        PotionConnection = nil
-    end
 end
 
 -- =============================================
@@ -824,7 +852,7 @@ local function CreateActionsUI()
         MakeStroke(btn, Colors.Primary, 1)
         
         btn.MouseEnter:Connect(function()
-            Tween(btn, {BackgroundColor3 = Colors.ButtonHover}, 0.1)
+            Tween(btn, {BackgroundColor3 = Color3.fromRGB(60, 60, 60)}, 0.1)
         end)
         btn.MouseLeave:Connect(function()
             Tween(btn, {BackgroundColor3 = Colors.Button}, 0.1)
@@ -987,16 +1015,13 @@ local function CreateMainMenu()
         else
             if InstantStealUI then InstantStealUI:Destroy(); InstantStealUI = nil end
             StopStealLoop()
+            StopEnergySpeed()
         end
     end)
     
-    CreateToggleSwitch(container, 65, "ACTIVE POTION", "Auto use potion when stealing", "active_potion", function(on)
+    CreateToggleSwitch(container, 65, "ACTIVE POTION", "Auto reset before teleport (Like Fun Hub)", "active_potion", function(on)
         Toggles.active_potion = on
-        if on then
-            StartPotionWatcher()
-        else
-            StopPotionWatcher()
-        end
+        -- Isso é o reset do teleport
     end)
     
     CreateToggleSwitch(container, 125, "UNLOCK BASE", "Unlock other player's base (3 floors)", "unlock_base", function(on)
@@ -1100,4 +1125,5 @@ CreateMainMenu()
 print("✅ LAW HUB CARREGADO!")
 print("📌 Clique no botão LAW para abrir/fechar")
 print("🖱️ ARRASTE o menu pela barra superior")
-print("⚡ INSTANT STEAL V2 igual ao Fun Hub (com Keybind, Teleport, Activate, Potion Steal, Steal Speed)")
+print("⚡ Potion Steal = RESET para teleport poder ir")
+print("⚡ Steal Speed = ENERGY boost")
