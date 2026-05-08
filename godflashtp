@@ -1,5 +1,5 @@
 -- =============================================
--- LAW HUB - CLEAN VERSION (No Blocker, No Raknet)
+-- LAW HUB - WITH 1 SECOND STAY IN BASE
 -- =============================================
 
 local Players = game:GetService("Players")
@@ -49,6 +49,9 @@ local StealKeywords = {
     "ac steal", "you stole", "you robbed", "você roubou",
     "has stolen", "has robbed"
 }
+
+-- POSIÇÃO PARA SAIR DA BASE (fora da base)
+local EXIT_POSITION = Vector3.new(-420, -7, 60)
 
 -- =============================================
 -- UTILIDADES
@@ -127,7 +130,7 @@ local function RunCommandOnPlayer(commandName, target)
 end
 
 -- =============================================
--- AUTO GRAB SYSTEM (Sem Blocker)
+-- AUTO GRAB SYSTEM
 -- =============================================
 local STEAL_COOLDOWN = 0.2
 local HOLD_DURATION = 0.5
@@ -270,7 +273,7 @@ local function DoReset()
 end
 
 -- =============================================
--- TELEPORT FUNCTIONS
+-- TELEPORT FUNCTIONS (COM 1 SEGUNDO NA BASE)
 -- =============================================
 local function GetMyPlot()
     local plots = workspace:FindFirstChild("Plots")
@@ -306,11 +309,12 @@ local function EquipCarpet()
     end
 end
 
--- FUNÇÃO PRINCIPAL DE TELEPORT E STEAL
+-- FUNÇÃO PRINCIPAL DE TELEPORT (ENTRA, FICA 1s, SAI)
 local function DoTeleportAndSteal()
     if teleporting then return end
     teleporting = true
     
+    -- USA POÇÃO SE POTION STEAL ESTIVER LIGADO
     if PotionStealEnabled then
         UseGiantPotion()
     end
@@ -325,22 +329,32 @@ local function DoTeleportAndSteal()
     task.wait(0.1)
     
     local order = myPlot:GetAttribute("Order")
+    local insidePos = nil
+    
+    -- Define a posição dentro da base baseada no andar
     if order == 2 then
+        insidePos = Vector3.new(-352, -7, 76)
         TeleportTo(Vector3.new(-368, -7, 69))
         task.wait(0.1)
         TeleportTo(Vector3.new(-336, -5, 100))
         task.wait(0.1)
-        TeleportTo(Vector3.new(-352, -7, 76))
+        TeleportTo(insidePos)
     elseif order == 1 then
+        insidePos = Vector3.new(-353, -7, 44)
         TeleportTo(Vector3.new(-368, -7, 42))
         task.wait(0.1)
         TeleportTo(Vector3.new(-336, -5, 20))
         task.wait(0.1)
-        TeleportTo(Vector3.new(-353, -7, 44))
+        TeleportTo(insidePos)
+    else
+        insidePos = Vector3.new(-353, -7, 44)
+        TeleportTo(insidePos)
     end
     
-    task.wait(0.2)
+    -- FICA 1 SEGUNDO DENTRO DA BASE
+    task.wait(1.0)
     
+    -- TENTA ROUBAR ENQUANTO ESTÁ DENTRO
     for _, plr in pairs(Players:GetPlayers()) do
         if plr ~= LocalPlayer then
             RunCommandOnPlayer("steal", plr)
@@ -348,7 +362,12 @@ local function DoTeleportAndSteal()
         end
     end
     
-    task.wait(0.5)
+    task.wait(0.2)
+    
+    -- SAI DA BASE (teleporta para fora)
+    TeleportTo(EXIT_POSITION)
+    
+    task.wait(0.3)
     teleporting = false
 end
 
@@ -462,7 +481,7 @@ local function ShowStealPanel(show)
         sub.Size = UDim2.new(1, 0, 0, 20)
         sub.Position = UDim2.new(0, 0, 0, 32)
         sub.BackgroundTransparency = 1
-        sub.Text = "Teleport Helper"
+        sub.Text = "Teleport Helper (1s inside)"
         sub.Font = Enum.Font.Gotham
         sub.TextSize = 10
         sub.TextColor3 = Color3.fromRGB(150,150,150)
@@ -697,7 +716,7 @@ local function ShowStealPanel(show)
             end
         end)
         
-        -- Keybind global
+        -- Keybind global para Teleport
         UserInputService.InputBegan:Connect(function(input)
             if input.UserInputType == Enum.UserInputType.Keyboard and input.KeyCode == currentKeybind then
                 DoTeleportAndSteal()
@@ -987,7 +1006,7 @@ local function CreateMainMenu()
     container.BackgroundTransparency = 1
     
     -- Toggle 1: Instant Steal V2
-    CreateToggle(container, 5, "INSTANT STEAL V2", "Teleport and steal Brainrot", "steal", function(on)
+    CreateToggle(container, 5, "INSTANT STEAL V2", "Teleport (1s inside) and steal", "steal", function(on)
         Toggles.steal = on
         if on then
             ShowStealPanel(true)
@@ -1075,7 +1094,7 @@ CreateMainMenu()
 
 print("=== LAW HUB CARREGADO ===")
 print("Clique no botão LAW para abrir")
-print("INSTANT STEAL = Teleport + Steal")
+print("INSTANT STEAL = Teleport (fica 1s na base) + Steal + Sai")
 print("AUTO GRAB = Auto steal sem blocker")
 print("ACTIVE POTION = Auto usa poção ao pegar Brainrot")
 print("UNLOCK BASE = Desbloqueia base de outros")
