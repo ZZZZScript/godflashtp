@@ -1,5 +1,5 @@
 -- =============================================
--- LAW HUB - CORRIGIDO (Sem getrawmetatable)
+-- LAW HUB - VERSÃO ESTÁVEL (SEM ANTI-CHEAT)
 -- =============================================
 
 local Players = game:GetService("Players")
@@ -71,45 +71,6 @@ local StealKeywords = {
     "ac steal", "you stole", "you robbed", "você roubou",
     "has stolen", "has robbed"
 }
-
--- =============================================
--- ANTI-CHEAT SYSTEM (CORRIGIDO - SEM GETRAWMETATABLE)
--- =============================================
-local AntiCheatActive = true
-
-local function BlockKick()
-    -- Método simples e seguro de bloquear kick
-    local originalKick = LocalPlayer.Kick
-    LocalPlayer.Kick = function(self, message)
-        warn("[ANTI-CHEAT] Kick bloqueado: " .. tostring(message))
-        return nil
-    end
-end
-
-local function AntiCheatLoop()
-    while AntiCheatActive and task.wait(0.5) do
-        pcall(function()
-            -- Impede morte do personagem
-            if LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
-                local hum = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
-                if hum and hum.Health <= 0 then
-                    hum.Health = hum.MaxHealth
-                end
-            end
-            
-            -- Impede que seja removido do jogo
-            if not LocalPlayer.Parent then
-                warn("[ANTI-CHEAT] Tentativa de desconexão detectada!")
-            end
-        end)
-    end
-end
-
-local function StartAntiCheat()
-    BlockKick()
-    task.spawn(AntiCheatLoop)
-    print("[ANTI-CHEAT] Proteção ativada!")
-end
 
 -- =============================================
 -- FUNÇÕES DE SALVAR/CARREGAR
@@ -186,7 +147,6 @@ local function StartStealSpeed()
                 if hrp and hum then
                     local moveDir = hum.MoveDirection
                     if moveDir.Magnitude > 0 then
-                        -- Aplica velocidade constante
                         hrp.AssemblyLinearVelocity = Vector3.new(
                             moveDir.X * currentSpeed,
                             hrp.AssemblyLinearVelocity.Y,
@@ -215,7 +175,6 @@ LocalPlayer.CharacterAdded:Connect(function(char)
     task.wait(0.5)
     RootPart = char:FindFirstChild("HumanoidRootPart")
     Humanoid = char:FindFirstChildOfClass("Humanoid")
-    print("[CHARACTER] Personagem atualizado")
 end)
 
 local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
@@ -1214,7 +1173,6 @@ end
 -- =============================================
 -- INICIAR
 -- =============================================
-StartAntiCheat()
 LoadConfig()
 CreateLawButton()
 CreateMainMenu()
@@ -1229,6 +1187,5 @@ if Toggles.unlock then ShowUnlockPanel(true) end
 if Toggles.actions then ShowActionsPanel(true) end
 
 print("=== LAW HUB CARREGADO ===")
-print("[ANTI-CHEAT] Proteção ativada!")
 print("[STEAL SPEED] Velocidade configurável pelo slider")
 print("Clique no botão LAW para abrir")
