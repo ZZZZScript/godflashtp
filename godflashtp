@@ -1,5 +1,5 @@
 -- =============================================
--- LAW HUB - FULLY CORRECTED
+-- LAW HUB - COMPLETE FIXED
 -- =============================================
 
 local Players = game:GetService("Players")
@@ -22,13 +22,13 @@ local Colors = {
 -- ESTADOS
 local Toggles = {
     steal = false,
-    active_potion = false,  -- Auto usa poção quando pega Brainrot
+    active_potion = false,  -- Faz RESET igual ao botão do painel
     unlock = false,
     actions = false,
 }
 
 -- VARIAVEIS
-local PotionStealEnabled = false  -- Usa poção no Teleport (toggle Options)
+local PotionStealEnabled = false
 local SpeedEnabled = false
 local currentSpeed = 28
 local currentKeybind = Enum.KeyCode.R
@@ -38,7 +38,6 @@ local teleporting = false
 local RootPart = nil
 local Humanoid = nil
 local UIPanels = {}
-local ActivePotionConnection = nil
 
 -- =============================================
 -- UTILIDADES
@@ -74,7 +73,7 @@ RootPart = char:FindFirstChild("HumanoidRootPart")
 Humanoid = char:FindFirstChildOfClass("Humanoid")
 
 -- =============================================
--- ADMIN COMMANDS
+-- ADMIN COMMANDS (PARA ROUBAR BRAINROT)
 -- =============================================
 local function GetAdminFrames()
     local adminPanel = LocalPlayer.PlayerGui:FindFirstChild("AdminPanel")
@@ -100,11 +99,11 @@ end
 
 local function RunCommandOnPlayer(commandName, target)
     local commandFrame, profileFrame = GetAdminFrames()
-    if not commandFrame or not profileFrame then return end
+    if not commandFrame or not profileFrame then return false end
     
     local profileButton = profileFrame:FindFirstChild(target.Name)
     local commandButton = commandFrame:FindFirstChild(commandName)
-    if not profileButton or not commandButton then return end
+    if not profileButton or not commandButton then return false end
     
     FireButton(profileButton)
     task.wait(0.05)
@@ -113,58 +112,15 @@ local function RunCommandOnPlayer(commandName, target)
     FireButton(profileButton)
     task.wait(0.05)
     FireButton(commandButton)
+    return true
 end
 
 -- =============================================
--- ACTIVE POTION (AUTO USA POÇÃO QUANDO PEGA BRAINROT)
+-- FUNÇÃO DE RESET (ACTIVE POTION)
 -- =============================================
-local function UseGiantPotion()
-    local bp = LocalPlayer:FindFirstChild("Backpack")
-    local char = LocalPlayer.Character
-    if not bp or not char then return end
-    local potion = bp:FindFirstChild("Giant Potion")
-    if potion then
-        potion.Parent = char
-        pcall(function() potion:Activate() end)
-    end
-end
-
-local function StartActivePotionWatcher()
-    if ActivePotionConnection then ActivePotionConnection:Disconnect() end
-    
-    local gui = LocalPlayer:WaitForChild("PlayerGui")
-    
-    local function CheckForSteal(text)
-        if Toggles.active_potion and text and string.find(string.lower(text), "you stole") then
-            UseGiantPotion()
-        end
-    end
-    
-    -- Verificar objetos existentes
-    for _, obj in pairs(gui:GetDescendants()) do
-        if obj:IsA("TextLabel") then
-            CheckForSteal(obj.Text)
-            obj:GetPropertyChangedSignal("Text"):Connect(function()
-                CheckForSteal(obj.Text)
-            end)
-        end
-    end
-    
-    -- Verificar novos objetos
-    ActivePotionConnection = gui.DescendantAdded:Connect(function(d)
-        if d:IsA("TextLabel") then
-            CheckForSteal(d.Text)
-            d:GetPropertyChangedSignal("Text"):Connect(function()
-                CheckForSteal(d.Text)
-            end)
-        end
-    end)
-end
-
-local function StopActivePotionWatcher()
-    if ActivePotionConnection then
-        ActivePotionConnection:Disconnect()
-        ActivePotionConnection = nil
+local function DoReset()
+    if LocalPlayer.Character then
+        LocalPlayer.Character:Destroy()
     end
 end
 
@@ -205,17 +161,23 @@ local function EquipCarpet()
     end
 end
 
-local function DoReset()
-    if LocalPlayer.Character then
-        LocalPlayer.Character:Destroy()
+local function UseGiantPotion()
+    local bp = LocalPlayer:FindFirstChild("Backpack")
+    local char = LocalPlayer.Character
+    if not bp or not char then return end
+    local potion = bp:FindFirstChild("Giant Potion")
+    if potion then
+        potion.Parent = char
+        pcall(function() potion:Activate() end)
     end
 end
 
+-- FUNÇÃO PRINCIPAL DE TELEPORT E STEAL
 local function DoTeleportAndSteal()
     if teleporting then return end
     teleporting = true
     
-    -- USA POÇÃO SE POTION STEAL ESTIVER LIGADO (toggle Options)
+    -- USA POÇÃO SE POTION STEAL ESTIVER LIGADO
     if PotionStealEnabled then
         UseGiantPotion()
     end
@@ -246,10 +208,23 @@ local function DoTeleportAndSteal()
     
     task.wait(0.2)
     
+    -- ROUBAR BRAINROT (usa admin panel)
+    local success = false
     for _, plr in pairs(Players:GetPlayers()) do
         if plr ~= LocalPlayer then
-            RunCommandOnPlayer("steal", plr)
-            break
+            success = RunCommandOnPlayer("steal", plr)
+            if success then break end
+        end
+    end
+    
+    if not success then
+        print("Tentando novamente...")
+        task.wait(0.3)
+        for _, plr in pairs(Players:GetPlayers()) do
+            if plr ~= LocalPlayer then
+                RunCommandOnPlayer("steal", plr)
+                break
+            end
         end
     end
     
@@ -415,7 +390,7 @@ local function ShowStealPanel(show)
             task.delay(0.2, function() teleBtn.BackgroundColor3 = Colors.Panel end)
         end)
         
-        -- Active Potion (botão de RESET)
+        -- Reset (Active Potion do painel)
         local resetBtn = Instance.new("TextButton", f)
         resetBtn.Size = UDim2.new(1, -16, 0, 35)
         resetBtn.Position = UDim2.new(0, 8, 0, 150)
@@ -449,7 +424,7 @@ local function ShowStealPanel(show)
         opt.TextColor3 = Color3.fromRGB(150,150,150)
         opt.TextXAlignment = Enum.TextXAlignment.Left
         
-        -- Potion Steal Toggle (usa poção no Teleport)
+        -- Potion Steal Toggle
         local potRow = Instance.new("Frame", f)
         potRow.Size = UDim2.new(1, -16, 0, 30)
         potRow.Position = UDim2.new(0, 8, 0, 218)
@@ -603,7 +578,7 @@ local function ShowStealPanel(show)
             end
         end)
         
-        -- Keybind global
+        -- Keybind global para Teleport
         UserInputService.InputBegan:Connect(function(input)
             if input.UserInputType == Enum.UserInputType.Keyboard and input.KeyCode == currentKeybind then
                 DoTeleportAndSteal()
@@ -733,45 +708,10 @@ local function ShowActionsPanel(show)
             MakeCorner(btn, 8)
             MakeStroke(btn, Colors.Primary, 1)
             
-            -- Botão direito para Keybind
-            local keybindLabel = Instance.new("TextLabel", btn)
-            keybindLabel.Size = UDim2.new(0, 40, 1, 0)
-            keybindLabel.Position = UDim2.new(1, -45, 0, 0)
-            keybindLabel.BackgroundTransparency = 1
-            keybindLabel.Text = ""
-            keybindLabel.Font = Enum.Font.GothamBold
-            keybindLabel.TextSize = 9
-            keybindLabel.TextColor3 = Colors.Primary
-            keybindLabel.TextXAlignment = Enum.TextXAlignment.Right
-            
-            local actionKeybind = nil
-            local actionListening = false
-            
-            btn.MouseButton2Click:Connect(function()
-                if actionListening then return end
-                actionListening = true
-                keybindLabel.Text = "..."
-                local conn
-                conn = UserInputService.InputBegan:Connect(function(input)
-                    if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
-                    conn:Disconnect()
-                    actionKeybind = input.KeyCode
-                    keybindLabel.Text = input.KeyCode.Name
-                    actionListening = false
-                end)
-            end)
-            
             btn.MouseButton1Click:Connect(function()
                 btn.BackgroundColor3 = Colors.Primary
                 task.delay(0.15, function() btn.BackgroundColor3 = Colors.Panel end)
                 pcall(btnData[2])
-            end)
-            
-            -- Keybind global para ações
-            UserInputService.InputBegan:Connect(function(input)
-                if input.UserInputType == Enum.UserInputType.Keyboard and actionKeybind and input.KeyCode == actionKeybind then
-                    pcall(btnData[2])
-                end
             end)
         end
         
@@ -918,7 +858,7 @@ local function CreateMainMenu()
     container.BackgroundTransparency = 1
     
     -- Toggle 1: Instant Steal V2
-    CreateToggle(container, 5, "INSTANT STEAL V2", "Auto teleport + steal", "steal", function(on)
+    CreateToggle(container, 5, "INSTANT STEAL V2", "Teleport and steal Brainrot", "steal", function(on)
         Toggles.steal = on
         if on then
             ShowStealPanel(true)
@@ -927,13 +867,11 @@ local function CreateMainMenu()
         end
     end)
     
-    -- Toggle 2: Active Potion (auto usa poção quando pega Brainrot)
-    CreateToggle(container, 65, "ACTIVE POTION", "Auto use potion when you get Brainrot", "active_potion", function(on)
+    -- Toggle 2: Active Potion (igual ao botão Reset do painel)
+    CreateToggle(container, 65, "ACTIVE POTION", "Reset character", "active_potion", function(on)
         Toggles.active_potion = on
         if on then
-            StartActivePotionWatcher()
-        else
-            StopActivePotionWatcher()
+            DoReset()
         end
     end)
     
@@ -998,6 +936,7 @@ CreateMainMenu()
 
 print("=== LAW HUB CARREGADO ===")
 print("Clique no botão LAW para abrir")
-print("Botão direito do mouse para Keybind")
-print("ACTIVE POTION = auto usa poção quando pega Brainrot")
+print("INSTANT STEAL = Teleport + Steal Brainrot")
+print("ACTIVE POTION = Reset character")
 print("Potion Steal = usa poção no Teleport")
+print("Steal Speed = velocidade no roubo")
