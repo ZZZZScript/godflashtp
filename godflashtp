@@ -1,5 +1,5 @@
 -- =============================================
--- LAW HUB - WITH 1 SECOND STAY IN BASE
+-- LAW HUB - WITH WORKING TELEPORT, STEAL SPEED & AUTO SAVE
 -- =============================================
 
 local Players = game:GetService("Players")
@@ -8,6 +8,7 @@ local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local TeleportService = game:GetService("TeleportService")
 local CoreGui = game:GetService("CoreGui")
+local HttpService = game:GetService("HttpService")
 local LocalPlayer = Players.LocalPlayer
 
 -- CORES
@@ -18,6 +19,26 @@ local Colors = {
     Text = Color3.fromRGB(255, 255, 255),
     ToggleOn = Color3.fromRGB(255, 215, 0),
     ToggleOff = Color3.fromRGB(50, 50, 50),
+}
+
+-- ARQUIVO DE CONFIGURAÇÃO
+local CONFIG_FILE = "law_hub_config.json"
+
+-- CONFIGURAÇÕES SALVAS
+local SavedConfig = {
+    toggles = {
+        steal = false,
+        auto_grab = false,
+        active_potion = false,
+        unlock = false,
+        actions = false,
+    },
+    settings = {
+        potion_steal = false,
+        steal_speed = false,
+        current_speed = 28,
+        keybind = "R",
+    }
 }
 
 -- ESTADOS
@@ -31,13 +52,14 @@ local Toggles = {
 
 -- VARIAVEIS
 local PotionStealEnabled = false
-local SpeedEnabled = false
+local StealSpeedEnabled = false
 local currentSpeed = 28
 local currentKeybind = Enum.KeyCode.R
 local listening = false
 local teleporting = false
 local ActivePotionConnection = nil
 local AutoGrabLoop = nil
+local SpeedLoop = nil
 
 local RootPart = nil
 local Humanoid = nil
@@ -50,8 +72,46 @@ local StealKeywords = {
     "has stolen", "has robbed"
 }
 
--- POSIÇÃO PARA SAIR DA BASE (fora da base)
-local EXIT_POSITION = Vector3.new(-420, -7, 60)
+-- =============================================
+-- FUNÇÕES DE SALVAR/CARREGAR
+-- =============================================
+local function SaveConfig()
+    SavedConfig.toggles.steal = Toggles.steal
+    SavedConfig.toggles.auto_grab = Toggles.auto_grab
+    SavedConfig.toggles.active_potion = Toggles.active_potion
+    SavedConfig.toggles.unlock = Toggles.unlock
+    SavedConfig.toggles.actions = Toggles.actions
+    SavedConfig.settings.potion_steal = PotionStealEnabled
+    SavedConfig.settings.steal_speed = StealSpeedEnabled
+    SavedConfig.settings.current_speed = currentSpeed
+    SavedConfig.settings.keybind = currentKeybind.Name
+    
+    pcall(function()
+        writefile(CONFIG_FILE, HttpService:JSONEncode(SavedConfig))
+        print("✅ Configuração salva!")
+    end)
+end
+
+local function LoadConfig()
+    pcall(function()
+        if isfile(CONFIG_FILE) then
+            local data = HttpService:JSONDecode(readfile(CONFIG_FILE))
+            if data then
+                SavedConfig = data
+                Toggles.steal = SavedConfig.toggles.steal
+                Toggles.auto_grab = SavedConfig.toggles.auto_grab
+                Toggles.active_potion = SavedConfig.toggles.active_potion
+                Toggles.unlock = SavedConfig.toggles.unlock
+                Toggles.actions = SavedConfig.toggles.actions
+                PotionStealEnabled = SavedConfig.settings.potion_steal
+                StealSpeedEnabled = SavedConfig.settings.steal_speed
+                currentSpeed = SavedConfig.settings.current_speed
+                currentKeybind = Enum.KeyCode[SavedConfig.settings.keybind] or Enum.KeyCode.R
+                print("✅ Configuração carregada!")
+            end
+        end
+    end)
+end
 
 -- =============================================
 -- UTILIDADES
@@ -71,6 +131,33 @@ local function MakeStroke(obj, color, thick)
     s.Color = color or Colors.Primary
     s.Thickness = thick or 1.5
     s.Parent = obj
+end
+
+-- =============================================
+-- STEAL SPEED (FUNCIONANDO)
+-- =============================================
+local function StartStealSpeed()
+    if SpeedLoop then SpeedLoop:Disconnect() end
+    SpeedLoop = RunService.Heartbeat:Connect(function()
+        if StealSpeedEnabled and Toggles.steal and Humanoid then
+            local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+            local moveDir = Humanoid.MoveDirection
+            if hrp and moveDir.Magnitude > 0 then
+                hrp.AssemblyLinearVelocity = Vector3.new(
+                    moveDir.X * currentSpeed,
+                    hrp.AssemblyLinearVelocity.Y,
+                    moveDir.Z * currentSpeed
+                )
+            end
+        end
+    end)
+end
+
+local function StopStealSpeed()
+    if SpeedLoop then
+        SpeedLoop:Disconnect()
+        SpeedLoop = nil
+    end
 end
 
 -- =============================================
@@ -273,7 +360,7 @@ local function DoReset()
 end
 
 -- =============================================
--- TELEPORT FUNCTIONS (COM 1 SEGUNDO NA BASE)
+-- TELEPORT FUNCTIONS (CORRETO)
 -- =============================================
 local function GetMyPlot()
     local plots = workspace:FindFirstChild("Plots")
@@ -309,12 +396,11 @@ local function EquipCarpet()
     end
 end
 
--- FUNÇÃO PRINCIPAL DE TELEPORT (ENTRA, FICA 1s, SAI)
+-- FUNÇÃO PRINCIPAL DE TELEPORT (CORRETA - IGUAL DOS SCRIPTS ANTIGOS)
 local function DoTeleportAndSteal()
     if teleporting then return end
     teleporting = true
     
-    -- USA POÇÃO SE POTION STEAL ESTIVER LIGADO
     if PotionStealEnabled then
         UseGiantPotion()
     end
@@ -329,32 +415,22 @@ local function DoTeleportAndSteal()
     task.wait(0.1)
     
     local order = myPlot:GetAttribute("Order")
-    local insidePos = nil
-    
-    -- Define a posição dentro da base baseada no andar
     if order == 2 then
-        insidePos = Vector3.new(-352, -7, 76)
         TeleportTo(Vector3.new(-368, -7, 69))
         task.wait(0.1)
         TeleportTo(Vector3.new(-336, -5, 100))
         task.wait(0.1)
-        TeleportTo(insidePos)
+        TeleportTo(Vector3.new(-352, -7, 76))
     elseif order == 1 then
-        insidePos = Vector3.new(-353, -7, 44)
         TeleportTo(Vector3.new(-368, -7, 42))
         task.wait(0.1)
         TeleportTo(Vector3.new(-336, -5, 20))
         task.wait(0.1)
-        TeleportTo(insidePos)
-    else
-        insidePos = Vector3.new(-353, -7, 44)
-        TeleportTo(insidePos)
+        TeleportTo(Vector3.new(-353, -7, 44))
     end
     
-    -- FICA 1 SEGUNDO DENTRO DA BASE
-    task.wait(1.0)
+    task.wait(0.2)
     
-    -- TENTA ROUBAR ENQUANTO ESTÁ DENTRO
     for _, plr in pairs(Players:GetPlayers()) do
         if plr ~= LocalPlayer then
             RunCommandOnPlayer("steal", plr)
@@ -362,12 +438,7 @@ local function DoTeleportAndSteal()
         end
     end
     
-    task.wait(0.2)
-    
-    -- SAI DA BASE (teleporta para fora)
-    TeleportTo(EXIT_POSITION)
-    
-    task.wait(0.3)
+    task.wait(0.5)
     teleporting = false
 end
 
@@ -481,7 +552,7 @@ local function ShowStealPanel(show)
         sub.Size = UDim2.new(1, 0, 0, 20)
         sub.Position = UDim2.new(0, 0, 0, 32)
         sub.BackgroundTransparency = 1
-        sub.Text = "Teleport Helper (1s inside)"
+        sub.Text = "Teleport Helper"
         sub.Font = Enum.Font.Gotham
         sub.TextSize = 10
         sub.TextColor3 = Color3.fromRGB(150,150,150)
@@ -491,7 +562,7 @@ local function ShowStealPanel(show)
         kbBtn.Size = UDim2.new(1, -16, 0, 28)
         kbBtn.Position = UDim2.new(0, 8, 0, 73)
         kbBtn.BackgroundColor3 = Colors.Panel
-        kbBtn.Text = "[R]"
+        kbBtn.Text = "[" .. currentKeybind.Name .. "]"
         kbBtn.Font = Enum.Font.GothamBold
         kbBtn.TextSize = 12
         MakeCorner(kbBtn, 6)
@@ -508,6 +579,7 @@ local function ShowStealPanel(show)
                 currentKeybind = input.KeyCode
                 kbBtn.Text = "[" .. input.KeyCode.Name .. "]"
                 listening = false
+                SaveConfig()
             end)
         end)
         
@@ -583,13 +655,13 @@ local function ShowStealPanel(show)
         local potSw = Instance.new("Frame", potRow)
         potSw.Size = UDim2.new(0, 36, 0, 18)
         potSw.Position = UDim2.new(1, -44, 0.5, -9)
-        potSw.BackgroundColor3 = Colors.ToggleOff
+        potSw.BackgroundColor3 = PotionStealEnabled and Colors.ToggleOn or Colors.ToggleOff
         MakeCorner(potSw, 9)
         
         local potKnob = Instance.new("Frame", potSw)
         potKnob.Size = UDim2.new(0, 14, 0, 14)
-        potKnob.Position = UDim2.new(0, 2, 0.5, -7)
-        potKnob.BackgroundColor3 = Color3.fromRGB(150,150,150)
+        potKnob.Position = PotionStealEnabled and UDim2.new(1, -16, 0.5, -7) or UDim2.new(0, 2, 0.5, -7)
+        potKnob.BackgroundColor3 = PotionStealEnabled and Color3.fromRGB(255,255,255) or Color3.fromRGB(150,150,150)
         MakeCorner(potKnob, 7)
         
         local potClick = Instance.new("TextButton", potSw)
@@ -608,6 +680,7 @@ local function ShowStealPanel(show)
                 potKnob.Position = UDim2.new(0, 2, 0.5, -7)
                 potKnob.BackgroundColor3 = Color3.fromRGB(150,150,150)
             end
+            SaveConfig()
         end)
         
         -- Steal Speed Toggle
@@ -631,13 +704,13 @@ local function ShowStealPanel(show)
         local spdSw = Instance.new("Frame", spdRow)
         spdSw.Size = UDim2.new(0, 36, 0, 18)
         spdSw.Position = UDim2.new(1, -44, 0.5, -9)
-        spdSw.BackgroundColor3 = Colors.ToggleOff
+        spdSw.BackgroundColor3 = StealSpeedEnabled and Colors.ToggleOn or Colors.ToggleOff
         MakeCorner(spdSw, 9)
         
         local spdKnob = Instance.new("Frame", spdSw)
         spdKnob.Size = UDim2.new(0, 14, 0, 14)
-        spdKnob.Position = UDim2.new(0, 2, 0.5, -7)
-        spdKnob.BackgroundColor3 = Color3.fromRGB(150,150,150)
+        spdKnob.Position = StealSpeedEnabled and UDim2.new(1, -16, 0.5, -7) or UDim2.new(0, 2, 0.5, -7)
+        spdKnob.BackgroundColor3 = StealSpeedEnabled and Color3.fromRGB(255,255,255) or Color3.fromRGB(150,150,150)
         MakeCorner(spdKnob, 7)
         
         local spdClick = Instance.new("TextButton", spdSw)
@@ -646,16 +719,19 @@ local function ShowStealPanel(show)
         spdClick.Text = ""
         
         spdClick.MouseButton1Click:Connect(function()
-            SpeedEnabled = not SpeedEnabled
-            if SpeedEnabled then
+            StealSpeedEnabled = not StealSpeedEnabled
+            if StealSpeedEnabled then
                 spdSw.BackgroundColor3 = Colors.ToggleOn
                 spdKnob.Position = UDim2.new(1, -16, 0.5, -7)
                 spdKnob.BackgroundColor3 = Color3.fromRGB(255,255,255)
+                StartStealSpeed()
             else
                 spdSw.BackgroundColor3 = Colors.ToggleOff
                 spdKnob.Position = UDim2.new(0, 2, 0.5, -7)
                 spdKnob.BackgroundColor3 = Color3.fromRGB(150,150,150)
+                StopStealSpeed()
             end
+            SaveConfig()
         end)
         
         -- Slider
@@ -667,7 +743,7 @@ local function ShowStealPanel(show)
         local sldLabel = Instance.new("TextLabel", sldFrame)
         sldLabel.Size = UDim2.new(1, 0, 0, 15)
         sldLabel.BackgroundTransparency = 1
-        sldLabel.Text = "Speed: 28"
+        sldLabel.Text = "Speed: " .. currentSpeed
         sldLabel.Font = Enum.Font.Gotham
         sldLabel.TextSize = 10
         sldLabel.TextColor3 = Colors.Text
@@ -679,23 +755,25 @@ local function ShowStealPanel(show)
         sldBar.BackgroundColor3 = Colors.Panel
         MakeCorner(sldBar, 2)
         
+        local percent = (currentSpeed - 26) / (36 - 26)
         local sldFill = Instance.new("Frame", sldBar)
-        sldFill.Size = UDim2.new(0.2, 0, 1, 0)
+        sldFill.Size = UDim2.new(percent, 0, 1, 0)
         sldFill.BackgroundColor3 = Colors.Primary
         MakeCorner(sldFill, 2)
         
         local sldKnob = Instance.new("Frame", sldBar)
         sldKnob.Size = UDim2.new(0, 12, 0, 12)
-        sldKnob.Position = UDim2.new(0.2, -6, 0.5, -6)
+        sldKnob.Position = UDim2.new(percent, -6, 0.5, -6)
         sldKnob.BackgroundColor3 = Colors.Text
         MakeCorner(sldKnob, 6)
         
         local function UpdateSlider(x)
-            local percent = math.clamp((x - sldBar.AbsolutePosition.X) / sldBar.AbsoluteSize.X, 0, 1)
-            sldFill.Size = UDim2.new(percent, 0, 1, 0)
-            sldKnob.Position = UDim2.new(percent, -6, 0.5, -6)
-            currentSpeed = math.floor(26 + (36 - 26) * percent)
+            local p = math.clamp((x - sldBar.AbsolutePosition.X) / sldBar.AbsoluteSize.X, 0, 1)
+            sldFill.Size = UDim2.new(p, 0, 1, 0)
+            sldKnob.Position = UDim2.new(p, -6, 0.5, -6)
+            currentSpeed = math.floor(26 + (36 - 26) * p)
             sldLabel.Text = "Speed: " .. currentSpeed
+            SaveConfig()
         end
         
         local dragging = false
@@ -726,6 +804,7 @@ local function ShowStealPanel(show)
         UIPanels.steal = sg
     else
         if UIPanels.steal then UIPanels.steal:Destroy(); UIPanels.steal = nil end
+        StopStealSpeed()
     end
 end
 
@@ -938,6 +1017,7 @@ local function CreateToggle(parent, y, label, desc, id, callback)
         end
         
         callback(Toggles[id])
+        SaveConfig()
     end)
     
     frame.MouseEnter:Connect(function()
@@ -1006,12 +1086,14 @@ local function CreateMainMenu()
     container.BackgroundTransparency = 1
     
     -- Toggle 1: Instant Steal V2
-    CreateToggle(container, 5, "INSTANT STEAL V2", "Teleport (1s inside) and steal", "steal", function(on)
+    CreateToggle(container, 5, "INSTANT STEAL V2", "Teleport and steal Brainrot", "steal", function(on)
         Toggles.steal = on
         if on then
             ShowStealPanel(true)
+            if StealSpeedEnabled then StartStealSpeed() end
         else
             ShowStealPanel(false)
+            StopStealSpeed()
         end
     end)
     
@@ -1089,13 +1171,23 @@ end
 -- =============================================
 -- INICIAR
 -- =============================================
+LoadConfig()
 CreateLawButton()
 CreateMainMenu()
 
+-- Aplicar configurações carregadas
+if Toggles.steal then
+    ShowStealPanel(true)
+    if StealSpeedEnabled then StartStealSpeed() end
+end
+if Toggles.auto_grab then startAutoGrab() end
+if Toggles.active_potion then StartActivePotionWatcher() end
+if Toggles.unlock then ShowUnlockPanel(true) end
+if Toggles.actions then ShowActionsPanel(true) end
+
 print("=== LAW HUB CARREGADO ===")
 print("Clique no botão LAW para abrir")
-print("INSTANT STEAL = Teleport (fica 1s na base) + Steal + Sai")
-print("AUTO GRAB = Auto steal sem blocker")
-print("ACTIVE POTION = Auto usa poção ao pegar Brainrot")
-print("UNLOCK BASE = Desbloqueia base de outros")
-print("ACTIONS PANEL = Rejoin, Kick, Balloon, Ragdoll, Reset")
+print("INSTANT STEAL = Teleport + Steal")
+print("STEAL SPEED = funciona com o toggle")
+print("AUTO GRAB = Auto steal")
+print("CONFIGURAÇÕES salvam automaticamente!")
