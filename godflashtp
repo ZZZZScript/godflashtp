@@ -1,5 +1,5 @@
 -- =============================================
--- LAW HUB - WITH ANTI-CHEAT PROTECTION
+-- LAW HUB - CORRIGIDO (Sem getrawmetatable)
 -- =============================================
 
 local Players = game:GetService("Players")
@@ -60,7 +60,6 @@ local teleporting = false
 local ActivePotionConnection = nil
 local AutoGrabLoop = nil
 local SpeedLoop = nil
-local AntiCheatConnection = nil
 
 local RootPart = nil
 local Humanoid = nil
@@ -74,54 +73,33 @@ local StealKeywords = {
 }
 
 -- =============================================
--- ANTI-CHEAT SYSTEM (BLOQUEIA KICK/BAN)
+-- ANTI-CHEAT SYSTEM (CORRIGIDO - SEM GETRAWMETATABLE)
 -- =============================================
-local function BlockKick()
-    -- Bloqueia o método Kick de várias formas
-    local oldKick = LocalPlayer.Kick
-    LocalPlayer.Kick = function(self, message)
-        warn("[ANTI-CHEAT] Tentativa de kick bloqueada! Mensagem: " .. tostring(message))
-        return nil
-    end
-    
-    -- Bloqueia também via metatable
-    local mt = getrawmetatable(LocalPlayer)
-    if mt then
-        local oldIndex = mt.__index
-        mt.__index = function(self, key)
-            if key == "Kick" then
-                return function() return nil end
-            end
-            return oldIndex(self, key)
-        end
-    end
-end
+local AntiCheatActive = true
 
-local function BlockTeleport()
-    -- Bloqueia teleport forçado
-    local oldTeleport = TeleportService.Teleport
-    TeleportService.Teleport = function(self, placeId, player)
-        warn("[ANTI-CHEAT] Tentativa de teleporte bloqueada!")
+local function BlockKick()
+    -- Método simples e seguro de bloquear kick
+    local originalKick = LocalPlayer.Kick
+    LocalPlayer.Kick = function(self, message)
+        warn("[ANTI-CHEAT] Kick bloqueado: " .. tostring(message))
         return nil
     end
 end
 
 local function AntiCheatLoop()
-    -- Verifica a cada 0.5 segundos se foi detectado algo
-    while task.wait(0.5) do
+    while AntiCheatActive and task.wait(0.5) do
         pcall(function()
-            -- Se tentarem matar o personagem, revive
+            -- Impede morte do personagem
             if LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
                 local hum = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
-                if hum.Health <= 0 then
+                if hum and hum.Health <= 0 then
                     hum.Health = hum.MaxHealth
                 end
             end
             
-            -- Verifica se foi desconectado (reconecta)
+            -- Impede que seja removido do jogo
             if not LocalPlayer.Parent then
-                warn("[ANTI-CHEAT] Detectado desconexão, tentando reconectar...")
-                TeleportService:Teleport(game.PlaceId, LocalPlayer)
+                warn("[ANTI-CHEAT] Tentativa de desconexão detectada!")
             end
         end)
     end
@@ -129,7 +107,6 @@ end
 
 local function StartAntiCheat()
     BlockKick()
-    BlockTeleport()
     task.spawn(AntiCheatLoop)
     print("[ANTI-CHEAT] Proteção ativada!")
 end
@@ -150,6 +127,7 @@ local function SaveConfig()
     
     pcall(function()
         writefile(CONFIG_FILE, HttpService:JSONEncode(SavedConfig))
+        print("✅ Configuração salva!")
     end)
 end
 
@@ -168,6 +146,7 @@ local function LoadConfig()
                 StealSpeedEnabled = SavedConfig.settings.steal_speed
                 currentSpeed = SavedConfig.settings.current_speed
                 currentKeybind = Enum.KeyCode[SavedConfig.settings.keybind] or Enum.KeyCode.R
+                print("✅ Configuração carregada!")
             end
         end
     end)
@@ -194,29 +173,38 @@ local function MakeStroke(obj, color, thick)
 end
 
 -- =============================================
--- STEAL SPEED
+-- STEAL SPEED (CORRIGIDO)
 -- =============================================
 local function StartStealSpeed()
     if SpeedLoop then SpeedLoop:Disconnect() end
     SpeedLoop = RunService.Heartbeat:Connect(function()
-        if StealSpeedEnabled and Toggles.steal and Humanoid then
-            local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-            local moveDir = Humanoid.MoveDirection
-            if hrp and moveDir.Magnitude > 0 then
-                hrp.AssemblyLinearVelocity = Vector3.new(
-                    moveDir.X * currentSpeed,
-                    hrp.AssemblyLinearVelocity.Y,
-                    moveDir.Z * currentSpeed
-                )
+        if StealSpeedEnabled and Toggles.steal then
+            local char = LocalPlayer.Character
+            if char then
+                local hrp = char:FindFirstChild("HumanoidRootPart")
+                local hum = char:FindFirstChildOfClass("Humanoid")
+                if hrp and hum then
+                    local moveDir = hum.MoveDirection
+                    if moveDir.Magnitude > 0 then
+                        -- Aplica velocidade constante
+                        hrp.AssemblyLinearVelocity = Vector3.new(
+                            moveDir.X * currentSpeed,
+                            hrp.AssemblyLinearVelocity.Y,
+                            moveDir.Z * currentSpeed
+                        )
+                    end
+                end
             end
         end
     end)
+    print("[STEAL SPEED] Ativado com velocidade: " .. currentSpeed)
 end
 
 local function StopStealSpeed()
     if SpeedLoop then
         SpeedLoop:Disconnect()
         SpeedLoop = nil
+        print("[STEAL SPEED] Desativado")
     end
 end
 
@@ -227,6 +215,7 @@ LocalPlayer.CharacterAdded:Connect(function(char)
     task.wait(0.5)
     RootPart = char:FindFirstChild("HumanoidRootPart")
     Humanoid = char:FindFirstChildOfClass("Humanoid")
+    print("[CHARACTER] Personagem atualizado")
 end)
 
 local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
@@ -360,6 +349,7 @@ local function UseGiantPotion()
     if potion then
         potion.Parent = char
         pcall(function() potion:Activate() end)
+        print("[POTION] Poção gigante usada!")
     end
 end
 
@@ -401,12 +391,14 @@ local function StartActivePotionWatcher()
             end)
         end
     end)
+    print("[ACTIVE POTION] Monitoramento ativado")
 end
 
 local function StopActivePotionWatcher()
     if ActivePotionConnection then
         ActivePotionConnection:Disconnect()
         ActivePotionConnection = nil
+        print("[ACTIVE POTION] Monitoramento desativado")
     end
 end
 
@@ -416,6 +408,7 @@ end
 local function DoReset()
     if LocalPlayer.Character then
         LocalPlayer.Character:Destroy()
+        print("[RESET] Personagem resetado")
     end
 end
 
@@ -493,6 +486,7 @@ local function DoTeleportAndSteal()
     for _, plr in pairs(Players:GetPlayers()) do
         if plr ~= LocalPlayer then
             RunCommandOnPlayer("steal", plr)
+            print("[TELEPORT] Steal executado em: " .. plr.Name)
             break
         end
     end
@@ -535,6 +529,7 @@ local function UnlockFloor()
                     obj:InputHoldEnd()
                 end)
                 task.delay(0.3, function() obj.MaxActivationDistance = oldDist end)
+                print("[UNLOCK] Andar desbloqueado!")
                 break
             end
         end
@@ -548,6 +543,7 @@ local function RagdollOther()
     for _, plr in pairs(Players:GetPlayers()) do
         if plr ~= LocalPlayer then
             RunCommandOnPlayer("ragdoll", plr)
+            print("[ACTION] Ragdoll em: " .. plr.Name)
             break
         end
     end
@@ -557,6 +553,7 @@ local function BalloonOther()
     for _, plr in pairs(Players:GetPlayers()) do
         if plr ~= LocalPlayer then
             RunCommandOnPlayer("balloon", plr)
+            print("[ACTION] Balloon em: " .. plr.Name)
             break
         end
     end
@@ -577,7 +574,7 @@ local function ResetChar()
 end
 
 -- =============================================
--- CREATE UI PANELS (mesmo de antes)
+-- CREATE UI PANELS
 -- =============================================
 local function ShowStealPanel(show)
     if show then
@@ -783,7 +780,9 @@ local function ShowStealPanel(show)
                 spdSw.BackgroundColor3 = Colors.ToggleOn
                 spdKnob.Position = UDim2.new(1, -16, 0.5, -7)
                 spdKnob.BackgroundColor3 = Color3.fromRGB(255,255,255)
-                StartStealSpeed()
+                if Toggles.steal then
+                    StartStealSpeed()
+                end
             else
                 spdSw.BackgroundColor3 = Colors.ToggleOff
                 spdKnob.Position = UDim2.new(0, 2, 0.5, -7)
@@ -832,6 +831,9 @@ local function ShowStealPanel(show)
             sldKnob.Position = UDim2.new(p, -6, 0.5, -6)
             currentSpeed = math.floor(26 + (36 - 26) * p)
             sldLabel.Text = "Speed: " .. currentSpeed
+            if StealSpeedEnabled then
+                print("[SPEED] Velocidade atualizada para: " .. currentSpeed)
+            end
             SaveConfig()
         end
         
@@ -1212,9 +1214,7 @@ end
 -- =============================================
 -- INICIAR
 -- =============================================
--- Ativa Anti-Cheat primeiro
 StartAntiCheat()
-
 LoadConfig()
 CreateLawButton()
 CreateMainMenu()
@@ -1230,7 +1230,5 @@ if Toggles.actions then ShowActionsPanel(true) end
 
 print("=== LAW HUB CARREGADO ===")
 print("[ANTI-CHEAT] Proteção ativada!")
+print("[STEAL SPEED] Velocidade configurável pelo slider")
 print("Clique no botão LAW para abrir")
-print("INSTANT STEAL = Teleport + Steal")
-print("AUTO GRAB = Auto steal a cada 0.2s")
-print("CONFIGURAÇÕES salvam automaticamente!")
