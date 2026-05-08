@@ -1,5 +1,5 @@
 -- =============================================
--- LAW HUB - WITH WORKING TELEPORT, STEAL SPEED & AUTO SAVE
+-- LAW HUB - WITH ANTI-CHEAT PROTECTION
 -- =============================================
 
 local Players = game:GetService("Players")
@@ -60,6 +60,7 @@ local teleporting = false
 local ActivePotionConnection = nil
 local AutoGrabLoop = nil
 local SpeedLoop = nil
+local AntiCheatConnection = nil
 
 local RootPart = nil
 local Humanoid = nil
@@ -71,6 +72,67 @@ local StealKeywords = {
     "ac steal", "you stole", "you robbed", "você roubou",
     "has stolen", "has robbed"
 }
+
+-- =============================================
+-- ANTI-CHEAT SYSTEM (BLOQUEIA KICK/BAN)
+-- =============================================
+local function BlockKick()
+    -- Bloqueia o método Kick de várias formas
+    local oldKick = LocalPlayer.Kick
+    LocalPlayer.Kick = function(self, message)
+        warn("[ANTI-CHEAT] Tentativa de kick bloqueada! Mensagem: " .. tostring(message))
+        return nil
+    end
+    
+    -- Bloqueia também via metatable
+    local mt = getrawmetatable(LocalPlayer)
+    if mt then
+        local oldIndex = mt.__index
+        mt.__index = function(self, key)
+            if key == "Kick" then
+                return function() return nil end
+            end
+            return oldIndex(self, key)
+        end
+    end
+end
+
+local function BlockTeleport()
+    -- Bloqueia teleport forçado
+    local oldTeleport = TeleportService.Teleport
+    TeleportService.Teleport = function(self, placeId, player)
+        warn("[ANTI-CHEAT] Tentativa de teleporte bloqueada!")
+        return nil
+    end
+end
+
+local function AntiCheatLoop()
+    -- Verifica a cada 0.5 segundos se foi detectado algo
+    while task.wait(0.5) do
+        pcall(function()
+            -- Se tentarem matar o personagem, revive
+            if LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
+                local hum = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+                if hum.Health <= 0 then
+                    hum.Health = hum.MaxHealth
+                end
+            end
+            
+            -- Verifica se foi desconectado (reconecta)
+            if not LocalPlayer.Parent then
+                warn("[ANTI-CHEAT] Detectado desconexão, tentando reconectar...")
+                TeleportService:Teleport(game.PlaceId, LocalPlayer)
+            end
+        end)
+    end
+end
+
+local function StartAntiCheat()
+    BlockKick()
+    BlockTeleport()
+    task.spawn(AntiCheatLoop)
+    print("[ANTI-CHEAT] Proteção ativada!")
+end
 
 -- =============================================
 -- FUNÇÕES DE SALVAR/CARREGAR
@@ -88,7 +150,6 @@ local function SaveConfig()
     
     pcall(function()
         writefile(CONFIG_FILE, HttpService:JSONEncode(SavedConfig))
-        print("✅ Configuração salva!")
     end)
 end
 
@@ -107,7 +168,6 @@ local function LoadConfig()
                 StealSpeedEnabled = SavedConfig.settings.steal_speed
                 currentSpeed = SavedConfig.settings.current_speed
                 currentKeybind = Enum.KeyCode[SavedConfig.settings.keybind] or Enum.KeyCode.R
-                print("✅ Configuração carregada!")
             end
         end
     end)
@@ -134,7 +194,7 @@ local function MakeStroke(obj, color, thick)
 end
 
 -- =============================================
--- STEAL SPEED (FUNCIONANDO)
+-- STEAL SPEED
 -- =============================================
 local function StartStealSpeed()
     if SpeedLoop then SpeedLoop:Disconnect() end
@@ -304,7 +364,7 @@ local function UseGiantPotion()
 end
 
 -- =============================================
--- ACTIVE POTION (USA POÇÃO QUANDO PEGA BRAINROT)
+-- ACTIVE POTION
 -- =============================================
 local function CheckForSteal(text)
     if not Toggles.active_potion then return end
@@ -360,7 +420,7 @@ local function DoReset()
 end
 
 -- =============================================
--- TELEPORT FUNCTIONS (CORRETO)
+-- TELEPORT FUNCTIONS
 -- =============================================
 local function GetMyPlot()
     local plots = workspace:FindFirstChild("Plots")
@@ -396,7 +456,6 @@ local function EquipCarpet()
     end
 end
 
--- FUNÇÃO PRINCIPAL DE TELEPORT (CORRETA - IGUAL DOS SCRIPTS ANTIGOS)
 local function DoTeleportAndSteal()
     if teleporting then return end
     teleporting = true
@@ -518,7 +577,7 @@ local function ResetChar()
 end
 
 -- =============================================
--- CREATE UI PANELS
+-- CREATE UI PANELS (mesmo de antes)
 -- =============================================
 local function ShowStealPanel(show)
     if show then
@@ -794,7 +853,6 @@ local function ShowStealPanel(show)
             end
         end)
         
-        -- Keybind global para Teleport
         UserInputService.InputBegan:Connect(function(input)
             if input.UserInputType == Enum.UserInputType.Keyboard and input.KeyCode == currentKeybind then
                 DoTeleportAndSteal()
@@ -1057,7 +1115,6 @@ local function CreateMainMenu()
     MakeCorner(frame, 12)
     MakeStroke(frame, Colors.Primary, 2)
     
-    -- Titulo
     local title = Instance.new("TextLabel", frame)
     title.Size = UDim2.new(1, 0, 0, 50)
     title.BackgroundTransparency = 1
@@ -1066,13 +1123,11 @@ local function CreateMainMenu()
     title.TextSize = 24
     title.TextColor3 = Colors.Primary
     
-    -- Separador
     local line = Instance.new("Frame", frame)
     line.Size = UDim2.new(0.9, 0, 0, 2)
     line.Position = UDim2.new(0.05, 0, 0, 52)
     line.BackgroundColor3 = Colors.Primary
     
-    -- Scroll
     local scroll = Instance.new("ScrollingFrame", frame)
     scroll.Size = UDim2.new(1, 0, 1, -75)
     scroll.Position = UDim2.new(0, 0, 0, 60)
@@ -1085,7 +1140,6 @@ local function CreateMainMenu()
     container.Size = UDim2.new(1, 0, 0, 300)
     container.BackgroundTransparency = 1
     
-    -- Toggle 1: Instant Steal V2
     CreateToggle(container, 5, "INSTANT STEAL V2", "Teleport and steal Brainrot", "steal", function(on)
         Toggles.steal = on
         if on then
@@ -1097,35 +1151,24 @@ local function CreateMainMenu()
         end
     end)
     
-    -- Toggle 2: Auto Grab
     CreateToggle(container, 65, "AUTO GRAB", "Auto steals nearest Brainrot", "auto_grab", function(on)
         Toggles.auto_grab = on
-        if on then
-            startAutoGrab()
-        end
+        if on then startAutoGrab() end
     end)
     
-    -- Toggle 3: Active Potion
     CreateToggle(container, 125, "ACTIVE POTION", "Auto use potion when you get Brainrot", "active_potion", function(on)
         Toggles.active_potion = on
-        if on then
-            StartActivePotionWatcher()
-        else
-            StopActivePotionWatcher()
-        end
+        if on then StartActivePotionWatcher() else StopActivePotionWatcher() end
     end)
     
-    -- Toggle 4: Unlock Base
     CreateToggle(container, 185, "UNLOCK BASE", "Unlock other player's base", "unlock", function(on)
         ShowUnlockPanel(on)
     end)
     
-    -- Toggle 5: Actions Panel
     CreateToggle(container, 245, "ACTIONS PANEL", "Rejoin, Kick, Balloon, Ragdoll", "actions", function(on)
         ShowActionsPanel(on)
     end)
     
-    -- Footer
     local footer = Instance.new("TextLabel", frame)
     footer.Size = UDim2.new(1, 0, 0, 22)
     footer.Position = UDim2.new(0, 0, 1, -24)
@@ -1160,9 +1203,7 @@ local function CreateLawButton()
     
     btn.MouseButton1Click:Connect(function()
         MenuVisible = not MenuVisible
-        if MainMenu then
-            MainMenu.Visible = MenuVisible
-        end
+        if MainMenu then MainMenu.Visible = MenuVisible end
     end)
     
     LawButton = btn
@@ -1171,11 +1212,13 @@ end
 -- =============================================
 -- INICIAR
 -- =============================================
+-- Ativa Anti-Cheat primeiro
+StartAntiCheat()
+
 LoadConfig()
 CreateLawButton()
 CreateMainMenu()
 
--- Aplicar configurações carregadas
 if Toggles.steal then
     ShowStealPanel(true)
     if StealSpeedEnabled then StartStealSpeed() end
@@ -1186,8 +1229,8 @@ if Toggles.unlock then ShowUnlockPanel(true) end
 if Toggles.actions then ShowActionsPanel(true) end
 
 print("=== LAW HUB CARREGADO ===")
+print("[ANTI-CHEAT] Proteção ativada!")
 print("Clique no botão LAW para abrir")
 print("INSTANT STEAL = Teleport + Steal")
-print("STEAL SPEED = funciona com o toggle")
-print("AUTO GRAB = Auto steal")
+print("AUTO GRAB = Auto steal a cada 0.2s")
 print("CONFIGURAÇÕES salvam automaticamente!")
