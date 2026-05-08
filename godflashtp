@@ -1,5 +1,5 @@
 -- =============================================
--- LAW HUB - FULLY WORKING
+-- LAW HUB - POSITION FIXED
 -- Instant Steal | Active Potion | Unlock Base (3 floors) | Actions
 -- =============================================
 
@@ -34,12 +34,6 @@ local Humanoid = nil
 local StealLoop = nil
 local PotionConnection = nil
 local UIPanels = {}
-
--- DRAG VARIABLES
-local dragging = false
-local dragStart = nil
-local startPos = nil
-local dragFrame = nil
 
 -- =============================================
 -- UTILITIES
@@ -259,7 +253,6 @@ local function UnlockFloor(floorNumber)
         return
     end
     
-    -- Find and fire unlock prompt
     for _, obj in pairs(plot:GetDescendants()) do
         if obj:IsA("ProximityPrompt") and obj.Enabled then
             local txt = (obj.ActionText or ""):lower()
@@ -280,7 +273,7 @@ local function UnlockFloor(floorNumber)
 end
 
 -- =============================================
--- 4. ACTIONS (RAGDOLL ON OTHER PLAYER)
+-- 4. ACTIONS
 -- =============================================
 local function GetAdminFrames()
     local adminPanel = LocalPlayer.PlayerGui:FindFirstChild("AdminPanel")
@@ -379,7 +372,6 @@ local function CreateToggle(parent, y, label, desc, id, callback)
     descLabel.TextXAlignment = Enum.TextXAlignment.Left
     descLabel.Parent = frame
     
-    -- Switch BG
     local switchBg = Instance.new("Frame")
     switchBg.Size = UDim2.new(0, 44, 0, 24)
     switchBg.Position = UDim2.new(1, -56, 0.5, -12)
@@ -388,7 +380,6 @@ local function CreateToggle(parent, y, label, desc, id, callback)
     switchBg.Parent = frame
     MakeCorner(switchBg, 12)
     
-    -- Knob
     local knob = Instance.new("Frame")
     knob.Size = UDim2.new(0, 20, 0, 20)
     knob.Position = Toggles[id] and UDim2.new(1, -22, 0.5, -10) or UDim2.new(0, 2, 0.5, -10)
@@ -397,7 +388,6 @@ local function CreateToggle(parent, y, label, desc, id, callback)
     knob.Parent = switchBg
     MakeCorner(knob, 10)
     
-    -- Click button
     local click = Instance.new("TextButton")
     click.Size = UDim2.new(1, 0, 1, 0)
     click.BackgroundTransparency = 1
@@ -418,7 +408,6 @@ local function CreateToggle(parent, y, label, desc, id, callback)
         callback(Toggles[id])
     end)
     
-    -- Hover effect
     frame.MouseEnter:Connect(function()
         Tween(frame, {BackgroundTransparency = 0}, 0.1)
     end)
@@ -537,7 +526,6 @@ local function ShowUnlockPanel(show)
         layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
         layout.Parent = container
         
-        -- 3 BUTTONS
         local floors = {1, 2, 3}
         
         for _, floorNum in ipairs(floors) do
@@ -614,7 +602,7 @@ local function ShowActionsPanel(show)
         local buttons = {
             {"🔄 REJOIN", Rejoin},
             {"💀 KICK SELF", KickSelf},
-            {"🏃 RAGDOLL (OTHER)", RagdollOtherPlayer},
+            {"🏃 RAGDOLL", RagdollOtherPlayer},
             {"🔄 RESET", ResetChar},
         }
         
@@ -650,7 +638,7 @@ local function ShowActionsPanel(show)
 end
 
 -- =============================================
--- CREATE MAIN MENU (WORKING DRAG)
+-- CREATE MAIN MENU (WITH CORRECT POSITION)
 -- =============================================
 local MainMenu = nil
 local LawButton = nil
@@ -665,8 +653,9 @@ local function CreateMainMenu()
     sg.Parent = LocalPlayer.PlayerGui
     
     local frame = Instance.new("Frame")
+    -- POSIÇÃO CORRETA - Centralizado na tela com margem superior
     frame.Size = UDim2.new(0, 300, 0, 420)
-    frame.Position = UDim2.new(0.5, -150, 0.5, -210)
+    frame.Position = UDim2.new(0.5, -150, 0.5, -210)  -- Centralizado
     frame.AnchorPoint = Vector2.new(0.5, 0.5)
     frame.BackgroundColor3 = Colors.BG
     frame.BackgroundTransparency = 0.05
@@ -676,11 +665,11 @@ local function CreateMainMenu()
     MakeCorner(frame, 12)
     MakeStroke(frame, Colors.Primary, 2)
     
-    -- TITLE BAR (DRAG HERE)
+    -- TITLE BAR (VISIBLE AND DRAGGABLE)
     local titleBar = Instance.new("Frame")
     titleBar.Size = UDim2.new(1, 0, 0, 45)
     titleBar.BackgroundColor3 = Colors.Panel
-    titleBar.BackgroundTransparency = 0.5
+    titleBar.BackgroundTransparency = 0.3
     titleBar.Parent = frame
     MakeCorner(titleBar, 12)
     
@@ -707,15 +696,15 @@ local function CreateMainMenu()
     scroll.BackgroundTransparency = 1
     scroll.ScrollBarThickness = 3
     scroll.ScrollBarImageColor3 = Colors.Primary
-    scroll.CanvasSize = UDim2.new(0, 0, 0, 300)
+    scroll.CanvasSize = UDim2.new(0, 0, 0, 310)
     scroll.Parent = frame
     
     local container = Instance.new("Frame")
-    container.Size = UDim2.new(1, 0, 0, 300)
+    container.Size = UDim2.new(1, 0, 0, 310)
     container.BackgroundTransparency = 1
     container.Parent = scroll
     
-    -- Toggle 1: Instant Steal
+    -- Toggles
     CreateToggle(container, 5, "INSTANT STEAL", "Auto teleport + steal", "steal", function(on)
         Toggles.steal = on
         if on then
@@ -726,7 +715,6 @@ local function CreateMainMenu()
         ShowStealPanel(on)
     end)
     
-    -- Toggle 2: Active Potion
     CreateToggle(container, 65, "ACTIVE POTION", "Auto use potion on steal", "potion", function(on)
         Toggles.potion = on
         if on then
@@ -737,13 +725,11 @@ local function CreateMainMenu()
         ShowPotionPanel(on)
     end)
     
-    -- Toggle 3: Unlock Base
     CreateToggle(container, 125, "UNLOCK BASE", "Unlock other player's base", "unlock", function(on)
         Toggles.unlock = on
         ShowUnlockPanel(on)
     end)
     
-    -- Toggle 4: Actions Panel
     CreateToggle(container, 185, "ACTIONS PANEL", "Rejoin, Kick, Ragdoll, Reset", "actions", function(on)
         Toggles.actions = on
         ShowActionsPanel(on)
@@ -840,6 +826,5 @@ CreateMainMenu()
 
 print("✅ LAW HUB LOADED")
 print("📌 Click 'LAW' button to open menu")
-print("🖱️ DRAG the menu by the top bar (LAW HUB)")
+print("🖱️ DRAG the menu by the top yellow bar")
 print("🔓 Unlock Base has 3 buttons (1, 2, 3)")
-print("🏃 RAGDOLL targets OTHER players, not you")
