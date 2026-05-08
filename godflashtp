@@ -1,5 +1,5 @@
 -- =============================================
--- LAW HUB - FIRST WORKING VERSION (FIXED)
+-- LAW HUB - FULLY CORRECTED
 -- =============================================
 
 local Players = game:GetService("Players")
@@ -22,23 +22,23 @@ local Colors = {
 -- ESTADOS
 local Toggles = {
     steal = false,
-    potion = false,
+    active_potion = false,  -- Auto usa poção quando pega Brainrot
     unlock = false,
     actions = false,
 }
 
--- VARIAVEIS DO INSTANT STEAL
-local PotionEnabled = false
+-- VARIAVEIS
+local PotionStealEnabled = false  -- Usa poção no Teleport (toggle Options)
 local SpeedEnabled = false
 local currentSpeed = 28
 local currentKeybind = Enum.KeyCode.R
 local listening = false
 local teleporting = false
 
--- VARIAVEIS GERAIS
 local RootPart = nil
 local Humanoid = nil
 local UIPanels = {}
+local ActivePotionConnection = nil
 
 -- =============================================
 -- UTILIDADES
@@ -116,6 +116,59 @@ local function RunCommandOnPlayer(commandName, target)
 end
 
 -- =============================================
+-- ACTIVE POTION (AUTO USA POÇÃO QUANDO PEGA BRAINROT)
+-- =============================================
+local function UseGiantPotion()
+    local bp = LocalPlayer:FindFirstChild("Backpack")
+    local char = LocalPlayer.Character
+    if not bp or not char then return end
+    local potion = bp:FindFirstChild("Giant Potion")
+    if potion then
+        potion.Parent = char
+        pcall(function() potion:Activate() end)
+    end
+end
+
+local function StartActivePotionWatcher()
+    if ActivePotionConnection then ActivePotionConnection:Disconnect() end
+    
+    local gui = LocalPlayer:WaitForChild("PlayerGui")
+    
+    local function CheckForSteal(text)
+        if Toggles.active_potion and text and string.find(string.lower(text), "you stole") then
+            UseGiantPotion()
+        end
+    end
+    
+    -- Verificar objetos existentes
+    for _, obj in pairs(gui:GetDescendants()) do
+        if obj:IsA("TextLabel") then
+            CheckForSteal(obj.Text)
+            obj:GetPropertyChangedSignal("Text"):Connect(function()
+                CheckForSteal(obj.Text)
+            end)
+        end
+    end
+    
+    -- Verificar novos objetos
+    ActivePotionConnection = gui.DescendantAdded:Connect(function(d)
+        if d:IsA("TextLabel") then
+            CheckForSteal(d.Text)
+            d:GetPropertyChangedSignal("Text"):Connect(function()
+                CheckForSteal(d.Text)
+            end)
+        end
+    end)
+end
+
+local function StopActivePotionWatcher()
+    if ActivePotionConnection then
+        ActivePotionConnection:Disconnect()
+        ActivePotionConnection = nil
+    end
+end
+
+-- =============================================
 -- TELEPORT FUNCTIONS
 -- =============================================
 local function GetMyPlot()
@@ -152,14 +205,9 @@ local function EquipCarpet()
     end
 end
 
-local function UseGiantPotion()
-    local bp = LocalPlayer:FindFirstChild("Backpack")
-    local char = LocalPlayer.Character
-    if not bp or not char then return end
-    local potion = bp:FindFirstChild("Giant Potion")
-    if potion then
-        potion.Parent = char
-        pcall(function() potion:Activate() end)
+local function DoReset()
+    if LocalPlayer.Character then
+        LocalPlayer.Character:Destroy()
     end
 end
 
@@ -167,8 +215,8 @@ local function DoTeleportAndSteal()
     if teleporting then return end
     teleporting = true
     
-    -- ATIVA POTION SE LIGADO
-    if PotionEnabled then
+    -- USA POÇÃO SE POTION STEAL ESTIVER LIGADO (toggle Options)
+    if PotionStealEnabled then
         UseGiantPotion()
     end
     
@@ -194,14 +242,6 @@ local function DoTeleportAndSteal()
         TeleportTo(Vector3.new(-336, -5, 20))
         task.wait(0.1)
         TeleportTo(Vector3.new(-353, -7, 44))
-    end
-    
-    -- ATIVA SPEED DURANTE O ROUBO SE LIGADO
-    if SpeedEnabled and Humanoid then
-        local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-        if hrp then
-            hrp.AssemblyLinearVelocity = Vector3.new(hrp.AssemblyLinearVelocity.X * 1.5, hrp.AssemblyLinearVelocity.Y, hrp.AssemblyLinearVelocity.Z * 1.5)
-        end
     end
     
     task.wait(0.2)
@@ -343,6 +383,21 @@ local function ShowStealPanel(show)
         MakeCorner(kbBtn, 6)
         MakeStroke(kbBtn, Colors.Primary, 1)
         
+        -- Botão direito para Keybind
+        kbBtn.MouseButton2Click:Connect(function()
+            if listening then return end
+            listening = true
+            kbBtn.Text = "..."
+            local conn
+            conn = UserInputService.InputBegan:Connect(function(input)
+                if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
+                conn:Disconnect()
+                currentKeybind = input.KeyCode
+                kbBtn.Text = "[" .. input.KeyCode.Name .. "]"
+                listening = false
+            end)
+        end)
+        
         -- Teleport
         local teleBtn = Instance.new("TextButton", f)
         teleBtn.Size = UDim2.new(1, -16, 0, 35)
@@ -354,16 +409,28 @@ local function ShowStealPanel(show)
         MakeCorner(teleBtn, 6)
         MakeStroke(teleBtn, Colors.Primary, 1)
         
-        -- Active Potion (Reset)
+        teleBtn.MouseButton1Click:Connect(function()
+            DoTeleportAndSteal()
+            teleBtn.BackgroundColor3 = Colors.Primary
+            task.delay(0.2, function() teleBtn.BackgroundColor3 = Colors.Panel end)
+        end)
+        
+        -- Active Potion (botão de RESET)
         local resetBtn = Instance.new("TextButton", f)
         resetBtn.Size = UDim2.new(1, -16, 0, 35)
         resetBtn.Position = UDim2.new(0, 8, 0, 150)
         resetBtn.BackgroundColor3 = Colors.Panel
-        resetBtn.Text = "Active Potion"
+        resetBtn.Text = "Reset"
         resetBtn.Font = Enum.Font.GothamBold
         resetBtn.TextSize = 13
         MakeCorner(resetBtn, 6)
         MakeStroke(resetBtn, Colors.Primary, 1)
+        
+        resetBtn.MouseButton1Click:Connect(function()
+            DoReset()
+            resetBtn.BackgroundColor3 = Colors.Primary
+            task.delay(0.2, function() resetBtn.BackgroundColor3 = Colors.Panel end)
+        end)
         
         -- Separador
         local sep = Instance.new("Frame", f)
@@ -382,7 +449,7 @@ local function ShowStealPanel(show)
         opt.TextColor3 = Color3.fromRGB(150,150,150)
         opt.TextXAlignment = Enum.TextXAlignment.Left
         
-        -- Potion Steal Toggle
+        -- Potion Steal Toggle (usa poção no Teleport)
         local potRow = Instance.new("Frame", f)
         potRow.Size = UDim2.new(1, -16, 0, 30)
         potRow.Position = UDim2.new(0, 8, 0, 218)
@@ -416,6 +483,19 @@ local function ShowStealPanel(show)
         potClick.Size = UDim2.new(1, 0, 1, 0)
         potClick.BackgroundTransparency = 1
         potClick.Text = ""
+        
+        potClick.MouseButton1Click:Connect(function()
+            PotionStealEnabled = not PotionStealEnabled
+            if PotionStealEnabled then
+                potSw.BackgroundColor3 = Colors.ToggleOn
+                potKnob.Position = UDim2.new(1, -16, 0.5, -7)
+                potKnob.BackgroundColor3 = Color3.fromRGB(255,255,255)
+            else
+                potSw.BackgroundColor3 = Colors.ToggleOff
+                potKnob.Position = UDim2.new(0, 2, 0.5, -7)
+                potKnob.BackgroundColor3 = Color3.fromRGB(150,150,150)
+            end
+        end)
         
         -- Steal Speed Toggle
         local spdRow = Instance.new("Frame", f)
@@ -452,6 +532,19 @@ local function ShowStealPanel(show)
         spdClick.BackgroundTransparency = 1
         spdClick.Text = ""
         
+        spdClick.MouseButton1Click:Connect(function()
+            SpeedEnabled = not SpeedEnabled
+            if SpeedEnabled then
+                spdSw.BackgroundColor3 = Colors.ToggleOn
+                spdKnob.Position = UDim2.new(1, -16, 0.5, -7)
+                spdKnob.BackgroundColor3 = Color3.fromRGB(255,255,255)
+            else
+                spdSw.BackgroundColor3 = Colors.ToggleOff
+                spdKnob.Position = UDim2.new(0, 2, 0.5, -7)
+                spdKnob.BackgroundColor3 = Color3.fromRGB(150,150,150)
+            end
+        end)
+        
         -- Slider
         local sldFrame = Instance.new("Frame", f)
         sldFrame.Size = UDim2.new(1, -16, 0, 35)
@@ -484,7 +577,6 @@ local function ShowStealPanel(show)
         sldKnob.BackgroundColor3 = Colors.Text
         MakeCorner(sldKnob, 6)
         
-        -- FUNÇÕES
         local function UpdateSlider(x)
             local percent = math.clamp((x - sldBar.AbsolutePosition.X) / sldBar.AbsoluteSize.X, 0, 1)
             sldFill.Size = UDim2.new(percent, 0, 1, 0)
@@ -493,64 +585,6 @@ local function ShowStealPanel(show)
             sldLabel.Text = "Speed: " .. currentSpeed
         end
         
-        -- KEYBIND
-        kbBtn.MouseButton1Click:Connect(function()
-            if listening then return end
-            listening = true
-            kbBtn.Text = "Press any key..."
-            local conn
-            conn = UserInputService.InputBegan:Connect(function(input)
-                if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
-                conn:Disconnect()
-                currentKeybind = input.KeyCode
-                kbBtn.Text = "[" .. input.KeyCode.Name .. "]"
-                listening = false
-            end)
-        end)
-        
-        -- TELEPORT (SÓ QUANDO CLICA)
-        teleBtn.MouseButton1Click:Connect(function()
-            DoTeleportAndSteal()
-            teleBtn.BackgroundColor3 = Colors.Primary
-            task.delay(0.2, function() teleBtn.BackgroundColor3 = Colors.Panel end)
-        end)
-        
-        -- RESET
-        resetBtn.MouseButton1Click:Connect(function()
-            if LocalPlayer.Character then LocalPlayer.Character:Destroy() end
-            resetBtn.BackgroundColor3 = Colors.Primary
-            task.delay(0.2, function() resetBtn.BackgroundColor3 = Colors.Panel end)
-        end)
-        
-        -- POTION TOGGLE
-        potClick.MouseButton1Click:Connect(function()
-            PotionEnabled = not PotionEnabled
-            if PotionEnabled then
-                potSw.BackgroundColor3 = Colors.ToggleOn
-                potKnob.Position = UDim2.new(1, -16, 0.5, -7)
-                potKnob.BackgroundColor3 = Color3.fromRGB(255,255,255)
-            else
-                potSw.BackgroundColor3 = Colors.ToggleOff
-                potKnob.Position = UDim2.new(0, 2, 0.5, -7)
-                potKnob.BackgroundColor3 = Color3.fromRGB(150,150,150)
-            end
-        end)
-        
-        -- SPEED TOGGLE
-        spdClick.MouseButton1Click:Connect(function()
-            SpeedEnabled = not SpeedEnabled
-            if SpeedEnabled then
-                spdSw.BackgroundColor3 = Colors.ToggleOn
-                spdKnob.Position = UDim2.new(1, -16, 0.5, -7)
-                spdKnob.BackgroundColor3 = Color3.fromRGB(255,255,255)
-            else
-                spdSw.BackgroundColor3 = Colors.ToggleOff
-                spdKnob.Position = UDim2.new(0, 2, 0.5, -7)
-                spdKnob.BackgroundColor3 = Color3.fromRGB(150,150,150)
-            end
-        end)
-        
-        -- SLIDER
         local dragging = false
         sldKnob.InputBegan:Connect(function(i)
             if i.UserInputType == Enum.UserInputType.MouseButton1 then dragging = true end
@@ -569,7 +603,7 @@ local function ShowStealPanel(show)
             end
         end)
         
-        -- KEYBIND GLOBAL (SÓ QUANDO PRESSIONA TECLA)
+        -- Keybind global
         UserInputService.InputBegan:Connect(function(input)
             if input.UserInputType == Enum.UserInputType.Keyboard and input.KeyCode == currentKeybind then
                 DoTeleportAndSteal()
@@ -653,7 +687,7 @@ local function ShowActionsPanel(show)
         sg.Parent = LocalPlayer.PlayerGui
         
         local f = Instance.new("Frame")
-        f.Size = UDim2.new(0, 220, 0, 260)
+        f.Size = UDim2.new(0, 220, 0, 250)
         f.Position = UDim2.new(0.5, -110, 0.35, 0)
         f.BackgroundColor3 = Colors.BG
         f.BackgroundTransparency = 0.1
@@ -678,7 +712,7 @@ local function ShowActionsPanel(show)
         container.BackgroundTransparency = 1
         
         local layout = Instance.new("UIListLayout", container)
-        layout.Padding = UDim.new(0, 8)
+        layout.Padding = UDim.new(0, 6)
         
         local buttons = {
             {"REJOIN", Rejoin},
@@ -690,19 +724,54 @@ local function ShowActionsPanel(show)
         
         for _, btnData in ipairs(buttons) do
             local btn = Instance.new("TextButton", container)
-            btn.Size = UDim2.new(1, 0, 0, 42)
+            btn.Size = UDim2.new(1, 0, 0, 38)
             btn.BackgroundColor3 = Colors.Panel
             btn.Text = btnData[1]
             btn.Font = Enum.Font.GothamBold
-            btn.TextSize = 13
+            btn.TextSize = 12
             btn.TextColor3 = Colors.Text
             MakeCorner(btn, 8)
             MakeStroke(btn, Colors.Primary, 1)
+            
+            -- Botão direito para Keybind
+            local keybindLabel = Instance.new("TextLabel", btn)
+            keybindLabel.Size = UDim2.new(0, 40, 1, 0)
+            keybindLabel.Position = UDim2.new(1, -45, 0, 0)
+            keybindLabel.BackgroundTransparency = 1
+            keybindLabel.Text = ""
+            keybindLabel.Font = Enum.Font.GothamBold
+            keybindLabel.TextSize = 9
+            keybindLabel.TextColor3 = Colors.Primary
+            keybindLabel.TextXAlignment = Enum.TextXAlignment.Right
+            
+            local actionKeybind = nil
+            local actionListening = false
+            
+            btn.MouseButton2Click:Connect(function()
+                if actionListening then return end
+                actionListening = true
+                keybindLabel.Text = "..."
+                local conn
+                conn = UserInputService.InputBegan:Connect(function(input)
+                    if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
+                    conn:Disconnect()
+                    actionKeybind = input.KeyCode
+                    keybindLabel.Text = input.KeyCode.Name
+                    actionListening = false
+                end)
+            end)
             
             btn.MouseButton1Click:Connect(function()
                 btn.BackgroundColor3 = Colors.Primary
                 task.delay(0.15, function() btn.BackgroundColor3 = Colors.Panel end)
                 pcall(btnData[2])
+            end)
+            
+            -- Keybind global para ações
+            UserInputService.InputBegan:Connect(function(input)
+                if input.UserInputType == Enum.UserInputType.Keyboard and actionKeybind and input.KeyCode == actionKeybind then
+                    pcall(btnData[2])
+                end
             end)
         end
         
@@ -794,7 +863,7 @@ local function CreateToggle(parent, y, label, desc, id, callback)
 end
 
 -- =============================================
--- MAIN MENU (IGUAL O PRIMEIRO QUE FUNCIONAVA)
+-- MAIN MENU
 -- =============================================
 local MainMenu = nil
 local LawButton = nil
@@ -820,7 +889,7 @@ local function CreateMainMenu()
     MakeCorner(frame, 12)
     MakeStroke(frame, Colors.Primary, 2)
     
-    -- Título
+    -- Titulo
     local title = Instance.new("TextLabel", frame)
     title.Size = UDim2.new(1, 0, 0, 50)
     title.BackgroundTransparency = 1
@@ -848,7 +917,7 @@ local function CreateMainMenu()
     container.Size = UDim2.new(1, 0, 0, 300)
     container.BackgroundTransparency = 1
     
-    -- Toggles
+    -- Toggle 1: Instant Steal V2
     CreateToggle(container, 5, "INSTANT STEAL V2", "Auto teleport + steal", "steal", function(on)
         Toggles.steal = on
         if on then
@@ -858,14 +927,22 @@ local function CreateMainMenu()
         end
     end)
     
-    CreateToggle(container, 65, "ACTIVE POTION", "Potion Teleport Helper", "potion", function(on)
-        -- Apenas visual
+    -- Toggle 2: Active Potion (auto usa poção quando pega Brainrot)
+    CreateToggle(container, 65, "ACTIVE POTION", "Auto use potion when you get Brainrot", "active_potion", function(on)
+        Toggles.active_potion = on
+        if on then
+            StartActivePotionWatcher()
+        else
+            StopActivePotionWatcher()
+        end
     end)
     
+    -- Toggle 3: Unlock Base
     CreateToggle(container, 125, "UNLOCK BASE", "Unlock other player's base", "unlock", function(on)
         ShowUnlockPanel(on)
     end)
     
+    -- Toggle 4: Actions Panel
     CreateToggle(container, 185, "ACTIONS PANEL", "Rejoin, Kick, Balloon, Ragdoll", "actions", function(on)
         ShowActionsPanel(on)
     end)
@@ -919,7 +996,8 @@ end
 CreateLawButton()
 CreateMainMenu()
 
-print("✅ LAW HUB CARREGADO!")
-print("📌 Clique no botão LAW para abrir/fechar")
-print("⚡ Teleport só vai quando clicar no botão ou tecla R")
-print("⚡ Potion Steal e Steal Speed funcionam no momento do TP")
+print("=== LAW HUB CARREGADO ===")
+print("Clique no botão LAW para abrir")
+print("Botão direito do mouse para Keybind")
+print("ACTIVE POTION = auto usa poção quando pega Brainrot")
+print("Potion Steal = usa poção no Teleport")
