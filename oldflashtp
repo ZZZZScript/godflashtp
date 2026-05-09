@@ -360,11 +360,11 @@ local TriggerKnobCorner = Instance.new("UICorner")
 TriggerKnobCorner.CornerRadius = UDim.new(1, 0)
 TriggerKnobCorner.Parent = TriggerKnob
 
--- [[(/ SPEED PANEL - Quadrado separado que aparece quando ativa /)]]
+-- [[(/ SPEED PANEL - Quadrado separado que aparece embaixo do menu /)]]
 local SpeedPanel = Instance.new("Frame")
 SpeedPanel.Name = "SpeedPanel"
 SpeedPanel.Size = UDim2.new(0, 260, 0, 70)
-SpeedPanel.Position = UDim2.new(0.5, -130, 0.5, 180)
+SpeedPanel.Position = UDim2.new(0.5, -130, 0.6, 0)
 SpeedPanel.BackgroundColor3 = Color3.new(0.05, 0.05, 0.08)
 SpeedPanel.BackgroundTransparency = 0
 SpeedPanel.BorderSizePixel = 0
@@ -469,6 +469,20 @@ do
         end
     end)
 end
+
+-- Função para atualizar a posição do Speed Panel abaixo do menu
+local function updateSpeedPanelPosition()
+    local mainPos = Main.AbsolutePosition
+    local mainSize = Main.AbsoluteSize
+    SpeedPanel.Position = UDim2.new(0, mainPos.X + 10, 0, mainPos.Y + mainSize.Y + 5)
+end
+
+-- Atualiza posição quando o menu for arrastado
+Main:GetPropertyChangedSignal("Position"):Connect(function()
+    if SpeedPanel.Visible then
+        updateSpeedPanelPosition()
+    end
+end)
 
 -- [[(/ Discord Link /)]]
 local DiscordLabel = Instance.new("TextLabel")
@@ -640,6 +654,9 @@ SpeedButton.MouseButton1Click:Connect(function()
     speedEnabled = not speedEnabled
     SpeedLabel.Text = speedEnabled and "SPEED BOOST: ON" or "SPEED BOOST: OFF"
     SpeedPanel.Visible = speedEnabled
+    if speedEnabled then
+        updateSpeedPanelPosition()
+    end
 end)
 
 PotionButton.MouseButton1Click:Connect(function()
@@ -667,5 +684,5 @@ end)
 
 print("WhiteHub Flash TP Carregado!")
 print("TRIGGER está dentro do menu (sempre visível)")
-print("Speed Panel aparece quando ativa o SPEED BOOST")
-print("Speed Panel é arrastável!")
+print("Ative o SPEED BOOST para ver o painel de velocidade EMBaIXO do menu")
+print("O painel de velocidade é arrastável e segue o menu!")
