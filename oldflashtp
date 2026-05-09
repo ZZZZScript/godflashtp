@@ -360,7 +360,7 @@ local TriggerKnobCorner = Instance.new("UICorner")
 TriggerKnobCorner.CornerRadius = UDim.new(1, 0)
 TriggerKnobCorner.Parent = TriggerKnob
 
--- [[(/ SPEED PANEL - Quadrado separado que aparece embaixo do menu /)]]
+-- [[(/ SPEED PANEL - Quadrado separado /)]]
 local SpeedPanel = Instance.new("Frame")
 SpeedPanel.Name = "SpeedPanel"
 SpeedPanel.Size = UDim2.new(0, 260, 0, 70)
@@ -470,14 +470,13 @@ do
     end)
 end
 
--- Função para atualizar a posição do Speed Panel abaixo do menu
+-- Atualiza posição do Speed Panel abaixo do menu
 local function updateSpeedPanelPosition()
     local mainPos = Main.AbsolutePosition
     local mainSize = Main.AbsoluteSize
     SpeedPanel.Position = UDim2.new(0, mainPos.X + 10, 0, mainPos.Y + mainSize.Y + 5)
 end
 
--- Atualiza posição quando o menu for arrastado
 Main:GetPropertyChangedSignal("Position"):Connect(function()
     if SpeedPanel.Visible then
         updateSpeedPanelPosition()
@@ -545,7 +544,7 @@ do
     end)
 end
 
--- [[(/ Função do Slider do Speed /)]]
+-- [[(/ Função do Slider do Speed - CORRIGIDA /)]]
 do
     local sliderDragging = false
 
@@ -560,6 +559,15 @@ do
         SpeedSliderKnob.Position = UDim2.new((speedAmount - 16) / 34, 0, 0.5, -7)
         SpeedCurrentValue.Text = tostring(speedAmount)
         SpeedPanelLabel.Text = "SPEED: " .. speedAmount
+        
+        -- Aplica a velocidade imediatamente se estiver ativado
+        if speedEnabled then
+            local char = player.Character
+            local hum = char and char:FindFirstChild("Humanoid")
+            if hum then
+                hum.WalkSpeed = speedAmount
+            end
+        end
     end
 
     SpeedSliderKnob.MouseButton1Down:Connect(function()
@@ -654,8 +662,22 @@ SpeedButton.MouseButton1Click:Connect(function()
     speedEnabled = not speedEnabled
     SpeedLabel.Text = speedEnabled and "SPEED BOOST: ON" or "SPEED BOOST: OFF"
     SpeedPanel.Visible = speedEnabled
+    
     if speedEnabled then
         updateSpeedPanelPosition()
+        -- Aplica a velocidade atual ao ativar
+        local char = player.Character
+        local hum = char and char:FindFirstChild("Humanoid")
+        if hum then
+            hum.WalkSpeed = speedAmount
+        end
+    else
+        -- Volta a velocidade normal
+        local char = player.Character
+        local hum = char and char:FindFirstChild("Humanoid")
+        if hum then
+            hum.WalkSpeed = 16
+        end
     end
 end)
 
@@ -669,20 +691,16 @@ KickButton.MouseButton1Click:Connect(function()
     KickLabel.Text = kickEnabled and "KICK AFTER STEAL: ON" or "KICK AFTER STEAL: OFF"
 end)
 
--- [[(/ Speed Boost Logic /)]]
+-- [[(/ Speed Boost Logic - Mantém a velocidade /)]]
 RunService.RenderStepped:Connect(function()
     local char = player.Character
     local hum = char and char:FindFirstChild("Humanoid")
-    if hum then
-        if speedEnabled then
-            hum.WalkSpeed = speedAmount
-        elseif hum.WalkSpeed ~= 16 then
-            hum.WalkSpeed = 16
-        end
+    if hum and speedEnabled then
+        hum.WalkSpeed = speedAmount
     end
 end)
 
 print("WhiteHub Flash TP Carregado!")
-print("TRIGGER está dentro do menu (sempre visível)")
-print("Ative o SPEED BOOST para ver o painel de velocidade EMBaIXO do menu")
-print("O painel de velocidade é arrastável e segue o menu!")
+print("TRIGGER está dentro do menu")
+print("Ative o SPEED BOOST e use o SLIDER para mudar a velocidade")
+print("Speed Panel é arrastável!")
