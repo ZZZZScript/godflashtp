@@ -17,8 +17,8 @@ ScreenGui.Parent = playerGui
 -- [[(/ Main Frame /)]]
 local Main = Instance.new("Frame")
 Main.Name = "Main"
-Main.Size = UDim2.new(0, 260, 0, 230)
-Main.Position = UDim2.new(0.5, -130, 0.5, -115)
+Main.Size = UDim2.new(0, 280, 0, 250)
+Main.Position = UDim2.new(0.5, -140, 0.5, -125)
 Main.BackgroundColor3 = Color3.new(0, 0, 0)
 Main.BackgroundTransparency = 0.15
 Main.BorderSizePixel = 0
@@ -123,7 +123,7 @@ Content.Parent = Main
 -- [[(/ Flash TP Button /)]]
 local FlashButton = Instance.new("TextButton")
 FlashButton.Name = "FlashTPButton"
-FlashButton.Size = UDim2.new(1, 0, 0, 36)
+FlashButton.Size = UDim2.new(1, 0, 0, 42)
 FlashButton.Position = UDim2.new(0, 0, 0, 0)
 FlashButton.BackgroundColor3 = Color3.new(0.117647, 0.117647, 0.117647)
 FlashButton.AutoButtonColor = false
@@ -137,7 +137,7 @@ FlashButtonCorner.Parent = FlashButton
 
 local FlashLabel = Instance.new("TextLabel")
 FlashLabel.Name = "Label"
-FlashLabel.Size = UDim2.new(0.6, 0, 1, 0)
+FlashLabel.Size = UDim2.new(0.5, 0, 1, 0)
 FlashLabel.Position = UDim2.new(0, 12, 0, 0)
 FlashLabel.BackgroundTransparency = 1
 FlashLabel.Text = "FLASH TP: OFF"
@@ -149,15 +149,27 @@ FlashLabel.Parent = FlashButton
 
 local FlashValue = Instance.new("TextLabel")
 FlashValue.Name = "Value"
-FlashValue.Size = UDim2.new(0.3, 0, 1, 0)
-FlashValue.Position = UDim2.new(0.7, 0, 0, 0)
+FlashValue.Size = UDim2.new(0.2, 0, 1, 0)
+FlashValue.Position = UDim2.new(0.5, 0, 0, 0)
 FlashValue.BackgroundTransparency = 1
 FlashValue.Text = "90.5"
 FlashValue.TextColor3 = Color3.new(0.5, 0.8, 1)
 FlashValue.Font = Enum.Font.GothamBold
 FlashValue.TextSize = 12
-FlashValue.TextXAlignment = Enum.TextXAlignment.Right
+FlashValue.TextXAlignment = Enum.TextXAlignment.Center
 FlashValue.Parent = FlashButton
+
+local KeybindLabel = Instance.new("TextLabel")
+KeybindLabel.Name = "Keybind"
+KeybindLabel.Size = UDim2.new(0.25, 0, 1, 0)
+KeybindLabel.Position = UDim2.new(0.73, 0, 0, 0)
+KeybindLabel.BackgroundTransparency = 1
+KeybindLabel.Text = "[V]"
+KeybindLabel.TextColor3 = Color3.new(1, 0.8, 0.3)
+KeybindLabel.Font = Enum.Font.GothamBold
+KeybindLabel.TextSize = 11
+KeybindLabel.TextXAlignment = Enum.TextXAlignment.Right
+KeybindLabel.Parent = FlashButton
 
 FlashButton.MouseEnter:Connect(function()
     TweenService:Create(FlashButton, TweenInfo.new(0.15), {BackgroundColor3 = Color3.new(0.18, 0.18, 0.18)}):Play()
@@ -169,8 +181,8 @@ end)
 -- [[(/ Speed Boost Button /)]]
 local SpeedButton = Instance.new("TextButton")
 SpeedButton.Name = "SpeedButton"
-SpeedButton.Size = UDim2.new(1, 0, 0, 36)
-SpeedButton.Position = UDim2.new(0, 0, 0, 42)
+SpeedButton.Size = UDim2.new(1, 0, 0, 42)
+SpeedButton.Position = UDim2.new(0, 0, 0, 48)
 SpeedButton.BackgroundColor3 = Color3.new(0.117647, 0.117647, 0.117647)
 SpeedButton.AutoButtonColor = false
 SpeedButton.Text = ""
@@ -195,8 +207,8 @@ SpeedLabel.Parent = SpeedButton
 
 local SpeedValue = Instance.new("TextLabel")
 SpeedValue.Name = "Value"
-SpeedValue.Size = UDim2.new(0.3, 0, 1, 0)
-SpeedValue.Position = UDim2.new(0.7, 0, 0, 0)
+SpeedValue.Size = UDim2.new(0.25, 0, 1, 0)
+SpeedValue.Position = UDim2.new(0.73, 0, 0, 0)
 SpeedValue.BackgroundTransparency = 1
 SpeedValue.Text = "28"
 SpeedValue.TextColor3 = Color3.new(0.5, 0.8, 1)
@@ -215,8 +227,8 @@ end)
 -- [[(/ Auto Potion Button /)]]
 local PotionButton = Instance.new("TextButton")
 PotionButton.Name = "PotionButton"
-PotionButton.Size = UDim2.new(1, 0, 0, 36)
-PotionButton.Position = UDim2.new(0, 0, 0, 84)
+PotionButton.Size = UDim2.new(1, 0, 0, 42)
+PotionButton.Position = UDim2.new(0, 0, 0, 96)
 PotionButton.BackgroundColor3 = Color3.new(0.117647, 0.117647, 0.117647)
 PotionButton.AutoButtonColor = false
 PotionButton.Text = ""
@@ -249,8 +261,8 @@ end)
 -- [[(/ Kick After Steal Button /)]]
 local KickButton = Instance.new("TextButton")
 KickButton.Name = "KickButton"
-KickButton.Size = UDim2.new(1, 0, 0, 36)
-KickButton.Position = UDim2.new(0, 0, 0, 126)
+KickButton.Size = UDim2.new(1, 0, 0, 42)
+KickButton.Position = UDim2.new(0, 0, 0, 144)
 KickButton.BackgroundColor3 = Color3.new(0.117647, 0.117647, 0.117647)
 KickButton.AutoButtonColor = false
 KickButton.Text = ""
@@ -300,17 +312,83 @@ local potionEnabled = false
 local kickEnabled = false
 local speedAmount = 28
 local tpDistance = 90.5
+local flashKeybind = Enum.KeyCode.V
+local waitingForKeybind = false
 
--- [[(/ Ajustar Valores com Clique /)]]
-FlashValue.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        local newValue = tonumber(game:GetService("StarterGui"):SetCore("SendNotification", {
-            Title = "Distância TP",
-            Text = "Digite a distância do teleporte",
-            Duration = 3
-        }))
-        -- Para mudar o valor, use um InputBox ou console
-        print("Clique no F9 e digite: tpDistance = novo_valor")
+-- [[(/ Função para atualizar o texto do Keybind /)]]
+local function updateKeybindDisplay()
+    local keyName = flashKeybind.Name
+    if keyName == "V" then
+        KeybindLabel.Text = "[V]"
+    elseif keyName == "Q" then
+        KeybindLabel.Text = "[Q]"
+    elseif keyName == "E" then
+        KeybindLabel.Text = "[E]"
+    elseif keyName == "R" then
+        KeybindLabel.Text = "[R]"
+    elseif keyName == "F" then
+        KeybindLabel.Text = "[F]"
+    elseif keyName == "G" then
+        KeybindLabel.Text = "[G]"
+    elseif keyName == "X" then
+        KeybindLabel.Text = "[X]"
+    elseif keyName == "C" then
+        KeybindLabel.Text = "[C]"
+    elseif keyName == "T" then
+        KeybindLabel.Text = "[T]"
+    elseif keyName == "Y" then
+        KeybindLabel.Text = "[Y]"
+    elseif keyName == "B" then
+        KeybindLabel.Text = "[B]"
+    else
+        KeybindLabel.Text = "[" .. keyName .. "]"
+    end
+end
+
+-- [[(/ Sistema de Keybind - Clique com Botão Direito /)]]
+FlashButton.MouseButton2Click:Connect(function()
+    waitingForKeybind = true
+    FlashButton.BackgroundColor3 = Color3.new(0.25, 0.2, 0.15)
+    KeybindLabel.Text = "[?]"
+    KeybindLabel.TextColor3 = Color3.new(1, 0.5, 0.2)
+    
+    -- Notificação
+    game:GetService("StarterGui"):SetCore("SendNotification", {
+        Title = "Keybind",
+        Text = "Pressione qualquer tecla para definir o novo keybind do Flash TP",
+        Duration = 3
+    })
+end)
+
+-- [[(/ Aguardar tecla pressionada /)]]
+UserInputService.InputBegan:Connect(function(input, gpe)
+    if gpe then return end
+    
+    -- Se estiver esperando por keybind
+    if waitingForKeybind then
+        if input.KeyCode ~= Enum.KeyCode.Unknown then
+            flashKeybind = input.KeyCode
+            updateKeybindDisplay()
+            KeybindLabel.TextColor3 = Color3.new(1, 0.8, 0.3)
+            FlashButton.BackgroundColor3 = Color3.new(0.117647, 0.117647, 0.117647)
+            waitingForKeybind = false
+            
+            game:GetService("StarterGui"):SetCore("SendNotification", {
+                Title = "Keybind Definido",
+                Text = "Flash TP agora usa a tecla: " .. input.KeyCode.Name,
+                Duration = 2
+            })
+        end
+        return
+    end
+    
+    -- Executar Flash TP se estiver ativado e a tecla correta for pressionada
+    if flashEnabled and input.KeyCode == flashKeybind then
+        local char = player.Character
+        local hrp = char and char:FindFirstChild("HumanoidRootPart")
+        if hrp then
+            hrp.CFrame = hrp.CFrame * CFrame.new(0, 0, -tpDistance)
+        end
     end
 end)
 
@@ -343,6 +421,24 @@ KickButton.MouseButton1Click:Connect(function()
     KickButton.BackgroundColor3 = kickEnabled and Color3.new(0.2, 0.2, 0.2) or Color3.new(0.117647, 0.117647, 0.117647)
 end)
 
+-- [[(/ Ajustar Valores com Clique /)]]
+FlashValue.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        local newValue = tonumber(game:GetService("StarterGui"):SetCore("SendNotification", {
+            Title = "Distância TP",
+            Text = "Digite a distância do teleporte no console (F9): tpDistance = valor",
+            Duration = 3
+        }))
+        print("Use o console (F9) e digite: tpDistance = novo_valor")
+    end
+end)
+
+SpeedValue.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        print("Use o console (F9) e digite: speedAmount = novo_valor")
+    end
+end)
+
 -- [[(/ Speed Boost Logic /)]]
 RunService.RenderStepped:Connect(function()
     local char = player.Character
@@ -358,17 +454,18 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- [[(/ Flash TP - Tecla V /)]]
-UserInputService.InputBegan:Connect(function(input, gpe)
-    if gpe then return end
-    if input.KeyCode == Enum.KeyCode.V and flashEnabled then
-        local char = player.Character
-        local hrp = char and char:FindFirstChild("HumanoidRootPart")
-        if hrp then
-            hrp.CFrame = hrp.CFrame * CFrame.new(0, 0, -tpDistance)
-        end
+-- [[(/ Auto Potion Logic - Exemplo /)]]
+RunService.RenderStepped:Connect(function()
+    if not potionEnabled then return end
+    
+    local char = player.Character
+    local hum = char and char:FindFirstChild("Humanoid")
+    if hum and hum.Health < hum.MaxHealth * 0.5 then
+        -- Adicione aqui a lógica de usar poção do seu jogo
+        -- Exemplo: game:GetService("ReplicatedStorage"):FindFirstChild("UsePotion"):FireServer()
     end
 end)
 
 print("WhiteHub Flash TP Carregado!")
-print("Flash TP: Tecla V | Speed Boost: Aumenta velocidade")
+print("Clique com BOTÃO DIREITO no FLASH TP para mudar a tecla do teleporte!")
+print("Tecla atual: " .. flashKeybind.Name)
