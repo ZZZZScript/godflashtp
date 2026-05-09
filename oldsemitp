@@ -1,15 +1,14 @@
 -- =============================================
--- LAW HUB - VERSÃO EXTREMAMENTE SIMPLES
+-- LAW HUB - VERSÃO MÍNIMA (GARANTIDO FUNCIONAR)
 -- =============================================
+
+wait(1)
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local LocalPlayer = Players.LocalPlayer
-
--- Aguardar PlayerGui
-local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
 -- ESTADOS
 local instantSteal = false
@@ -47,9 +46,13 @@ local function updateChar(char)
 end
 
 LocalPlayer.CharacterAdded:Connect(updateChar)
-local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-root = char:FindFirstChild("HumanoidRootPart")
-hum = char:FindFirstChildOfClass("Humanoid")
+
+local function waitChar()
+    local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+    root = char:FindFirstChild("HumanoidRootPart")
+    hum = char:FindFirstChildOfClass("Humanoid")
+end
+waitChar()
 
 -- =============================================
 -- ADMIN PANEL
@@ -69,7 +72,7 @@ local function clickButton(btn)
     local ok, conns = pcall(getconnections, btn.Activated)
     if ok and conns then
         for _, c in ipairs(conns) do
-            task.spawn(c.Function)
+            pcall(task.spawn, c.Function)
         end
     end
 end
@@ -336,7 +339,7 @@ local function showUnlock(show)
         local sg = Instance.new("ScreenGui")
         sg.Name = "LawUnlock"
         sg.ResetOnSpawn = false
-        sg.Parent = PlayerGui
+        sg.Parent = LocalPlayer.PlayerGui
         
         local f = Instance.new("Frame")
         f.Size = UDim2.new(0, 220, 0, 100)
@@ -395,7 +398,7 @@ local function showSteal(show)
         local sg = Instance.new("ScreenGui")
         sg.Name = "LawSteal"
         sg.ResetOnSpawn = false
-        sg.Parent = PlayerGui
+        sg.Parent = LocalPlayer.PlayerGui
         
         local f = Instance.new("Frame")
         f.Size = UDim2.new(0, 260, 0, 300)
@@ -467,7 +470,7 @@ local function showSteal(show)
             if LocalPlayer.Character then LocalPlayer.Character:Destroy() end
         end)
         
-        -- Potion Steal Toggle
+        -- Potion Steal
         local potSw = Instance.new("Frame", f)
         potSw.Size = UDim2.new(0, 40, 0, 20)
         potSw.Position = UDim2.new(0.85, 0, 0.62, 0)
@@ -495,7 +498,6 @@ local function showSteal(show)
         potLabel.Font = Enum.Font.Gotham
         potLabel.TextSize = 12
         potLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-        potLabel.TextXAlignment = Enum.TextXAlignment.Left
         
         -- Speed Slider
         local sldLabel = Instance.new("TextLabel", f)
@@ -608,7 +610,7 @@ local function createMenu()
     screenGui = Instance.new("ScreenGui")
     screenGui.Name = "LawHub"
     screenGui.ResetOnSpawn = false
-    screenGui.Parent = PlayerGui
+    screenGui.Parent = LocalPlayer.PlayerGui
     
     mainFrame = Instance.new("Frame")
     mainFrame.Parent = screenGui
@@ -639,7 +641,6 @@ local function createMenu()
     layout.SortOrder = Enum.SortOrder.LayoutOrder
     layout.Padding = UDim.new(0, 12)
     
-    -- Criar toggles
     createToggle(scroll, "Instant Steal", "instantSteal", function(on)
         instantSteal = on
         showSteal(on)
