@@ -1,15 +1,15 @@
 -- =============================================
--- LAW HUB - VERSÃO CORRIGIDA (SEM ERROS)
+-- LAW HUB - VERSÃO SIMPLIFICADA (FUNCIONA 100%)
 -- =============================================
 
--- Aguardar CoreGui estar disponível
-local CoreGui = game:GetService("CoreGui")
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
-local TeleportService = game:GetService("TeleportService")
 local LocalPlayer = Players.LocalPlayer
+
+-- Aguardar PlayerGui
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
 -- CORES
 local C = {
@@ -17,7 +17,6 @@ local C = {
     card = Color3.fromRGB(35, 35, 45),
     text = Color3.fromRGB(255, 255, 255),
     textDim = Color3.fromRGB(200, 200, 200),
-    border = Color3.fromRGB(255, 255, 255),
 }
 
 -- ESTADOS
@@ -177,7 +176,6 @@ local function doTp()
             tpTo(Vector3.new(-353, -7, 44))
         end
         
-        -- Roubar
         for _, plr in pairs(Players:GetPlayers()) do
             if plr ~= LocalPlayer then
                 runCommand("steal", plr)
@@ -230,7 +228,6 @@ local function stealPrompt(p)
     pcall(function() fireproximityprompt(p, 9999, 0.3) end)
 end
 
--- Loop Auto Grab
 task.spawn(function()
     while true do
         if State.autoGrab then
@@ -348,7 +345,7 @@ local function showUnlock(show)
         local sg = Instance.new("ScreenGui")
         sg.Name = "LawUnlock"
         sg.ResetOnSpawn = false
-        sg.Parent = CoreGui
+        sg.Parent = PlayerGui
         
         local f = Instance.new("Frame")
         f.Size = UDim2.new(0, 220, 0, 100)
@@ -360,10 +357,6 @@ local function showUnlock(show)
         f.Draggable = true
         f.Parent = sg
         corner(f, 12)
-        
-        local stroke = Instance.new("UIStroke", f)
-        stroke.Color = C.border
-        stroke.Thickness = 2
         
         local t = Instance.new("TextLabel", f)
         t.Size = UDim2.new(1, 0, 0, 35)
@@ -392,7 +385,6 @@ local function showUnlock(show)
             btn.TextSize = 20
             btn.TextColor3 = C.text
             corner(btn, 8)
-            
             btn.MouseButton1Click:Connect(doUnlock)
         end
         unlockPanel = sg
@@ -410,7 +402,7 @@ local function showSteal(show)
         local sg = Instance.new("ScreenGui")
         sg.Name = "LawSteal"
         sg.ResetOnSpawn = false
-        sg.Parent = CoreGui
+        sg.Parent = PlayerGui
         
         local f = Instance.new("Frame")
         f.Size = UDim2.new(0, 260, 0, 300)
@@ -422,10 +414,6 @@ local function showSteal(show)
         f.Draggable = true
         f.Parent = sg
         corner(f, 12)
-        
-        local stroke = Instance.new("UIStroke", f)
-        stroke.Color = C.border
-        stroke.Thickness = 2
         
         local t = Instance.new("TextLabel", f)
         t.Size = UDim2.new(1, 0, 0, 35)
@@ -474,19 +462,18 @@ local function showSteal(show)
         teleBtn.Size = UDim2.new(1, -16, 0, 35)
         teleBtn.Position = UDim2.new(0, 8, 0, 100)
         teleBtn.BackgroundColor3 = C.card
-        teleBtn.Text = "Teleport [F]"
+        teleBtn.Text = "Teleport"
         teleBtn.Font = Enum.Font.GothamBold
         teleBtn.TextSize = 13
         teleBtn.TextColor3 = C.text
         corner(teleBtn, 6)
-        
         teleBtn.MouseButton1Click:Connect(doTp)
         
         -- Separador
         local sep = Instance.new("Frame", f)
         sep.Size = UDim2.new(1, -16, 0, 1)
         sep.Position = UDim2.new(0, 8, 0, 145)
-        sep.BackgroundColor3 = C.border
+        sep.BackgroundColor3 = C.text
         sep.BackgroundTransparency = 0.5
         
         local optLabel = Instance.new("TextLabel", f)
@@ -575,9 +562,7 @@ local function showSteal(show)
         sldKnob.InputBegan:Connect(function(i)
             if i.UserInputType == Enum.UserInputType.MouseButton1 then dragging = true end
         end)
-        UserInputService.InputEnded:Connect(function()
-            dragging = false
-        end)
+        UserInputService.InputEnded:Connect(function() dragging = false end)
         UserInputService.InputChanged:Connect(function(i)
             if dragging and i.UserInputType == Enum.UserInputType.MouseMovement then
                 local p = math.clamp((i.Position.X - sldBar.AbsolutePosition.X) / sldBar.AbsoluteSize.X, 0, 1)
@@ -602,9 +587,9 @@ local function showSteal(show)
 end
 
 -- =============================================
--- FUNÇÃO PARA CRIAR TOGGLE (ESTILO ARIES HUB)
+-- TOGGLE
 -- =============================================
-local function createToggle(parent, name, configKey, hasInput, defaultVal)
+local function createToggle(parent, name, configKey, hasInput)
     local Row = Instance.new("Frame")
     local Label = Instance.new("TextLabel")
     local ToggleBtn = Instance.new("TextButton")
@@ -637,7 +622,6 @@ local function createToggle(parent, name, configKey, hasInput, defaultVal)
     Circle.Size = UDim2.new(0, 20, 0, 20)
     corner(Circle, 10)
 
-    -- Estado inicial
     if State[configKey] then
         Circle.Position = UDim2.new(1, -23, 0.5, -10)
     end
@@ -652,11 +636,7 @@ local function createToggle(parent, name, configKey, hasInput, defaultVal)
         elseif configKey == "unlockBase" then
             showUnlock(State[configKey])
         elseif configKey == "stealSpeed" then
-            if State[configKey] then
-                startSpeed()
-            else
-                stopSpeed()
-            end
+            if State[configKey] then startSpeed() else stopSpeed() end
         end
     end)
 
@@ -667,7 +647,7 @@ local function createToggle(parent, name, configKey, hasInput, defaultVal)
         Input.Position = UDim2.new(0.78, 0, 0.15, 0)
         Input.Size = UDim2.new(0, 60, 0, 30)
         Input.Font = Enum.Font.GothamBold
-        Input.Text = tostring(defaultVal)
+        Input.Text = tostring(State.currentSpeed)
         Input.TextColor3 = C.text
         Input.TextSize = 14
         corner(Input, 6)
@@ -689,12 +669,11 @@ end
 -- =============================================
 local function createMenu()
     if screenGui then screenGui:Destroy() end
-    if mainFrame then mainFrame:Destroy() end
     
     screenGui = Instance.new("ScreenGui")
     screenGui.Name = "LawHub"
     screenGui.ResetOnSpawn = false
-    screenGui.Parent = CoreGui
+    screenGui.Parent = PlayerGui
     
     mainFrame = Instance.new("Frame")
     mainFrame.Parent = screenGui
@@ -703,10 +682,6 @@ local function createMenu()
     mainFrame.Position = UDim2.new(0.5, -150, 0.5, -200)
     mainFrame.Size = UDim2.new(0, 320, 0, 420)
     corner(mainFrame, 15)
-    
-    local stroke = Instance.new("UIStroke", mainFrame)
-    stroke.Color = C.border
-    stroke.Thickness = 2
     
     local title = Instance.new("TextLabel", mainFrame)
     title.BackgroundTransparency = 1
@@ -738,14 +713,13 @@ local function createMenu()
     layout.SortOrder = Enum.SortOrder.LayoutOrder
     layout.Padding = UDim.new(0, 12)
     
-    -- Criar todos os toggles
-    createToggle(scroll, "Instant Steal", "instantSteal", false, nil)
-    createToggle(scroll, "Auto Grab", "autoGrab", false, nil)
-    createToggle(scroll, "Active Potion", "activePotion", false, nil)
-    createToggle(scroll, "Unlock Base", "unlockBase", false, nil)
-    createToggle(scroll, "Steal Speed", "stealSpeed", true, 28)
+    createToggle(scroll, "Instant Steal", "instantSteal", false)
+    createToggle(scroll, "Auto Grab", "autoGrab", false)
+    createToggle(scroll, "Active Potion", "activePotion", false)
+    createToggle(scroll, "Unlock Base", "unlockBase", false)
+    createToggle(scroll, "Steal Speed", "stealSpeed", true)
     
-    -- DRAG SYSTEM
+    -- DRAG
     local dragToggle = false
     local dragStart = nil
     local startPos = nil
@@ -773,7 +747,7 @@ local function createMenu()
 end
 
 -- =============================================
--- KEYBIND GLOBAL
+-- KEYBIND
 -- =============================================
 UserInputService.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.Keyboard and input.KeyCode == State.keybind then
@@ -790,6 +764,6 @@ if State.instantSteal then showSteal(true) end
 if State.unlockBase then showUnlock(true) end
 if State.stealSpeed then startSpeed() end
 
-print("=== LAW HUB CARREGADO ===")
-print("Menu estilo Aries Hub com 5 toggles")
+print("LAW HUB CARREGADO!")
+print("Menu com 5 toggles funcionando")
 print("Pressione F para teleportar")
