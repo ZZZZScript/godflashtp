@@ -62,7 +62,7 @@ local Main = Instance.new("Frame")
 Main.Name = "Main"
 Main.Size = UDim2.new(0, 280, 0, 280)
 Main.Position = UDim2.new(0.5, -140, 0.5, -140)
-Main.BackgroundColor3 = Color3.new(0, 0, 0)
+Main.BackgroundColor3 = Color3.fromRGB(8, 8, 12)
 Main.BackgroundTransparency = 0.15
 Main.BorderSizePixel = 0
 Main.Parent = ScreenGui
@@ -79,11 +79,9 @@ MainStroke.Parent = Main
 
 local StrokeGradient = Instance.new("UIGradient")
 StrokeGradient.Color = ColorSequence.new({
-    ColorSequenceKeypoint.new(0, Color3.new(1, 1, 1)),
-    ColorSequenceKeypoint.new(0.25, Color3.new(0, 0, 0)),
-    ColorSequenceKeypoint.new(0.5, Color3.new(1, 1, 1)),
-    ColorSequenceKeypoint.new(0.75, Color3.new(0, 0, 0)),
-    ColorSequenceKeypoint.new(1, Color3.new(1, 1, 1)),
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(138, 43, 226)),
+    ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 69, 0)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(138, 43, 226)),
 })
 StrokeGradient.Parent = MainStroke
 
@@ -97,9 +95,9 @@ end)
 -- [[(/ Title Bar /)]]
 local TitleBar = Instance.new("Frame")
 TitleBar.Name = "TitleBar"
-TitleBar.Size = UDim2.new(1, 0, 0, 32)
-TitleBar.BackgroundColor3 = Color3.new(0, 0, 0)
-TitleBar.BackgroundTransparency = 0.5
+TitleBar.Size = UDim2.new(1, 0, 0, 40)
+TitleBar.BackgroundColor3 = Color3.fromRGB(10, 10, 18)
+TitleBar.BackgroundTransparency = 0.3
 TitleBar.BorderSizePixel = 0
 TitleBar.Parent = Main
 
@@ -107,25 +105,24 @@ local TitleBarCorner = Instance.new("UICorner")
 TitleBarCorner.CornerRadius = UDim.new(0, 12)
 TitleBarCorner.Parent = TitleBar
 
-local TitleSep = Instance.new("Frame")
-TitleSep.Name = "Separator"
-TitleSep.Size = UDim2.new(1, 0, 0, 1)
-TitleSep.Position = UDim2.new(0, 0, 1, 0)
-TitleSep.BackgroundColor3 = Color3.new(1, 1, 1)
-TitleSep.BorderSizePixel = 0
-TitleSep.Parent = TitleBar
-
 local TitleLabel = Instance.new("TextLabel")
 TitleLabel.Name = "Title"
 TitleLabel.Size = UDim2.new(1, -20, 1, 0)
-TitleLabel.Position = UDim2.new(0, 10, 0, 0)
+TitleLabel.Position = UDim2.new(0, 15, 0, 0)
 TitleLabel.BackgroundTransparency = 1
 TitleLabel.Text = "WhiteHub Flash TP"
 TitleLabel.TextColor3 = Color3.new(1, 1, 1)
 TitleLabel.Font = Enum.Font.GothamBold
-TitleLabel.TextSize = 14
+TitleLabel.TextSize = 16
 TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
 TitleLabel.Parent = TitleBar
+
+local TitleGrad = Instance.new("UIGradient")
+TitleGrad.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(138, 43, 226)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 69, 0)),
+})
+TitleGrad.Parent = TitleLabel
 
 -- [[(/ Dragging do Main /)]]
 do
@@ -157,8 +154,8 @@ end
 -- [[(/ Content Area /)]]
 local Content = Instance.new("Frame")
 Content.Name = "Content"
-Content.Size = UDim2.new(1, -20, 1, -42)
-Content.Position = UDim2.new(0, 10, 0, 37)
+Content.Size = UDim2.new(1, -20, 1, -50)
+Content.Position = UDim2.new(0, 10, 0, 45)
 Content.BackgroundTransparency = 1
 Content.BorderSizePixel = 0
 Content.Parent = Main
@@ -166,9 +163,9 @@ Content.Parent = Main
 -- [[(/ Flash TP Button /)]]
 local FlashButton = Instance.new("TextButton")
 FlashButton.Name = "FlashTPButton"
-FlashButton.Size = UDim2.new(1, 0, 0, 36)
+FlashButton.Size = UDim2.new(1, 0, 0, 42)
 FlashButton.Position = UDim2.new(0, 0, 0, 0)
-FlashButton.BackgroundColor3 = Color3.new(0.117647, 0.117647, 0.117647)
+FlashButton.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
 FlashButton.AutoButtonColor = false
 FlashButton.Text = ""
 FlashButton.BorderSizePixel = 0
@@ -192,18 +189,18 @@ FlashLabel.TextYAlignment = Enum.TextYAlignment.Center
 FlashLabel.Parent = FlashButton
 
 FlashButton.MouseEnter:Connect(function()
-    TweenService:Create(FlashButton, TweenInfo.new(0.15), {BackgroundColor3 = Color3.new(0.18, 0.18, 0.18)}):Play()
+    TweenService:Create(FlashButton, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(35, 35, 45)}):Play()
 end)
 FlashButton.MouseLeave:Connect(function()
-    TweenService:Create(FlashButton, TweenInfo.new(0.15), {BackgroundColor3 = Color3.new(0.117647, 0.117647, 0.117647)}):Play()
+    TweenService:Create(FlashButton, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(25, 25, 35)}):Play()
 end)
 
 -- [[(/ Speed Boost Button /)]]
 local SpeedButton = Instance.new("TextButton")
 SpeedButton.Name = "SpeedButton"
-SpeedButton.Size = UDim2.new(1, 0, 0, 36)
-SpeedButton.Position = UDim2.new(0, 0, 0, 42)
-SpeedButton.BackgroundColor3 = Color3.new(0.117647, 0.117647, 0.117647)
+SpeedButton.Size = UDim2.new(1, 0, 0, 42)
+SpeedButton.Position = UDim2.new(0, 0, 0, 48)
+SpeedButton.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
 SpeedButton.AutoButtonColor = false
 SpeedButton.Text = ""
 SpeedButton.BorderSizePixel = 0
@@ -227,18 +224,18 @@ SpeedLabel.TextYAlignment = Enum.TextYAlignment.Center
 SpeedLabel.Parent = SpeedButton
 
 SpeedButton.MouseEnter:Connect(function()
-    TweenService:Create(SpeedButton, TweenInfo.new(0.15), {BackgroundColor3 = Color3.new(0.18, 0.18, 0.18)}):Play()
+    TweenService:Create(SpeedButton, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(35, 35, 45)}):Play()
 end)
 SpeedButton.MouseLeave:Connect(function()
-    TweenService:Create(SpeedButton, TweenInfo.new(0.15), {BackgroundColor3 = Color3.new(0.117647, 0.117647, 0.117647)}):Play()
+    TweenService:Create(SpeedButton, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(25, 25, 35)}):Play()
 end)
 
 -- [[(/ Auto Potion Button /)]]
 local PotionButton = Instance.new("TextButton")
 PotionButton.Name = "PotionButton"
-PotionButton.Size = UDim2.new(1, 0, 0, 36)
-PotionButton.Position = UDim2.new(0, 0, 0, 84)
-PotionButton.BackgroundColor3 = Color3.new(0.117647, 0.117647, 0.117647)
+PotionButton.Size = UDim2.new(1, 0, 0, 42)
+PotionButton.Position = UDim2.new(0, 0, 0, 96)
+PotionButton.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
 PotionButton.AutoButtonColor = false
 PotionButton.Text = ""
 PotionButton.BorderSizePixel = 0
@@ -262,18 +259,18 @@ PotionLabel.TextYAlignment = Enum.TextYAlignment.Center
 PotionLabel.Parent = PotionButton
 
 PotionButton.MouseEnter:Connect(function()
-    TweenService:Create(PotionButton, TweenInfo.new(0.15), {BackgroundColor3 = Color3.new(0.18, 0.18, 0.18)}):Play()
+    TweenService:Create(PotionButton, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(35, 35, 45)}):Play()
 end)
 PotionButton.MouseLeave:Connect(function()
-    TweenService:Create(PotionButton, TweenInfo.new(0.15), {BackgroundColor3 = Color3.new(0.117647, 0.117647, 0.117647)}):Play()
+    TweenService:Create(PotionButton, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(25, 25, 35)}):Play()
 end)
 
 -- [[(/ Kick After Steal Button /)]]
 local KickButton = Instance.new("TextButton")
 KickButton.Name = "KickButton"
-KickButton.Size = UDim2.new(1, 0, 0, 36)
-KickButton.Position = UDim2.new(0, 0, 0, 126)
-KickButton.BackgroundColor3 = Color3.new(0.117647, 0.117647, 0.117647)
+KickButton.Size = UDim2.new(1, 0, 0, 42)
+KickButton.Position = UDim2.new(0, 0, 0, 144)
+KickButton.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
 KickButton.AutoButtonColor = false
 KickButton.Text = ""
 KickButton.BorderSizePixel = 0
@@ -297,17 +294,17 @@ KickLabel.TextYAlignment = Enum.TextYAlignment.Center
 KickLabel.Parent = KickButton
 
 KickButton.MouseEnter:Connect(function()
-    TweenService:Create(KickButton, TweenInfo.new(0.15), {BackgroundColor3 = Color3.new(0.18, 0.18, 0.18)}):Play()
+    TweenService:Create(KickButton, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(35, 35, 45)}):Play()
 end)
 KickButton.MouseLeave:Connect(function()
-    TweenService:Create(KickButton, TweenInfo.new(0.15), {BackgroundColor3 = Color3.new(0.117647, 0.117647, 0.117647)}):Play()
+    TweenService:Create(KickButton, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(25, 25, 35)}):Play()
 end)
 
 -- [[(/ TRIGGER SLIDER - Dentro do menu /)]]
 local TriggerArea = Instance.new("Frame")
 TriggerArea.Name = "TriggerArea"
-TriggerArea.Size = UDim2.new(1, 0, 0, 45)
-TriggerArea.Position = UDim2.new(0, 0, 0, 168)
+TriggerArea.Size = UDim2.new(1, 0, 0, 55)
+TriggerArea.Position = UDim2.new(0, 0, 0, 192)
 TriggerArea.BackgroundTransparency = 1
 TriggerArea.Parent = Content
 
@@ -326,7 +323,7 @@ local TriggerTrack = Instance.new("Frame")
 TriggerTrack.Name = "Track"
 TriggerTrack.Size = UDim2.new(1, 0, 0, 6)
 TriggerTrack.Position = UDim2.new(0, 0, 0, 20)
-TriggerTrack.BackgroundColor3 = Color3.new(0.156863, 0.156863, 0.156863)
+TriggerTrack.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
 TriggerTrack.BorderSizePixel = 0
 TriggerTrack.Parent = TriggerArea
 
@@ -337,7 +334,7 @@ TriggerTrackCorner.Parent = TriggerTrack
 local TriggerFill = Instance.new("Frame")
 TriggerFill.Name = "Fill"
 TriggerFill.Size = UDim2.new(0.91, 0, 1, 0)
-TriggerFill.BackgroundColor3 = Color3.new(1, 1, 1)
+TriggerFill.BackgroundColor3 = Color3.fromRGB(138, 43, 226)
 TriggerFill.BorderSizePixel = 0
 TriggerFill.Parent = TriggerTrack
 
@@ -360,44 +357,69 @@ local TriggerKnobCorner = Instance.new("UICorner")
 TriggerKnobCorner.CornerRadius = UDim.new(1, 0)
 TriggerKnobCorner.Parent = TriggerKnob
 
--- [[(/ SPEED PANEL - Quadrado separado /)]]
+-- [[(/ SPEED PANEL - Igual ao Apex Hub /)]]
 local SpeedPanel = Instance.new("Frame")
 SpeedPanel.Name = "SpeedPanel"
-SpeedPanel.Size = UDim2.new(0, 260, 0, 70)
+SpeedPanel.Size = UDim2.new(0, 260, 0, 80)
 SpeedPanel.Position = UDim2.new(0.5, -130, 0.6, 0)
-SpeedPanel.BackgroundColor3 = Color3.new(0.05, 0.05, 0.08)
+SpeedPanel.BackgroundColor3 = Color3.fromRGB(8, 8, 12)
 SpeedPanel.BackgroundTransparency = 0
 SpeedPanel.BorderSizePixel = 0
 SpeedPanel.Visible = false
 SpeedPanel.Parent = ScreenGui
 
 local SpeedPanelCorner = Instance.new("UICorner")
-SpeedPanelCorner.CornerRadius = UDim.new(0, 8)
+SpeedPanelCorner.CornerRadius = UDim.new(0, 10)
 SpeedPanelCorner.Parent = SpeedPanel
 
 local SpeedPanelStroke = Instance.new("UIStroke")
 SpeedPanelStroke.Color = Color3.new(1, 1, 1)
 SpeedPanelStroke.Thickness = 1
-SpeedPanelStroke.Transparency = 0.5
+SpeedPanelStroke.Transparency = 0.3
 SpeedPanelStroke.Parent = SpeedPanel
 
-local SpeedPanelLabel = Instance.new("TextLabel")
-SpeedPanelLabel.Name = "Label"
-SpeedPanelLabel.Size = UDim2.new(1, -20, 0, 20)
-SpeedPanelLabel.Position = UDim2.new(0, 10, 0, 5)
-SpeedPanelLabel.BackgroundTransparency = 1
-SpeedPanelLabel.Text = "SPEED: 28"
-SpeedPanelLabel.TextColor3 = Color3.new(1, 1, 1)
-SpeedPanelLabel.Font = Enum.Font.GothamBold
-SpeedPanelLabel.TextSize = 11
-SpeedPanelLabel.TextXAlignment = Enum.TextXAlignment.Left
-SpeedPanelLabel.Parent = SpeedPanel
+-- Título do Speed Panel
+local SpeedTitle = Instance.new("TextLabel")
+SpeedTitle.Size = UDim2.new(1, 0, 0, 25)
+SpeedTitle.Position = UDim2.new(0, 0, 0, 5)
+SpeedTitle.BackgroundTransparency = 1
+SpeedTitle.Text = "⚡ SPEED BOOST"
+SpeedTitle.TextColor3 = Color3.fromRGB(255, 69, 0)
+SpeedTitle.Font = Enum.Font.GothamBold
+SpeedTitle.TextSize = 12
+SpeedTitle.TextXAlignment = Enum.TextXAlignment.Center
+SpeedTitle.Parent = SpeedPanel
 
+-- Label do valor atual
+local SpeedValueLabel = Instance.new("TextLabel")
+SpeedValueLabel.Size = UDim2.new(0.3, 0, 0, 20)
+SpeedValueLabel.Position = UDim2.new(0.7, 0, 0.4, 0)
+SpeedValueLabel.BackgroundTransparency = 1
+SpeedValueLabel.Text = "28"
+SpeedValueLabel.TextColor3 = Color3.fromRGB(138, 43, 226)
+SpeedValueLabel.Font = Enum.Font.GothamBold
+SpeedValueLabel.TextSize = 18
+SpeedValueLabel.TextXAlignment = Enum.TextXAlignment.Center
+SpeedValueLabel.Parent = SpeedPanel
+
+-- Label "SPEED"
+local SpeedTextLabel = Instance.new("TextLabel")
+SpeedTextLabel.Size = UDim2.new(0.3, 0, 0, 20)
+SpeedTextLabel.Position = UDim2.new(0.05, 0, 0.4, 0)
+SpeedTextLabel.BackgroundTransparency = 1
+SpeedTextLabel.Text = "SPEED:"
+SpeedTextLabel.TextColor3 = Color3.new(1, 1, 1)
+SpeedTextLabel.Font = Enum.Font.GothamBold
+SpeedTextLabel.TextSize = 12
+SpeedTextLabel.TextXAlignment = Enum.TextXAlignment.Left
+SpeedTextLabel.Parent = SpeedPanel
+
+-- Slider Track
 local SpeedSliderTrack = Instance.new("Frame")
 SpeedSliderTrack.Name = "Track"
 SpeedSliderTrack.Size = UDim2.new(0.85, -10, 0, 6)
-SpeedSliderTrack.Position = UDim2.new(0.05, 0, 0.5, -3)
-SpeedSliderTrack.BackgroundColor3 = Color3.new(0.156863, 0.156863, 0.156863)
+SpeedSliderTrack.Position = UDim2.new(0.05, 0, 0.7, -3)
+SpeedSliderTrack.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
 SpeedSliderTrack.BorderSizePixel = 0
 SpeedSliderTrack.Parent = SpeedPanel
 
@@ -405,10 +427,11 @@ local SpeedTrackCorner = Instance.new("UICorner")
 SpeedTrackCorner.CornerRadius = UDim.new(1, 0)
 SpeedTrackCorner.Parent = SpeedSliderTrack
 
+-- Slider Fill
 local SpeedSliderFill = Instance.new("Frame")
 SpeedSliderFill.Name = "Fill"
 SpeedSliderFill.Size = UDim2.new((28 - 16) / 34, 0, 1, 0)
-SpeedSliderFill.BackgroundColor3 = Color3.new(1, 1, 1)
+SpeedSliderFill.BackgroundColor3 = Color3.fromRGB(138, 43, 226)
 SpeedSliderFill.BorderSizePixel = 0
 SpeedSliderFill.Parent = SpeedSliderTrack
 
@@ -416,10 +439,11 @@ local SpeedFillCorner = Instance.new("UICorner")
 SpeedFillCorner.CornerRadius = UDim.new(1, 0)
 SpeedFillCorner.Parent = SpeedSliderFill
 
+-- Slider Knob
 local SpeedSliderKnob = Instance.new("TextButton")
 SpeedSliderKnob.Name = "Knob"
-SpeedSliderKnob.Size = UDim2.new(0, 14, 0, 14)
-SpeedSliderKnob.Position = UDim2.new((28 - 16) / 34, 0, 0.5, -7)
+SpeedSliderKnob.Size = UDim2.new(0, 16, 0, 16)
+SpeedSliderKnob.Position = UDim2.new((28 - 16) / 34, 0, 0.5, -8)
 SpeedSliderKnob.AnchorPoint = Vector2.new(0.5, 0.5)
 SpeedSliderKnob.BackgroundColor3 = Color3.new(1, 1, 1)
 SpeedSliderKnob.BorderSizePixel = 0
@@ -431,17 +455,28 @@ local SpeedKnobCorner = Instance.new("UICorner")
 SpeedKnobCorner.CornerRadius = UDim.new(1, 0)
 SpeedKnobCorner.Parent = SpeedSliderKnob
 
-local SpeedCurrentValue = Instance.new("TextLabel")
-SpeedCurrentValue.Name = "CurrentValue"
-SpeedCurrentValue.Size = UDim2.new(0.1, 0, 0, 20)
-SpeedCurrentValue.Position = UDim2.new(0.9, 0, 0.5, -10)
-SpeedCurrentValue.BackgroundTransparency = 1
-SpeedCurrentValue.Text = "28"
-SpeedCurrentValue.TextColor3 = Color3.new(1, 0.8, 0.3)
-SpeedCurrentValue.Font = Enum.Font.GothamBold
-SpeedCurrentValue.TextSize = 12
-SpeedCurrentValue.TextXAlignment = Enum.TextXAlignment.Center
-SpeedCurrentValue.Parent = SpeedPanel
+-- Range labels
+local MinLabel = Instance.new("TextLabel")
+MinLabel.Size = UDim2.new(0.05, 0, 0, 12)
+MinLabel.Position = UDim2.new(0.05, 0, 0.8, 0)
+MinLabel.BackgroundTransparency = 1
+MinLabel.Text = "16"
+MinLabel.TextColor3 = Color3.new(0.6, 0.6, 0.6)
+MinLabel.Font = Enum.Font.GothamBold
+MinLabel.TextSize = 9
+MinLabel.TextXAlignment = Enum.TextXAlignment.Center
+MinLabel.Parent = SpeedPanel
+
+local MaxLabel = Instance.new("TextLabel")
+MaxLabel.Size = UDim2.new(0.05, 0, 0, 12)
+MaxLabel.Position = UDim2.new(0.9, 0, 0.8, 0)
+MaxLabel.BackgroundTransparency = 1
+MaxLabel.Text = "50"
+MaxLabel.TextColor3 = Color3.new(0.6, 0.6, 0.6)
+MaxLabel.Font = Enum.Font.GothamBold
+MaxLabel.TextSize = 9
+MaxLabel.TextXAlignment = Enum.TextXAlignment.Center
+MaxLabel.Parent = SpeedPanel
 
 -- [[(/ Dragging do Speed Panel /)]]
 do
@@ -470,7 +505,7 @@ do
     end)
 end
 
--- Atualiza posição do Speed Panel abaixo do menu
+-- Atualiza posição do Speed Panel
 local function updateSpeedPanelPosition()
     local mainPos = Main.AbsolutePosition
     local mainSize = Main.AbsoluteSize
@@ -544,7 +579,7 @@ do
     end)
 end
 
--- [[(/ Função do Slider do Speed - CORRIGIDA /)]]
+-- [[(/ Função do Slider do Speed - IGUAL AO APEX HUB /)]]
 do
     local sliderDragging = false
 
@@ -556,11 +591,9 @@ do
         newSpeed = math.clamp(newSpeed, 16, 50)
         speedAmount = newSpeed
         SpeedSliderFill.Size = UDim2.new((speedAmount - 16) / 34, 0, 1, 0)
-        SpeedSliderKnob.Position = UDim2.new((speedAmount - 16) / 34, 0, 0.5, -7)
-        SpeedCurrentValue.Text = tostring(speedAmount)
-        SpeedPanelLabel.Text = "SPEED: " .. speedAmount
+        SpeedSliderKnob.Position = UDim2.new((speedAmount - 16) / 34, 0, 0.5, -8)
+        SpeedValueLabel.Text = tostring(speedAmount)
         
-        -- Aplica a velocidade imediatamente se estiver ativado
         if speedEnabled then
             local char = player.Character
             local hum = char and char:FindFirstChild("Humanoid")
@@ -622,7 +655,6 @@ ProximityPromptService.PromptButtonHoldBegan:Connect(function(prompt)
             conn:Disconnect()
             activeTriggers[prompt] = nil
             
-            -- Flash TP
             local char = player.Character
             if char and char:FindFirstChild("HumanoidRootPart") then
                 local hrp = char.HumanoidRootPart
@@ -665,14 +697,12 @@ SpeedButton.MouseButton1Click:Connect(function()
     
     if speedEnabled then
         updateSpeedPanelPosition()
-        -- Aplica a velocidade atual ao ativar
         local char = player.Character
         local hum = char and char:FindFirstChild("Humanoid")
         if hum then
             hum.WalkSpeed = speedAmount
         end
     else
-        -- Volta a velocidade normal
         local char = player.Character
         local hum = char and char:FindFirstChild("Humanoid")
         if hum then
@@ -691,7 +721,7 @@ KickButton.MouseButton1Click:Connect(function()
     KickLabel.Text = kickEnabled and "KICK AFTER STEAL: ON" or "KICK AFTER STEAL: OFF"
 end)
 
--- [[(/ Speed Boost Logic - Mantém a velocidade /)]]
+-- [[(/ Speed Boost Logic /)]]
 RunService.RenderStepped:Connect(function()
     local char = player.Character
     local hum = char and char:FindFirstChild("Humanoid")
@@ -701,6 +731,5 @@ RunService.RenderStepped:Connect(function()
 end)
 
 print("WhiteHub Flash TP Carregado!")
-print("TRIGGER está dentro do menu")
-print("Ative o SPEED BOOST e use o SLIDER para mudar a velocidade")
-print("Speed Panel é arrastável!")
+print("Speed Boost com Slider igual ao Apex Hub!")
+print("Ative o SPEED BOOST para ver o painel")
