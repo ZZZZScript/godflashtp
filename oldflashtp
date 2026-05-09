@@ -61,7 +61,7 @@ StealFillCorner.Parent = StealBarFill
 local Main = Instance.new("Frame")
 Main.Name = "Main"
 Main.Size = UDim2.new(0, 280, 0, 200)
-Main.Position = UDim2.new(0.5, -140, 0.5, -100)
+Main.Position = UDim2.new(0.5, -140, 0.5, -150)
 Main.BackgroundColor3 = Color3.new(0, 0, 0)
 Main.BackgroundTransparency = 0.15
 Main.BorderSizePixel = 0
@@ -127,7 +127,7 @@ TitleLabel.TextSize = 14
 TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
 TitleLabel.Parent = TitleBar
 
--- [[(/ Dragging /)]]
+-- [[(/ Dragging do Main /)]]
 do
     local dragging = false
     local dragStart, startPos
@@ -303,30 +303,43 @@ KickButton.MouseLeave:Connect(function()
     TweenService:Create(KickButton, TweenInfo.new(0.15), {BackgroundColor3 = Color3.new(0.117647, 0.117647, 0.117647)}):Play()
 end)
 
--- [[(/ TRIGGER SLIDER - Embaixo de tudo /)]]
+-- [[(/ TRIGGER SLIDER - Embaixo do Main /)]]
 local TriggerArea = Instance.new("Frame")
 TriggerArea.Name = "TriggerArea"
-TriggerArea.Size = UDim2.new(1, -20, 0, 45)
-TriggerArea.Position = UDim2.new(0, 10, 1, -50)
-TriggerArea.BackgroundTransparency = 1
+TriggerArea.Size = UDim2.new(0, 260, 0, 50)
+TriggerArea.Position = UDim2.new(0.5, -130, 0.5, 120)
+TriggerArea.BackgroundColor3 = Color3.new(0.05, 0.05, 0.08)
+TriggerArea.BackgroundTransparency = 0
+TriggerArea.BorderSizePixel = 0
 TriggerArea.Visible = false
-TriggerArea.Parent = Main
+TriggerArea.Parent = ScreenGui
+
+local TriggerAreaCorner = Instance.new("UICorner")
+TriggerAreaCorner.CornerRadius = UDim.new(0, 8)
+TriggerAreaCorner.Parent = TriggerArea
+
+local TriggerAreaStroke = Instance.new("UIStroke")
+TriggerAreaStroke.Color = Color3.new(1, 1, 1)
+TriggerAreaStroke.Thickness = 1
+TriggerAreaStroke.Transparency = 0.5
+TriggerAreaStroke.Parent = TriggerArea
 
 local TriggerLabel = Instance.new("TextLabel")
 TriggerLabel.Name = "TriggerLabel"
-TriggerLabel.Size = UDim2.new(1, 0, 0, 16)
+TriggerLabel.Size = UDim2.new(1, -20, 0, 20)
+TriggerLabel.Position = UDim2.new(0, 10, 0, 5)
 TriggerLabel.BackgroundTransparency = 1
 TriggerLabel.Text = "TRIGGER: 91%"
 TriggerLabel.TextColor3 = Color3.new(1, 1, 1)
 TriggerLabel.Font = Enum.Font.GothamBold
 TriggerLabel.TextSize = 11
-TriggerLabel.TextXAlignment = Enum.TextXAlignment.Center
+TriggerLabel.TextXAlignment = Enum.TextXAlignment.Left
 TriggerLabel.Parent = TriggerArea
 
 local TriggerTrack = Instance.new("Frame")
 TriggerTrack.Name = "Track"
-TriggerTrack.Size = UDim2.new(1, 0, 0, 6)
-TriggerTrack.Position = UDim2.new(0, 0, 0, 20)
+TriggerTrack.Size = UDim2.new(0.85, -10, 0, 6)
+TriggerTrack.Position = UDim2.new(0.05, 0, 0.5, -3)
 TriggerTrack.BackgroundColor3 = Color3.new(0.156863, 0.156863, 0.156863)
 TriggerTrack.BorderSizePixel = 0
 TriggerTrack.Parent = TriggerArea
@@ -361,11 +374,11 @@ local TriggerKnobCorner = Instance.new("UICorner")
 TriggerKnobCorner.CornerRadius = UDim.new(1, 0)
 TriggerKnobCorner.Parent = TriggerKnob
 
--- [[(/ PAINEL DO SPEED BOOST /)]]
+-- [[(/ SPEED PANEL - Quadrado separado embaixo /)]]
 local SpeedPanel = Instance.new("Frame")
 SpeedPanel.Name = "SpeedPanel"
-SpeedPanel.Size = UDim2.new(0, 280, 0, 70)
-SpeedPanel.Position = UDim2.new(0.5, -140, 1, 10)
+SpeedPanel.Size = UDim2.new(0, 260, 0, 70)
+SpeedPanel.Position = UDim2.new(0.5, -130, 0.5, 180)
 SpeedPanel.BackgroundColor3 = Color3.new(0.05, 0.05, 0.08)
 SpeedPanel.BackgroundTransparency = 0
 SpeedPanel.BorderSizePixel = 0
@@ -373,7 +386,7 @@ SpeedPanel.Visible = false
 SpeedPanel.Parent = ScreenGui
 
 local SpeedPanelCorner = Instance.new("UICorner")
-SpeedPanelCorner.CornerRadius = UDim.new(0, 10)
+SpeedPanelCorner.CornerRadius = UDim.new(0, 8)
 SpeedPanelCorner.Parent = SpeedPanel
 
 local SpeedPanelStroke = Instance.new("UIStroke")
@@ -390,7 +403,7 @@ SpeedPanelLabel.BackgroundTransparency = 1
 SpeedPanelLabel.Text = "SPEED: 28"
 SpeedPanelLabel.TextColor3 = Color3.new(1, 1, 1)
 SpeedPanelLabel.Font = Enum.Font.GothamBold
-SpeedPanelLabel.TextSize = 12
+SpeedPanelLabel.TextSize = 11
 SpeedPanelLabel.TextXAlignment = Enum.TextXAlignment.Left
 SpeedPanelLabel.Parent = SpeedPanel
 
@@ -419,8 +432,8 @@ SpeedFillCorner.Parent = SpeedSliderFill
 
 local SpeedSliderKnob = Instance.new("TextButton")
 SpeedSliderKnob.Name = "Knob"
-SpeedSliderKnob.Size = UDim2.new(0, 16, 0, 16)
-SpeedSliderKnob.Position = UDim2.new((28 - 16) / 34, 0, 0.5, -8)
+SpeedSliderKnob.Size = UDim2.new(0, 14, 0, 14)
+SpeedSliderKnob.Position = UDim2.new((28 - 16) / 34, 0, 0.5, -7)
 SpeedSliderKnob.AnchorPoint = Vector2.new(0.5, 0.5)
 SpeedSliderKnob.BackgroundColor3 = Color3.new(1, 1, 1)
 SpeedSliderKnob.BorderSizePixel = 0
@@ -440,9 +453,63 @@ SpeedCurrentValue.BackgroundTransparency = 1
 SpeedCurrentValue.Text = "28"
 SpeedCurrentValue.TextColor3 = Color3.new(1, 0.8, 0.3)
 SpeedCurrentValue.Font = Enum.Font.GothamBold
-SpeedCurrentValue.TextSize = 14
+SpeedCurrentValue.TextSize = 12
 SpeedCurrentValue.TextXAlignment = Enum.TextXAlignment.Center
 SpeedCurrentValue.Parent = SpeedPanel
+
+-- [[(/ Dragging do Speed Panel /)]]
+do
+    local dragging = false
+    local dragStart, startPos
+
+    SpeedPanel.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPos = SpeedPanel.Position
+
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                end
+            end)
+        end
+    end)
+
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            local delta = input.Position - dragStart
+            SpeedPanel.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        end
+    end)
+end
+
+-- [[(/ Dragging do Trigger Area /)]]
+do
+    local dragging = false
+    local dragStart, startPos
+
+    TriggerArea.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPos = TriggerArea.Position
+
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                end
+            end)
+        end
+    end)
+
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            local delta = input.Position - dragStart
+            TriggerArea.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        end
+    end)
+end
 
 -- [[(/ Discord Link /)]]
 local DiscordLabel = Instance.new("TextLabel")
@@ -517,7 +584,7 @@ do
         newSpeed = math.clamp(newSpeed, 16, 50)
         speedAmount = newSpeed
         SpeedSliderFill.Size = UDim2.new((speedAmount - 16) / 34, 0, 1, 0)
-        SpeedSliderKnob.Position = UDim2.new((speedAmount - 16) / 34, 0, 0.5, -8)
+        SpeedSliderKnob.Position = UDim2.new((speedAmount - 16) / 34, 0, 0.5, -7)
         SpeedCurrentValue.Text = tostring(speedAmount)
         SpeedPanelLabel.Text = "SPEED: " .. speedAmount
     end
@@ -544,28 +611,6 @@ do
             sliderDragging = false
         end
     end)
-end
-
--- [[(/ Mostrar/Esconder Painel Speed /)]]
-local function showSpeedPanel(show)
-    local targetPos = show and UDim2.new(0.5, -140, 0.85, 0) or UDim2.new(0.5, -140, 1, 10)
-    local tween = TweenService:Create(SpeedPanel, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-        Position = targetPos
-    })
-    if show then
-        SpeedPanel.Visible = true
-        SpeedPanel.Position = UDim2.new(0.5, -140, 1, 10)
-        tween:Play()
-        -- Aumenta o menu
-        TweenService:Create(Main, TweenInfo.new(0.3), {Size = UDim2.new(0, 280, 0, 270)}):Play()
-        TriggerArea.Position = UDim2.new(0, 10, 1, -50)
-    else
-        tween:Play()
-        task.wait(0.3)
-        SpeedPanel.Visible = false
-        -- Volta o menu ao tamanho normal
-        TweenService:Create(Main, TweenInfo.new(0.3), {Size = UDim2.new(0, 280, 0, 200)}):Play()
-    end
 end
 
 -- [[(/ Flash TP Durante o Steal /)]]
@@ -631,17 +676,12 @@ FlashButton.MouseButton1Click:Connect(function()
     flashEnabled = not flashEnabled
     FlashLabel.Text = flashEnabled and "FLASH TP: ON" or "FLASH TP: OFF"
     TriggerArea.Visible = flashEnabled
-    if flashEnabled then
-        Main.Size = UDim2.new(0, 280, 0, 245)
-    else
-        Main.Size = UDim2.new(0, 280, 0, 200)
-    end
 end)
 
 SpeedButton.MouseButton1Click:Connect(function()
     speedEnabled = not speedEnabled
     SpeedLabel.Text = speedEnabled and "SPEED BOOST: ON" or "SPEED BOOST: OFF"
-    showSpeedPanel(speedEnabled)
+    SpeedPanel.Visible = speedEnabled
 end)
 
 PotionButton.MouseButton1Click:Connect(function()
@@ -668,5 +708,6 @@ RunService.RenderStepped:Connect(function()
 end)
 
 print("WhiteHub Flash TP Carregado!")
-print("Ative o FLASH TP para ver o TRIGGER abaixo!")
-print("Ative o SPEED BOOST para ver o slider de velocidade!")
+print("Ative o FLASH TP para ver o TRIGGER")
+print("Ative o SPEED BOOST para ver o painel de velocidade")
+print("Os painéis são arrastáveis!")
