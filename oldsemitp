@@ -1,5 +1,5 @@
 -- =============================================
--- LAW HUB - VERSÃO SIMPLIFICADA (FUNCIONA 100%)
+-- LAW HUB - VERSÃO EXTREMAMENTE SIMPLES
 -- =============================================
 
 local Players = game:GetService("Players")
@@ -11,39 +11,25 @@ local LocalPlayer = Players.LocalPlayer
 -- Aguardar PlayerGui
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
--- CORES
-local C = {
-    bg = Color3.fromRGB(45, 65, 80),
-    card = Color3.fromRGB(35, 35, 45),
-    text = Color3.fromRGB(255, 255, 255),
-    textDim = Color3.fromRGB(200, 200, 200),
-}
-
 -- ESTADOS
-local State = {
-    instantSteal = false,
-    autoGrab = false,
-    activePotion = false,
-    unlockBase = false,
-    stealSpeed = false,
-    currentSpeed = 28,
-    keybind = Enum.KeyCode.F,
-    potionOnTp = false,
-}
+local instantSteal = false
+local autoGrab = false
+local activePotion = false
+local unlockBase = false
+local stealSpeed = false
+local currentSpeed = 28
+local keybind = Enum.KeyCode.F
+local potionOnTp = false
+local teleporting = false
+local speedConn = nil
+local listeningKey = false
 
 -- VARIAVEIS
 local root = nil
 local hum = nil
-local teleporting = false
-local speedConn = nil
-local stealPanel = nil
-local unlockPanel = nil
-local mainFrame = nil
-local screenGui = nil
-local listeningKey = false
 
 -- =============================================
--- FUNÇÕES AUXILIARES
+-- CORNER
 -- =============================================
 local function corner(obj, r)
     local c = Instance.new("UICorner")
@@ -61,7 +47,6 @@ local function updateChar(char)
 end
 
 LocalPlayer.CharacterAdded:Connect(updateChar)
-
 local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
 root = char:FindFirstChild("HumanoidRootPart")
 hum = char:FindFirstChildOfClass("Humanoid")
@@ -84,7 +69,7 @@ local function clickButton(btn)
     local ok, conns = pcall(getconnections, btn.Activated)
     if ok and conns then
         for _, c in ipairs(conns) do
-            pcall(task.spawn, c.Function)
+            task.spawn(c.Function)
         end
     end
 end
@@ -141,19 +126,23 @@ end
 local function equipCarpet()
     local char = LocalPlayer.Character
     local bp = LocalPlayer:FindFirstChild("Backpack")
-    if not char or not bp then return end
+    if not char or not bp then return
     for _, t in pairs(char:GetChildren()) do
-        if t:IsA("Tool") then t.Parent = bp end
+        if t:IsA("Tool") then
+            t.Parent = bp
+        end
     end
     local carpet = bp:FindFirstChild("Flying Carpet")
-    if carpet and hum then hum:EquipTool(carpet) end
+    if carpet and hum then
+        hum:EquipTool(carpet)
+    end
 end
 
 local function doTp()
     if teleporting then return end
     teleporting = true
     
-    if State.potionOnTp then
+    if potionOnTp then
         usePotion()
     end
     
@@ -222,7 +211,7 @@ local function findPrompt()
 end
 
 local function stealPrompt(p)
-    if not p then return end
+    if not p then return
     p.MaxActivationDistance = 9999
     p.RequiresLineOfSight = false
     pcall(function() fireproximityprompt(p, 9999, 0.3) end)
@@ -230,7 +219,7 @@ end
 
 task.spawn(function()
     while true do
-        if State.autoGrab then
+        if autoGrab then
             local p = findPrompt()
             if p then stealPrompt(p) end
         end
@@ -245,7 +234,7 @@ local palavras = {"steal", "stole", "roubou", "pegou", "robou"}
 
 task.spawn(function()
     while true do
-        if State.activePotion then
+        if activePotion then
             local gui = LocalPlayer:FindFirstChild("PlayerGui")
             if gui then
                 for _, obj in pairs(gui:GetDescendants()) do
@@ -271,16 +260,16 @@ end)
 local function startSpeed()
     if speedConn then speedConn:Disconnect() end
     speedConn = RunService.Heartbeat:Connect(function()
-        if State.stealSpeed and State.instantSteal then
+        if stealSpeed and instantSteal then
             local char = LocalPlayer.Character
             if char then
                 local hrp = char:FindFirstChild("HumanoidRootPart")
                 local hum = char:FindFirstChildOfClass("Humanoid")
                 if hrp and hum then
-                    hum.WalkSpeed = State.currentSpeed
+                    hum.WalkSpeed = currentSpeed
                     local dir = hum.MoveDirection
                     if dir.Magnitude > 0 then
-                        hrp.AssemblyLinearVelocity = Vector3.new(dir.X * State.currentSpeed, hrp.AssemblyLinearVelocity.Y, dir.Z * State.currentSpeed)
+                        hrp.AssemblyLinearVelocity = Vector3.new(dir.X * currentSpeed, hrp.AssemblyLinearVelocity.Y, dir.Z * currentSpeed)
                     end
                 end
             end
@@ -339,9 +328,11 @@ end
 -- =============================================
 -- PAINEL UNLOCK
 -- =============================================
+local unlockFrame = nil
+
 local function showUnlock(show)
     if show then
-        if unlockPanel then unlockPanel:Destroy() end
+        if unlockFrame then unlockFrame:Destroy() end
         local sg = Instance.new("ScreenGui")
         sg.Name = "LawUnlock"
         sg.ResetOnSpawn = false
@@ -350,7 +341,7 @@ local function showUnlock(show)
         local f = Instance.new("Frame")
         f.Size = UDim2.new(0, 220, 0, 100)
         f.Position = UDim2.new(0.5, -110, 0.65, 0)
-        f.BackgroundColor3 = C.bg
+        f.BackgroundColor3 = Color3.fromRGB(45, 65, 80)
         f.BackgroundTransparency = 0.1
         f.BorderSizePixel = 0
         f.Active = true
@@ -364,7 +355,7 @@ local function showUnlock(show)
         t.Text = "UNLOCK BASE"
         t.Font = Enum.Font.GothamBold
         t.TextSize = 14
-        t.TextColor3 = C.text
+        t.TextColor3 = Color3.fromRGB(255, 255, 255)
         
         local cont = Instance.new("Frame", f)
         cont.Size = UDim2.new(1, -16, 1, -45)
@@ -379,26 +370,28 @@ local function showUnlock(show)
         for i = 1, 3 do
             local btn = Instance.new("TextButton", cont)
             btn.Size = UDim2.new(0, 60, 0, 45)
-            btn.BackgroundColor3 = C.card
+            btn.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
             btn.Text = tostring(i)
             btn.Font = Enum.Font.GothamBold
             btn.TextSize = 20
-            btn.TextColor3 = C.text
+            btn.TextColor3 = Color3.fromRGB(255, 255, 255)
             corner(btn, 8)
             btn.MouseButton1Click:Connect(doUnlock)
         end
-        unlockPanel = sg
+        unlockFrame = sg
     else
-        if unlockPanel then unlockPanel:Destroy(); unlockPanel = nil end
+        if unlockFrame then unlockFrame:Destroy(); unlockFrame = nil end
     end
 end
 
 -- =============================================
 -- PAINEL STEAL
 -- =============================================
+local stealFrame = nil
+
 local function showSteal(show)
     if show then
-        if stealPanel then stealPanel:Destroy() end
+        if stealFrame then stealFrame:Destroy() end
         local sg = Instance.new("ScreenGui")
         sg.Name = "LawSteal"
         sg.ResetOnSpawn = false
@@ -407,7 +400,7 @@ local function showSteal(show)
         local f = Instance.new("Frame")
         f.Size = UDim2.new(0, 260, 0, 300)
         f.Position = UDim2.new(0.5, -130, 0.3, 0)
-        f.BackgroundColor3 = C.bg
+        f.BackgroundColor3 = Color3.fromRGB(45, 65, 80)
         f.BackgroundTransparency = 0.1
         f.BorderSizePixel = 0
         f.Active = true
@@ -421,38 +414,29 @@ local function showSteal(show)
         t.Text = "Instant Steal TP"
         t.Font = Enum.Font.GothamBold
         t.TextSize = 14
-        t.TextColor3 = C.text
+        t.TextColor3 = Color3.fromRGB(255, 255, 255)
         
         -- Keybind
-        local kbLabel = Instance.new("TextLabel", f)
-        kbLabel.Size = UDim2.new(1, -16, 0, 15)
-        kbLabel.Position = UDim2.new(0, 8, 0, 45)
-        kbLabel.BackgroundTransparency = 1
-        kbLabel.Text = "Keybind"
-        kbLabel.Font = Enum.Font.Gotham
-        kbLabel.TextSize = 11
-        kbLabel.TextColor3 = C.textDim
-        
         local kbBtn = Instance.new("TextButton", f)
         kbBtn.Size = UDim2.new(1, -16, 0, 30)
-        kbBtn.Position = UDim2.new(0, 8, 0, 62)
-        kbBtn.BackgroundColor3 = C.card
+        kbBtn.Position = UDim2.new(0, 8, 0, 55)
+        kbBtn.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
         kbBtn.Text = "[F]"
         kbBtn.Font = Enum.Font.GothamBold
         kbBtn.TextSize = 13
-        kbBtn.TextColor3 = C.text
+        kbBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
         corner(kbBtn, 6)
         
         kbBtn.MouseButton1Click:Connect(function()
-            if listeningKey then return end
+            if listeningKey then return
             listeningKey = true
             kbBtn.Text = "..."
             local conn
             conn = UserInputService.InputBegan:Connect(function(input)
                 if input.UserInputType ~= Enum.UserInputType.Keyboard then return
                 conn:Disconnect()
-                State.keybind = input.KeyCode
-                kbBtn.Text = "[" .. input.KeyCode.Name .. "]"
+                keybind = input.KeyCode
+                kbBtn.Text = "[" .. keybind.Name .. "]"
                 listeningKey = false
             end)
         end)
@@ -460,93 +444,76 @@ local function showSteal(show)
         -- Teleport
         local teleBtn = Instance.new("TextButton", f)
         teleBtn.Size = UDim2.new(1, -16, 0, 35)
-        teleBtn.Position = UDim2.new(0, 8, 0, 100)
-        teleBtn.BackgroundColor3 = C.card
+        teleBtn.Position = UDim2.new(0, 8, 0, 95)
+        teleBtn.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
         teleBtn.Text = "Teleport"
         teleBtn.Font = Enum.Font.GothamBold
         teleBtn.TextSize = 13
-        teleBtn.TextColor3 = C.text
+        teleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
         corner(teleBtn, 6)
         teleBtn.MouseButton1Click:Connect(doTp)
         
-        -- Separador
-        local sep = Instance.new("Frame", f)
-        sep.Size = UDim2.new(1, -16, 0, 1)
-        sep.Position = UDim2.new(0, 8, 0, 145)
-        sep.BackgroundColor3 = C.text
-        sep.BackgroundTransparency = 0.5
-        
-        local optLabel = Instance.new("TextLabel", f)
-        optLabel.Size = UDim2.new(1, -16, 0, 15)
-        optLabel.Position = UDim2.new(0, 8, 0, 155)
-        optLabel.BackgroundTransparency = 1
-        optLabel.Text = "Options"
-        optLabel.Font = Enum.Font.Gotham
-        optLabel.TextSize = 11
-        optLabel.TextColor3 = C.textDim
+        -- Reset
+        local rstBtn = Instance.new("TextButton", f)
+        rstBtn.Size = UDim2.new(1, -16, 0, 35)
+        rstBtn.Position = UDim2.new(0, 8, 0, 135)
+        rstBtn.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
+        rstBtn.Text = "Reset"
+        rstBtn.Font = Enum.Font.GothamBold
+        rstBtn.TextSize = 13
+        rstBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        corner(rstBtn, 6)
+        rstBtn.MouseButton1Click:Connect(function()
+            if LocalPlayer.Character then LocalPlayer.Character:Destroy() end
+        end)
         
         -- Potion Steal Toggle
-        local potRow = Instance.new("Frame", f)
-        potRow.Size = UDim2.new(1, -16, 0, 30)
-        potRow.Position = UDim2.new(0, 8, 0, 175)
-        potRow.BackgroundColor3 = C.card
-        potRow.BackgroundTransparency = 0.5
-        corner(potRow, 6)
-        
-        local potLabel = Instance.new("TextLabel", potRow)
-        potLabel.Size = UDim2.new(1, -50, 1, 0)
-        potLabel.Position = UDim2.new(0, 8, 0, 0)
-        potLabel.BackgroundTransparency = 1
-        potLabel.Text = "Potion Steal"
-        potLabel.Font = Enum.Font.GothamBold
-        potLabel.TextSize = 12
-        potLabel.TextColor3 = C.text
-        potLabel.TextXAlignment = Enum.TextXAlignment.Left
-        
-        local potSw = Instance.new("Frame", potRow)
+        local potSw = Instance.new("Frame", f)
         potSw.Size = UDim2.new(0, 40, 0, 20)
-        potSw.Position = UDim2.new(1, -48, 0.5, -10)
-        potSw.BackgroundColor3 = C.text
+        potSw.Position = UDim2.new(0.85, 0, 0.62, 0)
+        potSw.BackgroundColor3 = potionOnTp and Color3.fromRGB(100, 150, 200) or Color3.fromRGB(80, 80, 90)
         corner(potSw, 10)
         
         local potCircle = Instance.new("Frame", potSw)
         potCircle.Size = UDim2.new(0, 16, 0, 16)
-        potCircle.Position = UDim2.new(0, 2, 0.5, -8)
-        potCircle.BackgroundColor3 = C.card
+        potCircle.Position = potionOnTp and UDim2.new(1, -18, 0.5, -8) or UDim2.new(0, 2, 0.5, -8)
+        potCircle.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
         corner(potCircle, 8)
         
-        if State.potionOnTp then
-            potCircle.Position = UDim2.new(1, -18, 0.5, -8)
-        end
-        
         potSw.MouseButton1Click:Connect(function()
-            State.potionOnTp = not State.potionOnTp
-            local targetPos = State.potionOnTp and UDim2.new(1, -18, 0.5, -8) or UDim2.new(0, 2, 0.5, -8)
+            potionOnTp = not potionOnTp
+            local targetPos = potionOnTp and UDim2.new(1, -18, 0.5, -8) or UDim2.new(0, 2, 0.5, -8)
             TweenService:Create(potCircle, TweenInfo.new(0.2), {Position = targetPos}):Play()
+            potSw.BackgroundColor3 = potionOnTp and Color3.fromRGB(100, 150, 200) or Color3.fromRGB(80, 80, 90)
         end)
         
-        -- Speed Slider
-        local sldFrame = Instance.new("Frame", f)
-        sldFrame.Size = UDim2.new(1, -16, 0, 40)
-        sldFrame.Position = UDim2.new(0, 8, 0, 212)
-        sldFrame.BackgroundTransparency = 1
+        local potLabel = Instance.new("TextLabel", f)
+        potLabel.Size = UDim2.new(0, 100, 0, 20)
+        potLabel.Position = UDim2.new(0, 8, 0, 175)
+        potLabel.BackgroundTransparency = 1
+        potLabel.Text = "Potion Steal"
+        potLabel.Font = Enum.Font.Gotham
+        potLabel.TextSize = 12
+        potLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+        potLabel.TextXAlignment = Enum.TextXAlignment.Left
         
-        local sldLabel = Instance.new("TextLabel", sldFrame)
-        sldLabel.Size = UDim2.new(1, 0, 0, 15)
+        -- Speed Slider
+        local sldLabel = Instance.new("TextLabel", f)
+        sldLabel.Size = UDim2.new(1, -16, 0, 15)
+        sldLabel.Position = UDim2.new(0, 8, 0, 210)
         sldLabel.BackgroundTransparency = 1
-        sldLabel.Text = "Steal Speed: " .. State.currentSpeed
+        sldLabel.Text = "Steal Speed: " .. currentSpeed
         sldLabel.Font = Enum.Font.Gotham
         sldLabel.TextSize = 11
-        sldLabel.TextColor3 = C.text
-        sldLabel.TextXAlignment = Enum.TextXAlignment.Left
+        sldLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
         
-        local sldBar = Instance.new("Frame", sldFrame)
-        sldBar.Size = UDim2.new(1, 0, 0, 4)
-        sldBar.Position = UDim2.new(0, 0, 0, 20)
-        sldBar.BackgroundColor3 = C.card
+        local sldBar = Instance.new("Frame", f)
+        sldBar.Size = UDim2.new(1, -16, 0, 4)
+        sldBar.Position = UDim2.new(0, 8, 0, 232)
+        sldBar.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
         corner(sldBar, 2)
         
-        local percent = (State.currentSpeed - 26) / 10
+        local percent = (currentSpeed - 26) / 10
         local sldFill = Instance.new("Frame", sldBar)
         sldFill.Size = UDim2.new(percent, 0, 1, 0)
         sldFill.BackgroundColor3 = Color3.fromRGB(100, 150, 200)
@@ -555,7 +522,7 @@ local function showSteal(show)
         local sldKnob = Instance.new("Frame", sldBar)
         sldKnob.Size = UDim2.new(0, 12, 0, 12)
         sldKnob.Position = UDim2.new(percent, -6, 0.5, -6)
-        sldKnob.BackgroundColor3 = C.text
+        sldKnob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
         corner(sldKnob, 6)
         
         local dragging = false
@@ -568,34 +535,33 @@ local function showSteal(show)
                 local p = math.clamp((i.Position.X - sldBar.AbsolutePosition.X) / sldBar.AbsoluteSize.X, 0, 1)
                 sldFill.Size = UDim2.new(p, 0, 1, 0)
                 sldKnob.Position = UDim2.new(p, -6, 0.5, -6)
-                State.currentSpeed = math.floor(26 + 10 * p)
-                sldLabel.Text = "Steal Speed: " .. State.currentSpeed
-                if State.stealSpeed then
+                currentSpeed = math.floor(26 + 10 * p)
+                sldLabel.Text = "Steal Speed: " .. currentSpeed
+                if stealSpeed and instantSteal then
                     local char = LocalPlayer.Character
                     if char then
                         local hum = char:FindFirstChildOfClass("Humanoid")
-                        if hum then hum.WalkSpeed = State.currentSpeed end
+                        if hum then hum.WalkSpeed = currentSpeed end
                     end
                 end
             end
         end)
         
-        stealPanel = sg
+        stealFrame = sg
     else
-        if stealPanel then stealPanel:Destroy(); stealPanel = nil end
+        if stealFrame then stealFrame:Destroy(); stealFrame = nil end
     end
 end
 
 -- =============================================
 -- TOGGLE
 -- =============================================
-local function createToggle(parent, name, configKey, hasInput)
+local function createToggle(parent, name, varName, callback)
     local Row = Instance.new("Frame")
     local Label = Instance.new("TextLabel")
     local ToggleBtn = Instance.new("TextButton")
     local Circle = Instance.new("Frame")
     
-    Row.Name = name
     Row.Parent = parent
     Row.BackgroundTransparency = 1
     Row.Size = UDim2.new(1, 0, 0, 50)
@@ -605,68 +571,37 @@ local function createToggle(parent, name, configKey, hasInput)
     Label.Size = UDim2.new(0.5, 0, 1, 0)
     Label.Font = Enum.Font.GothamBold
     Label.Text = name
-    Label.TextColor3 = C.text
+    Label.TextColor3 = Color3.fromRGB(255, 255, 255)
     Label.TextSize = 15
     Label.TextXAlignment = Enum.TextXAlignment.Left
 
     ToggleBtn.Parent = Row
-    ToggleBtn.BackgroundColor3 = C.text
+    ToggleBtn.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
     ToggleBtn.Position = UDim2.new(0.55, 0, 0.2, 0)
     ToggleBtn.Size = UDim2.new(0, 50, 0, 26)
     ToggleBtn.Text = ""
     corner(ToggleBtn, 13)
 
     Circle.Parent = ToggleBtn
-    Circle.BackgroundColor3 = C.card
+    Circle.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
     Circle.Position = UDim2.new(0, 3, 0.5, -10)
     Circle.Size = UDim2.new(0, 20, 0, 20)
     corner(Circle, 10)
 
-    if State[configKey] then
-        Circle.Position = UDim2.new(1, -23, 0.5, -10)
-    end
-
     ToggleBtn.MouseButton1Click:Connect(function()
-        State[configKey] = not State[configKey]
-        local targetPos = State[configKey] and UDim2.new(1, -23, 0.5, -10) or UDim2.new(0, 3, 0.5, -10)
+        _G[varName] = not _G[varName]
+        local targetPos = _G[varName] and UDim2.new(1, -23, 0.5, -10) or UDim2.new(0, 3, 0.5, -10)
         TweenService:Create(Circle, TweenInfo.new(0.2), {Position = targetPos}):Play()
-        
-        if configKey == "instantSteal" then
-            showSteal(State[configKey])
-        elseif configKey == "unlockBase" then
-            showUnlock(State[configKey])
-        elseif configKey == "stealSpeed" then
-            if State[configKey] then startSpeed() else stopSpeed() end
-        end
+        if callback then callback(_G[varName]) end
     end)
-
-    if hasInput then
-        local Input = Instance.new("TextBox")
-        Input.Parent = Row
-        Input.BackgroundColor3 = C.card
-        Input.Position = UDim2.new(0.78, 0, 0.15, 0)
-        Input.Size = UDim2.new(0, 60, 0, 30)
-        Input.Font = Enum.Font.GothamBold
-        Input.Text = tostring(State.currentSpeed)
-        Input.TextColor3 = C.text
-        Input.TextSize = 14
-        corner(Input, 6)
-        
-        Input.FocusLost:Connect(function()
-            local val = tonumber(Input.Text)
-            if val then
-                State.currentSpeed = math.clamp(val, 26, 36)
-                Input.Text = tostring(State.currentSpeed)
-            else
-                Input.Text = tostring(State.currentSpeed)
-            end
-        end)
-    end
 end
 
 -- =============================================
 -- MENU PRINCIPAL
 -- =============================================
+local mainFrame = nil
+local screenGui = nil
+
 local function createMenu()
     if screenGui then screenGui:Destroy() end
     
@@ -677,7 +612,7 @@ local function createMenu()
     
     mainFrame = Instance.new("Frame")
     mainFrame.Parent = screenGui
-    mainFrame.BackgroundColor3 = C.bg
+    mainFrame.BackgroundColor3 = Color3.fromRGB(45, 65, 80)
     mainFrame.BackgroundTransparency = 0.1
     mainFrame.Position = UDim2.new(0.5, -150, 0.5, -200)
     mainFrame.Size = UDim2.new(0, 320, 0, 420)
@@ -689,22 +624,13 @@ local function createMenu()
     title.Size = UDim2.new(1, 0, 0, 30)
     title.Font = Enum.Font.GothamBold
     title.Text = "LAW HUB"
-    title.TextColor3 = C.text
+    title.TextColor3 = Color3.fromRGB(255, 255, 255)
     title.TextSize = 22
-    
-    local subtitle = Instance.new("TextLabel", mainFrame)
-    subtitle.BackgroundTransparency = 1
-    subtitle.Position = UDim2.new(0, 0, 1, -35)
-    subtitle.Size = UDim2.new(1, 0, 0, 20)
-    subtitle.Font = Enum.Font.Gotham
-    subtitle.Text = "lawhub.gg"
-    subtitle.TextColor3 = C.textDim
-    subtitle.TextSize = 14
     
     local scroll = Instance.new("ScrollingFrame", mainFrame)
     scroll.BackgroundTransparency = 1
     scroll.Position = UDim2.new(0, 15, 0, 60)
-    scroll.Size = UDim2.new(1, -30, 1, -110)
+    scroll.Size = UDim2.new(1, -30, 1, -70)
     scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
     scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
     scroll.ScrollBarThickness = 0
@@ -713,11 +639,28 @@ local function createMenu()
     layout.SortOrder = Enum.SortOrder.LayoutOrder
     layout.Padding = UDim.new(0, 12)
     
-    createToggle(scroll, "Instant Steal", "instantSteal", false)
-    createToggle(scroll, "Auto Grab", "autoGrab", false)
-    createToggle(scroll, "Active Potion", "activePotion", false)
-    createToggle(scroll, "Unlock Base", "unlockBase", false)
-    createToggle(scroll, "Steal Speed", "stealSpeed", true)
+    -- Criar toggles
+    createToggle(scroll, "Instant Steal", "instantSteal", function(on)
+        instantSteal = on
+        showSteal(on)
+    end)
+    
+    createToggle(scroll, "Auto Grab", "autoGrab", function(on)
+        autoGrab = on
+    end)
+    
+    createToggle(scroll, "Active Potion", "activePotion", function(on)
+        activePotion = on
+    end)
+    
+    createToggle(scroll, "Unlock Base", "unlockBase", function(on)
+        showUnlock(on)
+    end)
+    
+    createToggle(scroll, "Steal Speed", "stealSpeed", function(on)
+        stealSpeed = on
+        if on then startSpeed() else stopSpeed() end
+    end)
     
     -- DRAG
     local dragToggle = false
@@ -750,7 +693,7 @@ end
 -- KEYBIND
 -- =============================================
 UserInputService.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.Keyboard and input.KeyCode == State.keybind then
+    if input.UserInputType == Enum.UserInputType.Keyboard and input.KeyCode == keybind then
         doTp()
     end
 end)
@@ -760,10 +703,6 @@ end)
 -- =============================================
 createMenu()
 
-if State.instantSteal then showSteal(true) end
-if State.unlockBase then showUnlock(true) end
-if State.stealSpeed then startSpeed() end
-
 print("LAW HUB CARREGADO!")
-print("Menu com 5 toggles funcionando")
+print("Clique no toggle Instant Steal para abrir o painel")
 print("Pressione F para teleportar")
