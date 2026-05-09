@@ -135,6 +135,7 @@ local FlashButtonCorner = Instance.new("UICorner")
 FlashButtonCorner.CornerRadius = UDim.new(0, 8)
 FlashButtonCorner.Parent = FlashButton
 
+-- [[(/ Texto FLASH TP com V brilhante acima /)]]
 local FlashLabel = Instance.new("TextLabel")
 FlashLabel.Name = "Label"
 FlashLabel.Size = UDim2.new(0.45, 0, 1, 0)
@@ -147,25 +148,40 @@ FlashLabel.TextSize = 12
 FlashLabel.TextXAlignment = Enum.TextXAlignment.Left
 FlashLabel.Parent = FlashButton
 
--- [[(/ Keybind pequeno em cima do Flash TP /)]]
+-- [[(/ V brilhante acima do F do FLASH TP /)]]
 local KeybindIndicator = Instance.new("TextLabel")
 KeybindIndicator.Name = "KeybindIndicator"
 KeybindIndicator.Size = UDim2.new(0, 0, 0, 0)
-KeybindIndicator.Position = UDim2.new(0.45, 5, 0, 2)
+KeybindIndicator.Position = UDim2.new(0, 28, 0, 2)
 KeybindIndicator.BackgroundTransparency = 1
 KeybindIndicator.Text = "V"
-KeybindIndicator.TextColor3 = Color3.new(1, 0.8, 0.3)
+KeybindIndicator.TextColor3 = Color3.new(1, 0.6, 0.2)
 KeybindIndicator.Font = Enum.Font.GothamBold
 KeybindIndicator.TextSize = 9
-KeybindIndicator.TextXAlignment = Enum.TextXAlignment.Left
+KeybindIndicator.TextXAlignment = Enum.TextXAlignment.Center
+KeybindIndicator.TextYAlignment = Enum.TextYAlignment.Top
 KeybindIndicator.Parent = FlashButton
+
+-- Efeito pulsante no V
+task.spawn(function()
+    while KeybindIndicator and KeybindIndicator.Parent do
+        for i = 0.3, 1, 0.05 do
+            task.wait(0.03)
+            KeybindIndicator.TextColor3 = Color3.new(1, 0.5 + i * 0.3, 0.2 + i * 0.2)
+        end
+        for i = 1, 0.3, -0.05 do
+            task.wait(0.03)
+            KeybindIndicator.TextColor3 = Color3.new(1, 0.5 + i * 0.3, 0.2 + i * 0.2)
+        end
+    end
+end)
 
 -- [[(/ Box do valor do Flash TP /)]]
 local FlashValueBox = Instance.new("Frame")
 FlashValueBox.Name = "ValueBox"
-FlashValueBox.Size = UDim2.new(0, 45, 0, 28)
-FlashValueBox.Position = UDim2.new(0.73, 0, 0.5, -14)
-FlashValueBox.BackgroundColor3 = Color3.new(0.08, 0.08, 0.1)
+FlashValueBox.Size = UDim2.new(0, 50, 0, 30)
+FlashValueBox.Position = UDim2.new(0.72, 0, 0.5, -15)
+FlashValueBox.BackgroundColor3 = Color3.new(0.05, 0.05, 0.08)
 FlashValueBox.BackgroundTransparency = 0
 FlashValueBox.BorderSizePixel = 0
 FlashValueBox.Parent = FlashButton
@@ -179,19 +195,19 @@ FlashValue.Name = "Value"
 FlashValue.Size = UDim2.new(1, 0, 1, 0)
 FlashValue.BackgroundTransparency = 1
 FlashValue.Text = "90.5"
-FlashValue.TextColor3 = Color3.new(0.5, 0.8, 1)
+FlashValue.TextColor3 = Color3.new(1, 1, 1)
 FlashValue.Font = Enum.Font.GothamBold
-FlashValue.TextSize = 12
+FlashValue.TextSize = 13
 FlashValue.TextXAlignment = Enum.TextXAlignment.Center
 FlashValue.Parent = FlashValueBox
 
 FlashButton.MouseEnter:Connect(function()
     TweenService:Create(FlashButton, TweenInfo.new(0.15), {BackgroundColor3 = Color3.new(0.18, 0.18, 0.18)}):Play()
-    TweenService:Create(FlashValueBox, TweenInfo.new(0.15), {BackgroundColor3 = Color3.new(0.12, 0.12, 0.15)}):Play()
+    TweenService:Create(FlashValueBox, TweenInfo.new(0.15), {BackgroundColor3 = Color3.new(0.1, 0.1, 0.13)}):Play()
 end)
 FlashButton.MouseLeave:Connect(function()
     TweenService:Create(FlashButton, TweenInfo.new(0.15), {BackgroundColor3 = Color3.new(0.117647, 0.117647, 0.117647)}):Play()
-    TweenService:Create(FlashValueBox, TweenInfo.new(0.15), {BackgroundColor3 = Color3.new(0.08, 0.08, 0.1)}):Play()
+    TweenService:Create(FlashValueBox, TweenInfo.new(0.15), {BackgroundColor3 = Color3.new(0.05, 0.05, 0.08)}):Play()
 end)
 
 -- [[(/ Speed Boost Button /)]]
@@ -224,9 +240,9 @@ SpeedLabel.Parent = SpeedButton
 -- [[(/ Box do valor do Speed Boost /)]]
 local SpeedValueBox = Instance.new("Frame")
 SpeedValueBox.Name = "ValueBox"
-SpeedValueBox.Size = UDim2.new(0, 45, 0, 28)
-SpeedValueBox.Position = UDim2.new(0.73, 0, 0.5, -14)
-SpeedValueBox.BackgroundColor3 = Color3.new(0.08, 0.08, 0.1)
+SpeedValueBox.Size = UDim2.new(0, 50, 0, 30)
+SpeedValueBox.Position = UDim2.new(0.72, 0, 0.5, -15)
+SpeedValueBox.BackgroundColor3 = Color3.new(0.05, 0.05, 0.08)
 SpeedValueBox.BackgroundTransparency = 0
 SpeedValueBox.BorderSizePixel = 0
 SpeedValueBox.Parent = SpeedButton
@@ -240,19 +256,19 @@ SpeedValue.Name = "Value"
 SpeedValue.Size = UDim2.new(1, 0, 1, 0)
 SpeedValue.BackgroundTransparency = 1
 SpeedValue.Text = "28"
-SpeedValue.TextColor3 = Color3.new(0.5, 0.8, 1)
+SpeedValue.TextColor3 = Color3.new(1, 1, 1)
 SpeedValue.Font = Enum.Font.GothamBold
-SpeedValue.TextSize = 12
+SpeedValue.TextSize = 13
 SpeedValue.TextXAlignment = Enum.TextXAlignment.Center
 SpeedValue.Parent = SpeedValueBox
 
 SpeedButton.MouseEnter:Connect(function()
     TweenService:Create(SpeedButton, TweenInfo.new(0.15), {BackgroundColor3 = Color3.new(0.18, 0.18, 0.18)}):Play()
-    TweenService:Create(SpeedValueBox, TweenInfo.new(0.15), {BackgroundColor3 = Color3.new(0.12, 0.12, 0.15)}):Play()
+    TweenService:Create(SpeedValueBox, TweenInfo.new(0.15), {BackgroundColor3 = Color3.new(0.1, 0.1, 0.13)}):Play()
 end)
 SpeedButton.MouseLeave:Connect(function()
     TweenService:Create(SpeedButton, TweenInfo.new(0.15), {BackgroundColor3 = Color3.new(0.117647, 0.117647, 0.117647)}):Play()
-    TweenService:Create(SpeedValueBox, TweenInfo.new(0.15), {BackgroundColor3 = Color3.new(0.08, 0.08, 0.1)}):Play()
+    TweenService:Create(SpeedValueBox, TweenInfo.new(0.15), {BackgroundColor3 = Color3.new(0.05, 0.05, 0.08)}):Play()
 end)
 
 -- [[(/ Auto Potion Button /)]]
@@ -351,6 +367,109 @@ local function updateKeybindDisplay()
     KeybindIndicator.Text = flashKeybind.Name
 end
 
+-- [[(/ FUNÇÃO PARA MUDAR O VALOR DO FLASH TP /)]]
+local function changeTPValue()
+    local dialog = Instance.new("TextBox")
+    dialog.Size = UDim2.new(0, 200, 0, 30)
+    dialog.Position = UDim2.new(0.5, -100, 0.5, -15)
+    dialog.PlaceholderText = "Digite a distância do teleporte"
+    dialog.Text = tostring(tpDistance)
+    dialog.BackgroundColor3 = Color3.new(0.1, 0.1, 0.1)
+    dialog.TextColor3 = Color3.new(1, 1, 1)
+    dialog.Font = Enum.Font.Gotham
+    dialog.TextSize = 14
+    dialog.BorderSizePixel = 0
+    
+    local dialogCorner = Instance.new("UICorner")
+    dialogCorner.CornerRadius = UDim.new(0, 8)
+    dialogCorner.Parent = dialog
+    
+    dialog.Parent = ScreenGui
+    
+    dialog:CaptureFocus()
+    
+    local function onSubmit()
+        local newValue = tonumber(dialog.Text)
+        if newValue and newValue > 0 then
+            tpDistance = newValue
+            FlashValue.Text = string.format("%.1f", tpDistance)
+        end
+        dialog:Destroy()
+    end
+    
+    dialog.FocusLost:Connect(function(enterPressed)
+        if enterPressed then
+            onSubmit()
+        else
+            dialog:Destroy()
+        end
+    end)
+    
+    dialog.InputBegan:Connect(function(input)
+        if input.KeyCode == Enum.KeyCode.Return then
+            onSubmit()
+        end
+    end)
+end
+
+-- [[(/ FUNÇÃO PARA MUDAR O VALOR DO SPEED BOOST /)]]
+local function changeSpeedValue()
+    local dialog = Instance.new("TextBox")
+    dialog.Size = UDim2.new(0, 200, 0, 30)
+    dialog.Position = UDim2.new(0.5, -100, 0.5, -15)
+    dialog.PlaceholderText = "Digite a velocidade (16-100)"
+    dialog.Text = tostring(speedAmount)
+    dialog.BackgroundColor3 = Color3.new(0.1, 0.1, 0.1)
+    dialog.TextColor3 = Color3.new(1, 1, 1)
+    dialog.Font = Enum.Font.Gotham
+    dialog.TextSize = 14
+    dialog.BorderSizePixel = 0
+    
+    local dialogCorner = Instance.new("UICorner")
+    dialogCorner.CornerRadius = UDim.new(0, 8)
+    dialogCorner.Parent = dialog
+    
+    dialog.Parent = ScreenGui
+    
+    dialog:CaptureFocus()
+    
+    local function onSubmit()
+        local newValue = tonumber(dialog.Text)
+        if newValue and newValue >= 16 and newValue <= 250 then
+            speedAmount = newValue
+            SpeedValue.Text = tostring(speedAmount)
+        end
+        dialog:Destroy()
+    end
+    
+    dialog.FocusLost:Connect(function(enterPressed)
+        if enterPressed then
+            onSubmit()
+        else
+            dialog:Destroy()
+        end
+    end)
+    
+    dialog.InputBegan:Connect(function(input)
+        if input.KeyCode == Enum.KeyCode.Return then
+            onSubmit()
+        end
+    end)
+end
+
+-- [[(/ Clique nos valores para mudar /)]]
+FlashValueBox.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        changeTPValue()
+    end
+end)
+
+SpeedValueBox.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        changeSpeedValue()
+    end
+end)
+
 -- [[(/ Sistema de Keybind - Clique com Botão Direito /)]]
 FlashButton.MouseButton2Click:Connect(function()
     waitingForKeybind = true
@@ -360,33 +479,9 @@ FlashButton.MouseButton2Click:Connect(function()
     
     game:GetService("StarterGui"):SetCore("SendNotification", {
         Title = "Keybind",
-        Text = "Pressione qualquer tecla para definir o novo keybind do Flash TP",
+        Text = "Pressione qualquer tecla para definir o novo keybind",
         Duration = 3
     })
-end)
-
--- [[(/ Função para mudar o valor do Flash TP /)]]
-FlashValueBox.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        local newValue = tonumber(game:GetService("StarterGui"):SetCore("SendNotification", {
-            Title = "Distância TP",
-            Text = "Digite a distância do teleporte no console (F9): tpDistance = valor",
-            Duration = 3
-        }))
-        print("Use o console (F9) e digite: tpDistance = novo_valor (ex: tpDistance = 100)")
-    end
-end)
-
--- [[(/ Função para mudar o valor do Speed Boost /)]]
-SpeedValueBox.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        game:GetService("StarterGui"):SetCore("SendNotification", {
-            Title = "Speed Amount",
-            Text = "Digite no console (F9): speedAmount = novo_valor",
-            Duration = 3
-        })
-        print("Use o console (F9) e digite: speedAmount = novo_valor (ex: speedAmount = 35)")
-    end
 end)
 
 -- [[(/ Aguardar tecla pressionada /)]]
@@ -397,13 +492,13 @@ UserInputService.InputBegan:Connect(function(input, gpe)
         if input.KeyCode ~= Enum.KeyCode.Unknown then
             flashKeybind = input.KeyCode
             updateKeybindDisplay()
-            KeybindIndicator.TextColor3 = Color3.new(1, 0.8, 0.3)
+            KeybindIndicator.TextColor3 = Color3.new(1, 0.6, 0.2)
             FlashButton.BackgroundColor3 = Color3.new(0.117647, 0.117647, 0.117647)
             waitingForKeybind = false
             
             game:GetService("StarterGui"):SetCore("SendNotification", {
                 Title = "Keybind Definido",
-                Text = "Flash TP agora usa a tecla: " .. input.KeyCode.Name,
+                Text = "Agora use a tecla: " .. input.KeyCode.Name,
                 Duration = 2
             })
         end
@@ -464,6 +559,6 @@ RunService.RenderStepped:Connect(function()
 end)
 
 print("WhiteHub Flash TP Carregado!")
-print("Clique com BOTÃO DIREITO no FLASH TP para mudar a tecla!")
 print("Clique no QUADRADO do valor para mudar a distância/velocidade!")
+print("Clique DIREITO no FLASH TP para mudar a tecla!")
 print("Tecla atual: " .. flashKeybind.Name)
