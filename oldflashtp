@@ -117,13 +117,6 @@ TitleLabel.TextSize = 16
 TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
 TitleLabel.Parent = TitleBar
 
-local TitleGrad = Instance.new("UIGradient")
-TitleGrad.Color = ColorSequence.new({
-    ColorSequenceKeypoint.new(0, Color3.fromRGB(138, 43, 226)),
-    ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 69, 0)),
-})
-TitleGrad.Parent = TitleLabel
-
 -- [[(/ Dragging do Main /)]]
 do
     local dragging = false
@@ -357,7 +350,7 @@ local TriggerKnobCorner = Instance.new("UICorner")
 TriggerKnobCorner.CornerRadius = UDim.new(1, 0)
 TriggerKnobCorner.Parent = TriggerKnob
 
--- [[(/ SPEED PANEL - Igual ao Apex Hub /)]]
+-- [[(/ SPEED PANEL - IGUAL AO APEX HUB /)]]
 local SpeedPanel = Instance.new("Frame")
 SpeedPanel.Name = "SpeedPanel"
 SpeedPanel.Size = UDim2.new(0, 260, 0, 80)
@@ -457,8 +450,8 @@ SpeedKnobCorner.Parent = SpeedSliderKnob
 
 -- Range labels
 local MinLabel = Instance.new("TextLabel")
-MinLabel.Size = UDim2.new(0.05, 0, 0, 12)
-MinLabel.Position = UDim2.new(0.05, 0, 0.8, 0)
+MinLabel.Size = UDim2.new(0.08, 0, 0, 12)
+MinLabel.Position = UDim2.new(0.05, 0, 0.85, 0)
 MinLabel.BackgroundTransparency = 1
 MinLabel.Text = "16"
 MinLabel.TextColor3 = Color3.new(0.6, 0.6, 0.6)
@@ -468,8 +461,8 @@ MinLabel.TextXAlignment = Enum.TextXAlignment.Center
 MinLabel.Parent = SpeedPanel
 
 local MaxLabel = Instance.new("TextLabel")
-MaxLabel.Size = UDim2.new(0.05, 0, 0, 12)
-MaxLabel.Position = UDim2.new(0.9, 0, 0.8, 0)
+MaxLabel.Size = UDim2.new(0.08, 0, 0, 12)
+MaxLabel.Position = UDim2.new(0.87, 0, 0.85, 0)
 MaxLabel.BackgroundTransparency = 1
 MaxLabel.Text = "50"
 MaxLabel.TextColor3 = Color3.new(0.6, 0.6, 0.6)
@@ -579,7 +572,7 @@ do
     end)
 end
 
--- [[(/ Função do Slider do Speed - IGUAL AO APEX HUB /)]]
+-- [[(/ Função do Slider do Speed - CORRIGIDA /)]]
 do
     local sliderDragging = false
 
@@ -594,11 +587,14 @@ do
         SpeedSliderKnob.Position = UDim2.new((speedAmount - 16) / 34, 0, 0.5, -8)
         SpeedValueLabel.Text = tostring(speedAmount)
         
+        print("Speed alterado para: " .. speedAmount)
+        
         if speedEnabled then
             local char = player.Character
             local hum = char and char:FindFirstChild("Humanoid")
             if hum then
                 hum.WalkSpeed = speedAmount
+                print("Velocidade aplicada: " .. speedAmount)
             end
         end
     end
@@ -688,6 +684,7 @@ end)
 FlashButton.MouseButton1Click:Connect(function()
     flashEnabled = not flashEnabled
     FlashLabel.Text = flashEnabled and "FLASH TP: ON" or "FLASH TP: OFF"
+    print("Flash TP:", flashEnabled and "ON" or "OFF")
 end)
 
 SpeedButton.MouseButton1Click:Connect(function()
@@ -701,12 +698,14 @@ SpeedButton.MouseButton1Click:Connect(function()
         local hum = char and char:FindFirstChild("Humanoid")
         if hum then
             hum.WalkSpeed = speedAmount
+            print("Speed Boost ATIVADO - Velocidade: " .. speedAmount)
         end
     else
         local char = player.Character
         local hum = char and char:FindFirstChild("Humanoid")
         if hum then
             hum.WalkSpeed = 16
+            print("Speed Boost DESATIVADO - Velocidade: 16")
         end
     end
 end)
@@ -714,22 +713,28 @@ end)
 PotionButton.MouseButton1Click:Connect(function()
     potionEnabled = not potionEnabled
     PotionLabel.Text = potionEnabled and "AUTO POTION: ON" or "AUTO POTION: OFF"
+    print("Auto Potion:", potionEnabled and "ON" or "OFF")
 end)
 
 KickButton.MouseButton1Click:Connect(function()
     kickEnabled = not kickEnabled
     KickLabel.Text = kickEnabled and "KICK AFTER STEAL: ON" or "KICK AFTER STEAL: OFF"
+    print("Kick After Steal:", kickEnabled and "ON" or "OFF")
 end)
 
--- [[(/ Speed Boost Logic /)]]
+-- [[(/ Speed Boost Logic - Mantém a velocidade /)]]
 RunService.RenderStepped:Connect(function()
     local char = player.Character
     local hum = char and char:FindFirstChild("Humanoid")
     if hum and speedEnabled then
-        hum.WalkSpeed = speedAmount
+        if hum.WalkSpeed ~= speedAmount then
+            hum.WalkSpeed = speedAmount
+        end
     end
 end)
 
+print("========================================")
 print("WhiteHub Flash TP Carregado!")
-print("Speed Boost com Slider igual ao Apex Hub!")
-print("Ative o SPEED BOOST para ver o painel")
+print("Speed Boost: Ative e use o slider 16-50")
+print("Flash TP: Ative e faça steal para teleportar")
+print("========================================")
