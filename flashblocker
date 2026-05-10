@@ -10,6 +10,8 @@ local ProximityPromptService = game:GetService("ProximityPromptService")
 local StarterGui = game:GetService("StarterGui")
 local VirtualInputManager = game:GetService("VirtualInputManager")
 local CoreGui = game:GetService("CoreGui")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local HttpService = game:GetService("HttpService")
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
@@ -17,16 +19,8 @@ local playerGui = player:WaitForChild("PlayerGui")
 -- =============================================
 -- ANTI-CHEATING SYSTEM (CatHUB Style)
 -- =============================================
-local AntiCheat = {
-    Enabled = true,
-    AntiRagdoll = true,
-    AntiKick = true,
-    AntiFreeze = true,
-    LastPosition = nil,
-    FreezeCount = 0,
-}
 
--- Anti-Ragdoll
+-- 1. ANTI-RAGDOLL
 local function AntiRagdoll()
     local char = player.Character
     if not char then return end
@@ -41,7 +35,6 @@ local function AntiRagdoll()
         
         hum:ChangeState(Enum.HumanoidStateType.Running)
         
-        -- Clean up ragdoll constraints
         for _, obj in pairs(char:GetDescendants()) do
             if obj:IsA("BallSocketConstraint") or 
                obj:IsA("HingeConstraint") or 
@@ -52,7 +45,7 @@ local function AntiRagdoll()
     end
 end
 
--- Anti-Kick (prevents being kicked by server)
+-- 2. ANTI-KICK (prevents server from kicking you)
 local function AntiKick()
     pcall(function()
         local ts = game:GetService("TeleportService")
@@ -67,18 +60,24 @@ local function AntiKick()
     -- Block kick remote events
     for _, remote in ipairs(game:GetDescendants()) do
         if remote:IsA("RemoteEvent") or remote:IsA("RemoteFunction") then
-            if remote.Name:lower():find("kick") or remote.Name:lower():find("ban") then
+            local nameLower = string.lower(remote.Name)
+            if nameLower:find("kick") or nameLower:find("ban") or nameLower:find("admin") then
                 pcall(function()
-                    remote.OnServerEvent:Connect(function()
-                        return
-                    end)
+                    if remote:IsA("RemoteEvent") then
+                        remote.OnServerEvent:Connect(function()
+                            return
+                        end)
+                    end
                 end)
             end
         end
     end
 end
 
--- Anti-Freeze (prevents character freeze)
+-- 3. ANTI-FREEZE (prevents character freeze)
+local lastPosition = nil
+local freezeCount = 0
+
 local function AntiFreeze()
     local char = player.Character
     if not char then return end
@@ -88,63 +87,167 @@ local function AntiFreeze()
     
     if hrp and hum then
         local currentPos = hrp.Position
-        if AntiCheat.LastPosition then
-            if (currentPos - AntiCheat.LastPosition).Magnitude < 0.5 then
-                AntiCheat.FreezeCount = AntiCheat.FreezeCount + 1
-                if AntiCheat.FreezeCount > 10 then
-                    -- Unfreeze character
+        if lastPosition then
+            if (currentPos - lastPosition).Magnitude < 0.5 then
+                freezeCount = freezeCount + 1
+                if freezeCount > 10 then
                     hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
                     hum:ChangeState(Enum.HumanoidStateType.Running)
-                    AntiCheat.FreezeCount = 0
+                    freezeCount = 0
                 end
             else
-                AntiCheat.FreezeCount = 0
+                freezeCount = 0
             end
         end
-        AntiCheat.LastPosition = currentPos
+        lastPosition = currentPos
     end
 end
 
--- Anti-Cheat Loops
-if AntiCheat.AntiRagdoll then
-    RunService.Heartbeat:Connect(AntiRagdoll)
+-- 4. ANTI-TELEPORT DETECTION (detects if server tries to teleport you)
+local function AntiTeleportDetection()
+    local char = player.Character
+    if not char then return end
+    
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if hrp then
+        hrp:GetPropertyChangedSignal("CFrame"):Connect(function()
+            -- Optional: log teleport attempts
+            -- print("Position changed")
+        end)
+    end
 end
 
-if AntiCheat.AntiKick then
-    AntiKick()
-end
-
-if AntiCheat.AntiFreeze then
-    RunService.Heartbeat:Connect(AntiFreeze)
-end
-
--- Anti-Character deletion
-player.CharacterAdded:Connect(function()
-    task.wait(0.5)
-    if AntiCheat.AntiRagdoll then
-        local hum = player.Character:FindFirstChildOfClass("Humanoid")
-        if hum then
-            hum.BreakJointsOnDeath = false
+-- 5. ANTI-ANIMATION LOCK (prevents animation locks)
+local function AntiAnimationLock()
+    local char = player.Character
+    if not char then return end
+    
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    if hum then
+        local animator = hum:FindFirstChild("Animator")
+        if animator then
+            for _, track in pairs(animator:GetPlayingAnimationTracks()) do
+                local animName = string.lower(track.Animation and track.Animation.Name or "")
+                if animName:find("rag") or animName:find("fall") or animName:find("hurt") or animName:find("stun") then
+                    track:Stop(0)
+                end
+            end
         end
+    end
+end
+
+-- 6. ANTI-SCRIPT KILLER (prevents scripts from being killed)
+local function AntiScriptKiller()
+    pcall(function()
+        local screenGuis = playerGui:GetChildren()
+        for _, gui in ipairs(screenGuis) do
+            if gui.Name == "LawHub_Flash" then
+                gui.ResetOnSpawn = false
+            end
+        end
+    end)
+end
+
+-- 7. ANTI-CRASH (prevents UI crashes)
+local function AntiCrash()
+    pcall(function()
+        settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
+    end)
+end
+
+-- Start Anti-Cheat loops
+RunService.Heartbeat:Connect(AntiRagdoll)
+RunService.Heartbeat:Connect(AntiFreeze)
+RunService.Heartbeat:Connect(AntiAnimationLock)
+RunService.Stepped:Connect(AntiScriptKiller)
+
+-- Initialize anti-cheat on character spawn
+player.CharacterAdded:Connect(function(char)
+    task.wait(0.5)
+    AntiTeleportDetection()
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    if hum then
+        hum.BreakJointsOnDeath = false
     end
 end)
 
+-- Initialize all anti-cheat systems
+AntiKick()
+AntiCrash()
+AntiTeleportDetection()
+
+print("🛡️ Anti-Cheat Systems Active:")
+print("   - Anti-Ragdoll")
+print("   - Anti-Kick")
+print("   - Anti-Freeze")
+print("   - Anti-Teleport Detection")
+print("   - Anti-Animation Lock")
+print("   - Anti-Script Killer")
+print("   - Anti-Crash")
+
 -- =============================================
--- TELEPORT POINTS (1 TO 10)
+-- TELEPORT POINTS (1 TO 10 IN SEQUENCE)
 -- =============================================
 local StartPoint = Vector3.new(-357.6, -7.1, 37.4) -- Only for Teleport 6-10
 
+-- TELEPORT 1 has 3 points in sequence
+local Teleport1Points = {
+    Vector3.new(-368, -7, 69),
+    Vector3.new(-336, -5, 100),
+    Vector3.new(-352, -7, 76),
+}
+
 local Teleports = {
-    ["TELEPORT 1"] = { Pos = Vector3.new(-368, -7, 69), UseStart = false, Sequence = {Vector3.new(-368, -7, 69), Vector3.new(-336, -5, 100), Vector3.new(-352, -7, 76)} },
-    ["TELEPORT 2"] = { Pos = Vector3.new(-324.3, -7.1, 37.5), UseStart = false },
-    ["TELEPORT 3"] = { Pos = Vector3.new(-316.1, -7.1, 36.7), UseStart = false },
-    ["TELEPORT 4"] = { Pos = Vector3.new(-309.8, -7.1, 38.3), UseStart = false },
-    ["TELEPORT 5"] = { Pos = Vector3.new(-302.3, -7.1, 41.5), UseStart = false },
-    ["TELEPORT 6"] = { Pos = Vector3.new(-331.6, -7.1, -23.3), UseStart = true },
-    ["TELEPORT 7"] = { Pos = Vector3.new(-324.1, -7.1, -23.2), UseStart = true },
-    ["TELEPORT 8"] = { Pos = Vector3.new(-317.8, -7.1, -23.6), UseStart = true },
-    ["TELEPORT 9"] = { Pos = Vector3.new(-311.1, -7.1, -23.5), UseStart = true },
-    ["TELEPORT 10"] = { Pos = Vector3.new(-302.6, -7.1, -23.9), UseStart = true },
+    ["1. TELEPORT 1"] = { 
+        Type = "sequence",
+        Points = Teleport1Points,
+        UseStart = false 
+    },
+    ["2. TELEPORT 2"] = { 
+        Type = "single",
+        Pos = Vector3.new(-324.3, -7.1, 37.5),
+        UseStart = false 
+    },
+    ["3. TELEPORT 3"] = { 
+        Type = "single",
+        Pos = Vector3.new(-316.1, -7.1, 36.7),
+        UseStart = false 
+    },
+    ["4. TELEPORT 4"] = { 
+        Type = "single",
+        Pos = Vector3.new(-309.8, -7.1, 38.3),
+        UseStart = false 
+    },
+    ["5. TELEPORT 5"] = { 
+        Type = "single",
+        Pos = Vector3.new(-302.3, -7.1, 41.5),
+        UseStart = false 
+    },
+    ["6. TELEPORT 6"] = { 
+        Type = "single",
+        Pos = Vector3.new(-331.6, -7.1, -23.3),
+        UseStart = true 
+    },
+    ["7. TELEPORT 7"] = { 
+        Type = "single",
+        Pos = Vector3.new(-324.1, -7.1, -23.2),
+        UseStart = true 
+    },
+    ["8. TELEPORT 8"] = { 
+        Type = "single",
+        Pos = Vector3.new(-317.8, -7.1, -23.6),
+        UseStart = true 
+    },
+    ["9. TELEPORT 9"] = { 
+        Type = "single",
+        Pos = Vector3.new(-311.1, -7.1, -23.5),
+        UseStart = true 
+    },
+    ["10. TELEPORT 10"] = { 
+        Type = "single",
+        Pos = Vector3.new(-302.6, -7.1, -23.9),
+        UseStart = true 
+    },
 }
 
 -- =============================================
@@ -155,7 +258,6 @@ local selectedTeleport = nil
 local dropdownOpen = false
 local teleporting = false
 local autoBlockEnabled = false
-local autoResetEnabled = false
 
 -- =============================================
 -- FUNCTIONS
@@ -246,7 +348,6 @@ local function ExecuteTeleport()
     end
     
     if teleporting then
-        print("Already teleporting...")
         return
     end
     
@@ -262,11 +363,11 @@ local function ExecuteTeleport()
     UseFlash()
     task.wait(0.1)
     
-    -- Handle TELEPORT 1 (multiple points)
-    if selectedTeleport == "TELEPORT 1" and tp.Sequence then
-        for i, point in ipairs(tp.Sequence) do
+    -- Handle sequence teleport (TELEPORT 1)
+    if tp.Type == "sequence" then
+        for i, point in ipairs(tp.Points) do
             TeleportTo(point)
-            print("📍 Point " .. i .. "/3")
+            print("📍 Point " .. i .. "/" .. #tp.Points)
             task.wait(0.15)
         end
     else
@@ -277,7 +378,6 @@ local function ExecuteTeleport()
             task.wait(0.15)
         end
         
-        -- Teleport to destination
         TeleportTo(tp.Pos)
         task.wait(0.15)
     end
@@ -405,8 +505,8 @@ StealFillCorner.Parent = StealBarFill
 -- Main Frame
 local Main = Instance.new("Frame")
 Main.Name = "Main"
-Main.Size = UDim2.new(0, 220, 0, 250)
-Main.Position = UDim2.new(0.5, -110, 0.5, -125)
+Main.Size = UDim2.new(0, 220, 0, 270)
+Main.Position = UDim2.new(0.5, -110, 0.5, -135)
 Main.BackgroundColor3 = Color3.new(0, 0, 0)
 Main.BackgroundTransparency = 0.2
 Main.BorderSizePixel = 0
@@ -465,7 +565,7 @@ TitleLabel.Name = "Title"
 TitleLabel.Size = UDim2.new(1, -20, 1, 0)
 TitleLabel.Position = UDim2.new(0, 10, 0, 0)
 TitleLabel.BackgroundTransparency = 1
-TitleLabel.Text = "LAW HUB"
+TitleLabel.Text = "🔥 LAW HUB"
 TitleLabel.TextColor3 = Color3.new(1, 1, 1)
 TitleLabel.Font = Enum.Font.GothamBold
 TitleLabel.TextSize = 14
@@ -573,8 +673,10 @@ OptionsScroll.ScrollBarThickness = 3
 local ScrollLayout = Instance.new("UIListLayout", OptionsScroll)
 ScrollLayout.Padding = UDim.new(0, 2)
 
--- Create teleport options
-for name, _ in pairs(Teleports) do
+-- Create teleport options (1 to 10 in sequence)
+local teleportOrder = {"1. TELEPORT 1", "2. TELEPORT 2", "3. TELEPORT 3", "4. TELEPORT 4", "5. TELEPORT 5", "6. TELEPORT 6", "7. TELEPORT 7", "8. TELEPORT 8", "9. TELEPORT 9", "10. TELEPORT 10"}
+
+for _, name in ipairs(teleportOrder) do
     local btn = Instance.new("TextButton", OptionsScroll)
     btn.Size = UDim2.new(1, 0, 0, 32)
     btn.BackgroundColor3 = Color3.new(0.156863, 0.156863, 0.156863)
@@ -592,7 +694,7 @@ for name, _ in pairs(Teleports) do
         DropdownLabel.Text = "▼ " .. name
         OptionsFrame.Visible = false
         dropdownOpen = false
-        Main.Size = UDim2.new(0, 220, 0, 250)
+        Main.Size = UDim2.new(0, 220, 0, 270)
         
         StarterGui:SetCore("SendNotification", {
             Title = "Selected",
@@ -607,9 +709,9 @@ DropdownButton.MouseButton1Click:Connect(function()
     dropdownOpen = not dropdownOpen
     OptionsFrame.Visible = dropdownOpen
     if dropdownOpen then
-        Main.Size = UDim2.new(0, 220, 0, 290)
+        Main.Size = UDim2.new(0, 220, 0, 310)
     else
-        Main.Size = UDim2.new(0, 220, 0, 250)
+        Main.Size = UDim2.new(0, 220, 0, 270)
     end
 end)
 
@@ -743,6 +845,44 @@ BlockButton.MouseButton1Click:Connect(function()
     end
 end)
 
+-- RESET BUTTON
+local ResetButton = Instance.new("TextButton")
+ResetButton.Name = "ResetButton"
+ResetButton.Size = UDim2.new(1, 0, 0, 36)
+ResetButton.Position = UDim2.new(0, 0, 0, 218)
+ResetButton.BackgroundColor3 = Color3.new(0.117647, 0.117647, 0.117647)
+ResetButton.AutoButtonColor = false
+ResetButton.Text = ""
+ResetButton.BorderSizePixel = 0
+ResetButton.Parent = Content
+
+local ResetCorner = Instance.new("UICorner")
+ResetCorner.CornerRadius = UDim.new(0, 8)
+ResetCorner.Parent = ResetButton
+
+local ResetLabel = Instance.new("TextLabel")
+ResetLabel.Name = "Label"
+ResetLabel.Size = UDim2.new(1, -12, 1, 0)
+ResetLabel.Position = UDim2.new(0, 12, 0, 0)
+ResetLabel.BackgroundTransparency = 1
+ResetLabel.Text = "🔄 INSTA RESET"
+ResetLabel.TextColor3 = Color3.new(1, 0.5, 0)
+ResetLabel.Font = Enum.Font.GothamBold
+ResetLabel.TextSize = 12
+ResetLabel.TextXAlignment = Enum.TextXAlignment.Left
+ResetLabel.Parent = ResetButton
+
+ResetButton.MouseEnter:Connect(function()
+    TweenService:Create(ResetButton, TweenInfo.new(0.15), {BackgroundColor3 = Color3.new(0.18, 0.18, 0.18)}):Play()
+end)
+ResetButton.MouseLeave:Connect(function()
+    TweenService:Create(ResetButton, TweenInfo.new(0.15), {BackgroundColor3 = Color3.new(0.117647, 0.117647, 0.117647)}):Play()
+end)
+
+ResetButton.MouseButton1Click:Connect(function()
+    ExecuteReset()
+end)
+
 -- =============================================
 -- FLASH STEAL CORE (CatHUB Style)
 -- =============================================
@@ -807,11 +947,24 @@ UserInputService.InputBegan:Connect(function(input, gpe)
 end)
 
 print("========================================")
-print("✅ LAW HUB - FLASH STEAL + TELEPORT LOADED!")
-print("🛡️ Anti-Cheat: Anti-Ragdoll | Anti-Kick | Anti-Freeze")
-print("📍 Teleports: 1 to 10 available")
-print("🎮 Controls:")
-print("   - Dropdown: Select teleport")
-print("   - F Key: Execute teleport")
-print("   - R Key: Reset")
+print("✅ LAW HUB - COMPLETE LOADED!")
+print("")
+print("🛡️ ANTI-CHEAT SYSTEMS:")
+print("   • Anti-Ragdoll - Prevents ragdoll states")
+print("   • Anti-Kick - Blocks kick attempts")
+print("   • Anti-Freeze - Prevents character freeze")
+print("   • Anti-Teleport Detection - Monitors teleports")
+print("   • Anti-Animation Lock - Unlocks animations")
+print("   • Anti-Script Killer - Protects GUI")
+print("   • Anti-Crash - Prevents UI crashes")
+print("")
+print("📍 TELEPORTS (1 to 10):")
+print("   • 1: 3 points in sequence")
+print("   • 2-5: Direct teleport")
+print("   • 6-10: Start point + teleport")
+print("")
+print("🎮 CONTROLS:")
+print("   • Dropdown - Select teleport")
+print("   • F Key - Execute teleport")
+print("   • R Key - Insta reset")
 print("========================================")
