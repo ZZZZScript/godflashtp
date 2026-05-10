@@ -1,5 +1,5 @@
 -- =============================================
--- LAW HUB - WITH PHYSIC HUB ANTI-CHEAT
+-- LAW HUB - MAXIMUM ANTI-CHEAT (PHYSIC HUB +)
 -- =============================================
 
 local Players = game:GetService("Players")
@@ -8,21 +8,101 @@ local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local ProximityPromptService = game:GetService("ProximityPromptService")
 local StarterGui = game:GetService("StarterGui")
-local VirtualInputManager = game:GetService("VirtualInputManager")
 local CoreGui = game:GetService("CoreGui")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local HttpService = game:GetService("HttpService")
 local TeleportService = game:GetService("TeleportService")
 local TextChatService = game:GetService("TextChatService")
+local HttpService = game:GetService("HttpService")
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
 -- =============================================
--- PHYSIC HUB ANTI-CHEAT SYSTEM
+-- MAXIMUM ANTI-CHEAT SYSTEM
 -- =============================================
 
--- 1. ANTI-RAGDOLL
+-- 1. ANTI-KICK TOTAL (Hook all kick methods)
+local function AntiKickTotal()
+    pcall(function()
+        -- TeleportService
+        local ts = TeleportService
+        local tsMt = getrawmetatable(ts)
+        if tsMt then
+            local oldIndex = tsMt.__index
+            tsMt.__index = function(self, key)
+                if key == "Kick" then
+                    return function() end
+                end
+                return oldIndex(self, key)
+            end
+        end
+        
+        -- Players
+        local plrs = Players
+        local plrsMt = getrawmetatable(plrs)
+        if plrsMt then
+            local oldIndex = plrsMt.__index
+            plrsMt.__index = function(self, key)
+                if key == "Kick" then
+                    return function() end
+                end
+                return oldIndex(self, key)
+            end
+        end
+        
+        -- LocalPlayer
+        local lp = player
+        local lpMt = getrawmetatable(lp)
+        if lpMt then
+            local oldIndex = lpMt.__index
+            lpMt.__index = function(self, key)
+                if key == "Kick" then
+                    return function() end
+                end
+                return oldIndex(self, key)
+            end
+        end
+    end)
+    
+    -- Block all kick remote events
+    for _, remote in ipairs(game:GetDescendants()) do
+        if remote:IsA("RemoteEvent") then
+            local name = string.lower(remote.Name)
+            if name:find("kick") or name:find("ban") or name:find("cheat") or name:find("anticheat") then
+                pcall(function()
+                    local oldFire = remote.FireServer
+                    remote.FireServer = function() return end
+                    remote.OnServerEvent:Connect(function() return end)
+                end)
+            end
+        end
+    end
+end
+
+-- 2. ANTI-EXECUTOR DETECTION (Hide script)
+local function AntiExecutorDetection()
+    pcall(function()
+        -- Hide from game:GetDescendants()
+        local ourScript = debug.getinfo(1).source
+        local scripts = game:GetDescendants()
+        for _, s in ipairs(scripts) do
+            if s:IsA("LocalScript") and s ~= ourScript then
+                s.Disabled = true
+            end
+        end
+        
+        -- Clear console
+        local console = clrconsole or clearconsole or ClearConsole
+        if console then console() end
+        
+        -- Hide from whitelist checks
+        if getgenv then
+            getgenv().ScriptRunning = true
+        end
+    end)
+end
+
+-- 3. ANTI-RAGDOLL (EclipseX style)
 local function AntiRagdoll()
     local char = player.Character
     if not char then return end
@@ -40,7 +120,8 @@ local function AntiRagdoll()
         for _, obj in pairs(char:GetDescendants()) do
             if obj:IsA("BallSocketConstraint") or 
                obj:IsA("HingeConstraint") or 
-               obj:IsA("NoCollisionConstraint") then
+               obj:IsA("NoCollisionConstraint") or
+               obj:IsA("BodyVelocity") then
                 obj:Destroy()
             end
         end
@@ -49,34 +130,7 @@ local function AntiRagdoll()
     end
 end
 
--- 2. ANTI-KICK TOTAL
-local function AntiKick()
-    pcall(function()
-        local ts = TeleportService
-        ts.Kick = function() end
-        
-        local plrs = Players
-        plrs.Kick = function() end
-        
-        local lp = player
-        lp.Kick = function() end
-    end)
-    
-    for _, remote in ipairs(game:GetDescendants()) do
-        if remote:IsA("RemoteEvent") or remote:IsA("RemoteFunction") then
-            local name = string.lower(remote.Name)
-            if name:find("kick") or name:find("ban") or name:find("cheat") then
-                pcall(function()
-                    if remote:IsA("RemoteEvent") then
-                        remote.OnServerEvent:Connect(function() return end)
-                    end
-                end)
-            end
-        end
-    end
-end
-
--- 3. ANTI-FREEZE
+-- 4. ANTI-FREEZE
 local lastPosition = nil
 local freezeCount = 0
 local function AntiFreeze()
@@ -104,7 +158,7 @@ local function AntiFreeze()
     end
 end
 
--- 4. ANTI-ANIMATION LOCK
+-- 5. ANTI-ANIMATION LOCK
 local function AntiAnimationLock()
     local char = player.Character
     if not char then return end
@@ -113,14 +167,14 @@ local function AntiAnimationLock()
     if hum and hum:FindFirstChild("Animator") then
         for _, track in pairs(hum.Animator:GetPlayingAnimationTracks()) do
             local animName = string.lower(track.Animation and track.Animation.Name or "")
-            if animName:find("rag") or animName:find("fall") or animName:find("hurt") then
+            if animName:find("rag") or animName:find("fall") or animName:find("hurt") or animName:find("stun") then
                 track:Stop(0)
             end
         end
     end
 end
 
--- 5. ANTI-VELOCITY
+-- 6. ANTI-VELOCITY
 local function AntiVelocity()
     local char = player.Character
     if not char then return end
@@ -131,10 +185,13 @@ local function AntiVelocity()
         if vel.Magnitude > 200 then
             hrp.AssemblyLinearVelocity = vel.Unit * 150
         end
+        if vel.Magnitude < -100 then
+            hrp.AssemblyLinearVelocity = Vector3.new(vel.X, -80, vel.Z)
+        end
     end
 end
 
--- 6. ANTI-TELEPORT LOCK
+-- 7. ANTI-TELEPORT LOCK
 local lastCFrame = nil
 local teleportAttempts = 0
 local isTeleporting = false
@@ -161,7 +218,7 @@ local function AntiTeleportLock()
     end
 end
 
--- 7. ANTI-CHAT KICK
+-- 8. ANTI-CHAT KICK
 local function AntiChatKick()
     pcall(function()
         local textChannels = TextChatService:FindFirstChild("TextChannels")
@@ -169,6 +226,9 @@ local function AntiChatKick()
             local rbGeneral = textChannels:FindFirstChild("RBXGeneral")
             if rbGeneral then
                 rbGeneral.OnIncomingMessage = function(message)
+                    if message.Text and (message.Text:lower():find("kick") or message.Text:lower():find("cheat")) then
+                        return nil
+                    end
                     return message
                 end
             end
@@ -176,11 +236,9 @@ local function AntiChatKick()
     end)
 end
 
--- 8. ANTI-EFFECTS
+-- 9. ANTI-EFFECTS (Blocks AP)
 local DisabledRemotes = {}
-local RemoteWatcher = nil
-local AntiEffectsEnabled = true
-local RemoteKeywords = {"useitem", "combatservice", "ragdoll", "effect", "item"}
+local RemoteKeywords = {"useitem", "combatservice", "ragdoll", "effect", "item", "stun", "balloon", "rocket"}
 
 local function killRemote(remote)
     if not getconnections then return end
@@ -202,23 +260,76 @@ local function killRemote(remote)
     end
 end
 
--- Start anti-cheat loops
+-- 10. ANTI-SCRIPT KILLER
+local function AntiScriptKiller()
+    pcall(function()
+        local sg = CoreGui:FindFirstChild("LawHub")
+        if sg then
+            sg.ResetOnSpawn = false
+            sg.Parent = playerGui
+        end
+    end)
+end
+
+-- 11. ANTI-NAME DETECTION
+local function AntiNameDetection()
+    pcall(function()
+        local oldName = player.Name
+        local oldDisplay = player.DisplayName
+        -- Previne detecção por nome
+        player.Name = "Player"
+        player.DisplayName = "Player"
+        task.delay(0.5, function()
+            player.Name = oldName
+            player.DisplayName = oldDisplay
+        end)
+    end)
+end
+
+-- 12. ANTI-REMOTE SPAM
+local RemoteSpamBlock = {}
+local function AntiRemoteSpam()
+    for _, remote in ipairs(ReplicatedStorage:GetDescendants()) do
+        if remote:IsA("RemoteEvent") then
+            pcall(function()
+                local oldFire = remote.FireServer
+                remote.FireServer = function(...)
+                    local args = {...}
+                    local key = remote.Name .. tostring(args[1])
+                    if RemoteSpamBlock[key] and tick() - RemoteSpamBlock[key] < 0.5 then
+                        return
+                    end
+                    RemoteSpamBlock[key] = tick()
+                    return oldFire(remote, ...)
+                end
+            end)
+        end
+    end
+end
+
+-- Start all anti-cheat loops
 RunService.Heartbeat:Connect(AntiRagdoll)
 RunService.Heartbeat:Connect(AntiFreeze)
 RunService.Heartbeat:Connect(AntiAnimationLock)
 RunService.Heartbeat:Connect(AntiVelocity)
 RunService.Stepped:Connect(AntiTeleportLock)
+RunService.Stepped:Connect(AntiScriptKiller)
 
 -- Initialize anti-cheat
-AntiKick()
+AntiKickTotal()
 AntiChatKick()
+AntiNameDetection()
+AntiExecutorDetection()
+AntiRemoteSpam()
 
 -- Anti Effects
 for _, obj in ipairs(ReplicatedStorage:GetDescendants()) do killRemote(obj) end
-RemoteWatcher = ReplicatedStorage.DescendantAdded:Connect(function(obj)
-    if AntiEffectsEnabled then killRemote(obj) end
+ReplicatedStorage.DescendantAdded:Connect(function(obj)
+    task.wait(0.5)
+    killRemote(obj)
 end)
 
+-- Reconnect anti-cheat on character spawn
 player.CharacterAdded:Connect(function(char)
     task.wait(0.5)
     local hum = char:FindFirstChildOfClass("Humanoid")
@@ -230,7 +341,19 @@ player.CharacterAdded:Connect(function(char)
 end)
 
 print("========================================")
-print("🛡️ ANTI-CHEAT SYSTEMS ACTIVE")
+print("🛡️ MAXIMUM ANTI-CHEAT ACTIVATED (12 SYSTEMS)")
+print("   ✓ Anti-Kick Total (Hook + Remotes)")
+print("   ✓ Anti-Executor Detection")
+print("   ✓ Anti-Ragdoll (EclipseX)")
+print("   ✓ Anti-Freeze")
+print("   ✓ Anti-Animation Lock")
+print("   ✓ Anti-Velocity")
+print("   ✓ Anti-Teleport Lock")
+print("   ✓ Anti-Chat Kick")
+print("   ✓ Anti-Effects (AP immune)")
+print("   ✓ Anti-Script Killer")
+print("   ✓ Anti-Name Detection")
+print("   ✓ Anti-Remote Spam")
 print("========================================")
 
 -- =============================================
@@ -342,9 +465,6 @@ local function ExecuteTeleport()
     local tp = TeleportPoints[selectedTeleport]
     if not tp then teleporting = false return end
     
-    print("Executing: " .. tp.name)
-    
-    -- Flash automático aqui!
     EquipCarpet()
     task.wait(0.15)
     UseFlash()
@@ -411,7 +531,7 @@ local function blockPlayer(plr)
 end
 
 -- =============================================
--- LAW HUB GUI
+-- GUI
 -- =============================================
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "LawHub"
@@ -506,7 +626,7 @@ TitleLabel.TextSize = 16
 TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
 TitleLabel.Parent = TitleBar
 
--- DRAG SYSTEM (MENU MÓVEL)
+-- DRAG SYSTEM
 local dragging = false
 local dragStart, startPos
 
@@ -530,12 +650,6 @@ UserInputService.InputChanged:Connect(function(input)
     end
 end)
 
-UserInputService.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        dragging = false
-    end
-end)
-
 -- Content
 local Content = Instance.new("Frame")
 Content.Size = UDim2.new(1, -20, 1, -45)
@@ -543,7 +657,7 @@ Content.Position = UDim2.new(0, 10, 0, 40)
 Content.BackgroundTransparency = 1
 Content.Parent = Main
 
--- DROPDOWN BUTTON
+-- DROPDOWN
 local DropdownButton = Instance.new("TextButton")
 DropdownButton.Size = UDim2.new(1, 0, 0, 38)
 DropdownButton.Position = UDim2.new(0, 0, 0, 0)
@@ -567,7 +681,7 @@ DropdownLabel.TextSize = 12
 DropdownLabel.TextXAlignment = Enum.TextXAlignment.Left
 DropdownLabel.Parent = DropdownButton
 
--- DROPDOWN OPTIONS FRAME
+-- Options
 local OptionsFrame = Instance.new("Frame")
 OptionsFrame.Size = UDim2.new(1, 0, 0, 260)
 OptionsFrame.Position = UDim2.new(0, 0, 0, 40)
@@ -579,11 +693,6 @@ OptionsFrame.Parent = Content
 local OptionsCorner = Instance.new("UICorner")
 OptionsCorner.CornerRadius = UDim.new(0, 8)
 OptionsCorner.Parent = OptionsFrame
-
-local OptionsStroke = Instance.new("UIStroke")
-OptionsStroke.Color = Color3.new(1, 1, 1)
-OptionsStroke.Thickness = 1
-OptionsStroke.Parent = OptionsFrame
 
 local OptionsScroll = Instance.new("ScrollingFrame")
 OptionsScroll.Size = UDim2.new(1, -4, 1, -4)
@@ -598,7 +707,6 @@ local ScrollLayout = Instance.new("UIListLayout")
 ScrollLayout.Padding = UDim.new(0, 2)
 ScrollLayout.Parent = OptionsScroll
 
--- Create teleport options
 for i, tp in ipairs(TeleportPoints) do
     local btn = Instance.new("TextButton")
     btn.Size = UDim2.new(1, 0, 0, 34)
@@ -620,12 +728,9 @@ for i, tp in ipairs(TeleportPoints) do
         OptionsFrame.Visible = false
         dropdownOpen = false
         Main.Size = UDim2.new(0, 250, 0, 360)
-        
-        StarterGui:SetCore("SendNotification", {Title = "Selected", Text = tp.name, Duration = 1})
     end)
 end
 
--- Toggle dropdown
 DropdownButton.MouseButton1Click:Connect(function()
     dropdownOpen = not dropdownOpen
     OptionsFrame.Visible = dropdownOpen
@@ -636,29 +741,7 @@ DropdownButton.MouseButton1Click:Connect(function()
     end
 end)
 
--- Close dropdown when clicking outside
-UserInputService.InputBegan:Connect(function(input)
-    if dropdownOpen and input.UserInputType == Enum.UserInputType.MouseButton1 then
-        local mousePos = UserInputService:GetMouseLocation()
-        local btnPos = DropdownButton.AbsolutePosition
-        local btnSize = DropdownButton.AbsoluteSize
-        local optionsPos = OptionsFrame.AbsolutePosition
-        local optionsSize = OptionsFrame.AbsoluteSize
-        
-        local clickedInside = (mousePos.X >= btnPos.X and mousePos.X <= btnPos.X + btnSize.X and
-                               mousePos.Y >= btnPos.Y and mousePos.Y <= btnPos.Y + btnSize.Y) or
-                              (mousePos.X >= optionsPos.X and mousePos.X <= optionsPos.X + optionsSize.X and
-                               mousePos.Y >= optionsPos.Y and mousePos.Y <= optionsPos.Y + optionsSize.Y)
-        
-        if not clickedInside then
-            OptionsFrame.Visible = false
-            dropdownOpen = false
-            Main.Size = UDim2.new(0, 250, 0, 360)
-        end
-    end
-end)
-
--- EXECUTE BUTTON
+-- EXECUTE
 local ExecuteButton = Instance.new("TextButton")
 ExecuteButton.Size = UDim2.new(1, 0, 0, 40)
 ExecuteButton.Position = UDim2.new(0, 0, 0, 45)
@@ -684,7 +767,7 @@ ExecuteLabel.Parent = ExecuteButton
 
 ExecuteButton.MouseButton1Click:Connect(ExecuteTeleport)
 
--- FLASH BUTTON (com toggle)
+-- FLASH TOGGLE
 local FlashButton = Instance.new("TextButton")
 FlashButton.Size = UDim2.new(1, 0, 0, 36)
 FlashButton.Position = UDim2.new(0, 0, 0, 90)
@@ -714,7 +797,7 @@ FlashButton.MouseButton1Click:Connect(function()
     FlashLabel.TextColor3 = flashEnabled and Color3.new(0.3, 1, 0.3) or Color3.new(1, 0.5, 0.5)
 end)
 
--- AUTO BLOCK BUTTON
+-- AUTO BLOCK
 local BlockButton = Instance.new("TextButton")
 BlockButton.Size = UDim2.new(1, 0, 0, 36)
 BlockButton.Position = UDim2.new(0, 0, 0, 131)
@@ -749,7 +832,7 @@ BlockButton.MouseButton1Click:Connect(function()
     end
 end)
 
--- RESET BUTTON
+-- RESET
 local ResetButton = Instance.new("TextButton")
 ResetButton.Size = UDim2.new(1, 0, 0, 40)
 ResetButton.Position = UDim2.new(0, 0, 0, 172)
@@ -775,9 +858,7 @@ ResetLabel.Parent = ResetButton
 
 ResetButton.MouseButton1Click:Connect(InstaReset)
 
--- =============================================
--- FLASH STEAL (AUTO STEAL)
--- =============================================
+-- FLASH STEAL
 ProximityPromptService.PromptButtonHoldBegan:Connect(function(prompt)
     if not flashEnabled then return end
     
@@ -800,8 +881,7 @@ ProximityPromptService.PromptButtonHoldBegan:Connect(function(prompt)
         if not fired and progress >= 0.95 then
             fired = true
             conn:Disconnect()
-            local char = player.Character
-            local tool = char and char:FindFirstChildOfClass("Tool")
+            local char = player.Character            local tool = char and char:FindFirstChildOfClass("Tool")
             if tool then tool:Activate() end
             
             StealBarFill.Size = UDim2.new(1, 0, 1, 0)
@@ -819,9 +899,7 @@ ProximityPromptService.PromptButtonHoldBegan:Connect(function(prompt)
     end)
 end)
 
--- =============================================
 -- HOTKEYS
--- =============================================
 UserInputService.InputBegan:Connect(function(input, gpe)
     if gpe then return end
     if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
@@ -834,11 +912,9 @@ UserInputService.InputBegan:Connect(function(input, gpe)
 end)
 
 print("========================================")
-print("✅ LAW HUB LOADED!")
-print("🛡️ Anti-Cheat: Anti-Ragdoll, Anti-Kick, Anti-Freeze,")
-print("   Anti-Animation Lock, Anti-Velocity, Anti-Teleport Lock,")
-print("   Anti-Chat Kick, Anti-Effects")
-print("📍 Click dropdown to select 1. to 10.")
-print("⚡ Flash TP is AUTO on every teleport")
+print("✅ LAW HUB LOADED - MAXIMUM ANTI-CHEAT")
+print("🛡️ 12 Anti-Cheat Systems Active")
+print("📍 Select 1. to 10. from dropdown")
+print("⚡ Flash TP is AUTO")
 print("🎮 F = Teleport | R = Reset")
 print("========================================")
