@@ -1,5 +1,5 @@
 -- =============================================
--- LAW HUB + APEX ANTI CHEAT (FUSÃO COMPLETA)
+-- LAW HUB - TELEPORT SYSTEM (TAPETE + FLASH)
 -- =============================================
 
 local Players = game:GetService("Players")
@@ -10,308 +10,13 @@ local LocalPlayer = Players.LocalPlayer
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
 -- =============================================
--- ANTI CHEAT DO APEX HUB (EclipseX)
+-- PONTO DE PARTIDA (SÓ PARA TELEPORT 2)
 -- =============================================
-
--- ANTI-RAGDOLL
-local antiConns = {}
-local antiR = false
-
-local function startAnti()
-    if #antiConns > 0 then return end
-    local c = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-    local hum = c:WaitForChild("Humanoid")
-    local root = c:WaitForChild("HumanoidRootPart")
-    local anim = hum:FindFirstChild("Animator") or Instance.new("Animator", hum)
-    local maxVel = 40
-    local clampVel = 25
-    local maxClamp = 15
-    local lastVel = Vector3.new(0,0,0)
-    
-    local function isRagdoll()
-        local s = hum:GetState()
-        return s == Enum.HumanoidStateType.Physics or 
-               s == Enum.HumanoidStateType.Ragdoll or
-               s == Enum.HumanoidStateType.FallingDown or 
-               s == Enum.HumanoidStateType.GettingUp
-    end
-    
-    local function cleanEffects()
-        for _, obj in pairs(c:GetDescendants()) do
-            if obj:IsA("BallSocketConstraint") or obj:IsA("NoCollisionConstraint") or obj:IsA("HingeConstraint") or
-               (obj:IsA("Attachment") and (obj.Name == "A" or obj.Name == "B")) then 
-                obj:Destroy()
-            elseif obj:IsA("BodyVelocity") or obj:IsA("BodyPosition") or obj:IsA("BodyGyro") then 
-                obj:Destroy()
-            elseif obj:IsA("Motor6D") then 
-                obj.Enabled = true 
-            end
-        end
-        for _, track in pairs(anim:GetPlayingAnimationTracks()) do
-            local anName = track.Animation and track.Animation.Name:lower() or ""
-            if anName:find("rag") or anName:find("fall") or anName:find("hurt") or anName:find("down") then 
-                track:Stop(0) 
-            end
-        end
-    end
-    
-    local function reEnable()
-        pcall(function() 
-            require(LocalPlayer:WaitForChild("PlayerScripts"):WaitForChild("PlayerModule")):GetControls():Enable() 
-        end)
-    end
-    
-    table.insert(antiConns, hum.StateChanged:Connect(function()
-        if isRagdoll() then 
-            hum:ChangeState(Enum.HumanoidStateType.Running) 
-            cleanEffects() 
-            workspace.CurrentCamera.CameraSubject = hum 
-            reEnable() 
-        end
-    end))
-    
-    table.insert(antiConns, RunService.Heartbeat:Connect(function()
-        if not antiR then return end
-        if isRagdoll() then
-            cleanEffects()
-            local vel = root.AssemblyLinearVelocity
-            if (vel - lastVel).Magnitude > maxVel and vel.Magnitude > clampVel then
-                root.AssemblyLinearVelocity = vel.Unit * math.min(vel.Magnitude, maxClamp) 
-            end
-            lastVel = vel
-        end
-    end))
-    
-    reEnable() 
-    cleanEffects()
-    print("✅ Anti-Ragdoll ON")
-end
-
-local function stopAnti()
-    for _, conn in ipairs(antiConns) do conn:Disconnect() end
-    antiConns = {}
-    print("❌ Anti-Ragdoll OFF")
-end
-
--- COUNTER MEDUSA
-local COUNTER_RANGE = 15
-local counterMedusaEnabled = false
-local counterConn = nil
-local counterCircle = nil
-
-local function makeCounterCircle()
-    if counterCircle then counterCircle:Destroy() end
-    counterCircle = Instance.new("Part")
-    counterCircle.Name = "CounterCircle"
-    counterCircle.Shape = Enum.PartType.Cylinder
-    counterCircle.Size = Vector3.new(0.2, COUNTER_RANGE * 2, COUNTER_RANGE * 2)
-    counterCircle.Color = Color3.fromRGB(255, 0, 0)
-    counterCircle.Material = Enum.Material.Neon
-    counterCircle.Transparency = 0.5
-    counterCircle.Anchored = true
-    counterCircle.CanCollide = false
-    counterCircle.Parent = workspace
-end
-
-local function updateCounterCircle()
-    local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-    if counterCircle and root then
-        counterCircle.CFrame = CFrame.new(root.Position - Vector3.new(0, 2.6, 0)) * CFrame.Angles(0, 0, math.rad(90))
-    end
-end
-
-local function findMedusaTool()
-    local char = LocalPlayer.Character
-    local bp = LocalPlayer:FindFirstChildOfClass("Backpack")
-    
-    if char then
-        for _, tool in ipairs(char:GetChildren()) do
-            if tool:IsA("Tool") and (tool.Name:lower():find("medusa") or tool.Name:lower():find("medusa's head")) then
-                return tool
-            end
-        end
-    end
-    if bp then
-        for _, tool in ipairs(bp:GetChildren()) do
-            if tool:IsA("Tool") and (tool.Name:lower():find("medusa") or tool.Name:lower():find("medusa's head")) then
-                return tool
-            end
-        end
-    end
-    return nil
-end
-
-local function enemyHasMedusa()
-    local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-    if not root then return false end
-    
-    for _, other in ipairs(Players:GetPlayers()) do
-        if other ~= LocalPlayer and other.Character then
-            local otherRoot = other.Character:FindFirstChild("HumanoidRootPart")
-            local otherHum = other.Character:FindFirstChildOfClass("Humanoid")
-            if otherRoot and otherHum and otherHum.Health > 0 then
-                local dist = (root.Position - otherRoot.Position).Magnitude
-                if dist <= COUNTER_RANGE then
-                    for _, tool in ipairs(other.Character:GetChildren()) do
-                        if tool:IsA("Tool") and (tool.Name:lower():find("medusa") or tool.Name:lower():find("medusa's head")) then
-                            return true
-                        end
-                    end
-                end
-            end
-        end
-    end
-    return false
-end
-
-local function startCounterMedusa()
-    if counterConn then return end
-    counterMedusaEnabled = true
-    makeCounterCircle()
-    
-    RunService:BindToRenderStep("CounterCircleUpdate", 1, function()
-        if counterMedusaEnabled then updateCounterCircle() end
-    end)
-    
-    counterConn = RunService.Heartbeat:Connect(function()
-        if counterMedusaEnabled then
-            if enemyHasMedusa() then
-                if counterCircle then
-                    counterCircle.Color = Color3.fromRGB(255, 0, 0)
-                    counterCircle.Transparency = 0.2
-                end
-                
-                local medusa = findMedusaTool()
-                if medusa then
-                    local hum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
-                    if hum then
-                        if medusa.Parent ~= LocalPlayer.Character then
-                            pcall(function() hum:EquipTool(medusa) end)
-                        end
-                        pcall(function() medusa:Activate() end)
-                    end
-                end
-            else
-                if counterCircle then
-                    counterCircle.Color = Color3.fromRGB(255, 100, 100)
-                    counterCircle.Transparency = 0.5
-                end
-            end
-        end
-    end)
-    
-    print("✅ Counter Medusa ON")
-end
-
-local function stopCounterMedusa()
-    counterMedusaEnabled = false
-    if counterConn then
-        counterConn:Disconnect()
-        counterConn = nil
-    end
-    if counterCircle then
-        counterCircle:Destroy()
-        counterCircle = nil
-    end
-    RunService:UnbindFromRenderStep("CounterCircleUpdate")
-    print("❌ Counter Medusa OFF")
-end
-
--- BAT COUNTER
-local batCounterEnabled = false
-local batCounterConn = nil
-local lastHitTime = 0
-local BAT_COUNTER_COOLDOWN = 0.5
-
-local function findBatToolForCounter()
-    local char = LocalPlayer.Character
-    local bp = LocalPlayer:FindFirstChildOfClass("Backpack")
-    
-    if char then
-        for _, tool in ipairs(char:GetChildren()) do
-            if tool:IsA("Tool") and (tool.Name:lower():find("bat") or tool.Name:lower():find("slap")) then
-                return tool
-            end
-        end
-    end
-    if bp then
-        for _, tool in ipairs(bp:GetChildren()) do
-            if tool:IsA("Tool") and (tool.Name:lower():find("bat") or tool.Name:lower():find("slap")) then
-                return tool
-            end
-        end
-    end
-    return nil
-end
-
-local function onHit()
-    local now = tick()
-    if now - lastHitTime < BAT_COUNTER_COOLDOWN then return end
-    lastHitTime = now
-    
-    if batCounterEnabled then
-        local myBat = findBatToolForCounter()
-        if myBat then
-            local hum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
-            if hum then
-                if myBat.Parent ~= LocalPlayer.Character then
-                    pcall(function() hum:EquipTool(myBat) end)
-                end
-                task.wait(0.05)
-                pcall(function() myBat:Activate() end)
-                print("⚡ BAT COUNTER: Hit back!")
-            end
-        end
-    end
-end
-
-local function startBatCounter()
-    if batCounterConn then return end
-    batCounterEnabled = true
-    
-    local function setupHitDetection(char)
-        local hum = char and char:FindFirstChildOfClass("Humanoid")
-        if hum then
-            local healthConn = hum:GetPropertyChangedSignal("Health"):Connect(function()
-                if batCounterEnabled then
-                    onHit()
-                end
-            end)
-            table.insert(batCounterConn or {}, healthConn)
-        end
-    end
-    
-    batCounterConn = {}
-    setupHitDetection(LocalPlayer.Character)
-    
-    local charConn = LocalPlayer.CharacterAdded:Connect(function(newChar)
-        task.wait(0.5)
-        setupHitDetection(newChar)
-    end)
-    table.insert(batCounterConn, charConn)
-    
-    print("✅ BAT COUNTER ON - Will hit back when attacked!")
-end
-
-local function stopBatCounter()
-    batCounterEnabled = false
-    if batCounterConn then
-        for _, conn in ipairs(batCounterConn) do
-            pcall(function() conn:Disconnect() end)
-        end
-        batCounterConn = nil
-    end
-    print("❌ Bat Counter OFF")
-end
-
--- =============================================
--- TELEPORT SYSTEM (TAPETE + FLASH)
--- =============================================
-
--- PONTO DE PARTIDA (SÓ PARA TELEPORT 2, 3, 4...)
 local PontoPartida = Vector3.new(-357.6, -7.1, 37.4)
 
+-- =============================================
 -- LISTA DE TELEPORTS
+-- =============================================
 local Teleports = {
     ["📌 TELEPORT 1"] = {
         UsarPartida = false,
@@ -335,13 +40,17 @@ local Teleports = {
     },
 }
 
+-- =============================================
 -- VARIÁVEIS
+-- =============================================
 local RootPart = nil
 local Humanoid = nil
 local teleportando = false
 local teleportSelecionado = nil
 
--- FUNÇÕES PERSONAGEM
+-- =============================================
+-- FUNÇÕES DO PERSONAGEM
+-- =============================================
 local function AtualizarPersonagem()
     local char = LocalPlayer.Character
     if char then
@@ -356,18 +65,22 @@ LocalPlayer.CharacterAdded:Connect(function()
 end)
 AtualizarPersonagem()
 
--- Equipar Tapete
+-- =============================================
+-- EQUIPAR TAPETE VOADOR
+-- =============================================
 local function EquiparTapete()
     local char = LocalPlayer.Character
     local bp = LocalPlayer:FindFirstChild("Backpack")
     if not char or not bp then return end
     
+    -- Guarda todas as tools na mochila
     for _, tool in pairs(char:GetChildren()) do
         if tool:IsA("Tool") then
             tool.Parent = bp
         end
     end
     
+    -- Equipa o tapete
     local tapete = bp:FindFirstChild("Flying Carpet")
     if tapete and Humanoid then
         Humanoid:EquipTool(tapete)
@@ -375,13 +88,16 @@ local function EquiparTapete()
     end
 end
 
--- Usar Flash
+-- =============================================
+-- USAR FLASH
+-- =============================================
 local function UsarFlash()
     local char = LocalPlayer.Character
     local bp = LocalPlayer:FindFirstChild("Backpack")
     
     if not char then return end
     
+    -- Procura o Flash
     local flash = nil
     for _, tool in pairs(char:GetChildren()) do
         if tool:IsA("Tool") and (tool.Name:lower():find("flash") or tool.Name:lower():find("flashlight")) then
@@ -399,16 +115,21 @@ local function UsarFlash()
         end
     end
     
+    -- Usa o Flash
     if flash then
         if flash.Parent == bp then
             flash.Parent = char
             task.wait(0.1)
         end
-        pcall(function() flash:Activate() end)
+        pcall(function() 
+            flash:Activate() 
+        end)
     end
 end
 
--- Teleportar
+-- =============================================
+-- TELEPORTAR PARA POSIÇÃO
+-- =============================================
 local function TeleportarPosicao(posicao)
     if not RootPart then return false end
     RootPart.CFrame = CFrame.new(posicao)
@@ -416,7 +137,9 @@ local function TeleportarPosicao(posicao)
     return true
 end
 
--- Executar TELEPORT
+-- =============================================
+-- EXECUTAR TELEPORT COMPLETO
+-- =============================================
 local function ExecutarTeleport(nomeTeleport)
     if teleportando then
         print("⚠️ Já está teleportando...")
@@ -431,32 +154,35 @@ local function ExecutarTeleport(nomeTeleport)
     
     teleportando = true
     
-    -- Equipa Tapete
+    -- PASSO 1: Equipa o Tapete Voador
+    print("🔧 Equipando Tapete Voador...")
     EquiparTapete()
     task.wait(0.2)
     
-    -- Usa Flash
+    -- PASSO 2: Usa o Flash
+    print("⚡ Usando Flash...")
     UsarFlash()
     task.wait(0.1)
     
-    -- Se precisar usar ponto de partida
+    -- PASSO 3: Se precisar, vai pro ponto de partida
     if tp.UsarPartida then
-        print("📍 Indo para ponto de partida...")
+        print("📍 Teleportando para ponto de partida...")
         TeleportarPosicao(PontoPartida)
         task.wait(0.15)
     end
     
-    -- Teleporta por todos os pontos
+    -- PASSO 4: Teleporta por todos os pontos da rota
     for i, ponto in ipairs(tp.Pontos) do
         TeleportarPosicao(ponto)
-        print("📍 Ponto " .. i .. "/" .. #tp.Pontos)
+        print("📍 Teleport " .. i .. "/" .. #tp.Pontos .. ": " .. tostring(ponto))
         task.wait(0.15)
     end
     
     print("✅ " .. nomeTeleport .. " concluído!")
     
+    -- Notificação
     game:GetService("StarterGui"):SetCore("SendNotification", {
-        Title = "✅ Concluído!";
+        Title = "✅ Teleport Concluído!";
         Text = nomeTeleport;
         Duration = 2;
     })
@@ -475,7 +201,7 @@ ScreenGui.ResetOnSpawn = false
 
 -- Frame Principal
 local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 350, 0, 520)
+MainFrame.Size = UDim2.new(0, 350, 0, 500)
 MainFrame.Position = UDim2.new(0.5, -175, 0.2, 0)
 MainFrame.BackgroundColor3 = Color3.fromRGB(25, 30, 40)
 MainFrame.BackgroundTransparency = 0.05
@@ -490,16 +216,26 @@ MainCorner.CornerRadius = UDim.new(0, 15)
 local Title = Instance.new("TextLabel", MainFrame)
 Title.Size = UDim2.new(1, 0, 0, 50)
 Title.BackgroundTransparency = 1
-Title.Text = "🔥 LAW HUB + ANTI CHEAT"
+Title.Text = "🔥 LAW HUB - TELEPORT"
 Title.Font = Enum.Font.GothamBold
-Title.TextSize = 18
+Title.TextSize = 20
 Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+
+-- Subtítulo
+local SubTitle = Instance.new("TextLabel", MainFrame)
+SubTitle.Size = UDim2.new(1, 0, 0, 20)
+SubTitle.Position = UDim2.new(0, 0, 0, 45)
+SubTitle.BackgroundTransparency = 1
+SubTitle.Text = "Tapete Voador + Flash"
+SubTitle.Font = Enum.Font.Gotham
+SubTitle.TextSize = 11
+SubTitle.TextColor3 = Color3.fromRGB(180, 180, 180)
 
 -- =============================================
 -- SISTEMA DE ABAS (TÓPICOS)
 -- =============================================
 local AbasFrame = Instance.new("Frame", MainFrame)
-AbasFrame.Position = UDim2.new(0, 10, 0, 55)
+AbasFrame.Position = UDim2.new(0, 10, 0, 70)
 AbasFrame.Size = UDim2.new(1, -20, 0, 40)
 AbasFrame.BackgroundTransparency = 1
 
@@ -508,20 +244,20 @@ AbasLayout.FillDirection = Enum.FillDirection.Horizontal
 AbasLayout.Padding = UDim.new(0, 10)
 AbasLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 
--- Painel de Conteúdo
+-- Painel de Conteúdo (muda conforme aba)
 local ContentFrame = Instance.new("Frame", MainFrame)
-ContentFrame.Position = UDim2.new(0, 10, 0, 105)
-ContentFrame.Size = UDim2.new(1, -20, 1, -160)
+ContentFrame.Position = UDim2.new(0, 10, 0, 120)
+ContentFrame.Size = UDim2.new(1, -20, 1, -175)
 ContentFrame.BackgroundTransparency = 1
 
--- Botão Executar
+-- Botão Executar (fora das abas)
 local ExecutarBtn = Instance.new("TextButton", MainFrame)
 ExecutarBtn.Position = UDim2.new(0, 10, 1, -55)
 ExecutarBtn.Size = UDim2.new(1, -20, 0, 45)
 ExecutarBtn.BackgroundColor3 = Color3.fromRGB(80, 120, 200)
 ExecutarBtn.Text = "🚀 EXECUTAR TELEPORT SELECIONADO"
 ExecutarBtn.Font = Enum.Font.GothamBold
-ExecutarBtn.TextSize = 13
+ExecutarBtn.TextSize = 14
 ExecutarBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 
 local ExecutarCorner = Instance.new("UICorner", ExecutarBtn)
@@ -536,7 +272,9 @@ local function LimparConteudo()
     end
 end
 
--- Criar aba de TELEPORTS
+-- =============================================
+-- ABA: TELEPORTS
+-- =============================================
 local function CriarAbaTeleports()
     LimparConteudo()
     
@@ -548,19 +286,48 @@ local function CriarAbaTeleports()
     Scroll.ScrollBarThickness = 4
     
     local Layout = Instance.new("UIListLayout", Scroll)
-    Layout.Padding = UDim.new(0, 10)
+    Layout.Padding = UDim.new(0, 12)
     Layout.SortOrder = Enum.SortOrder.LayoutOrder
     
+    -- Mostrar Ponto de Partida
+    local PartidaFrame = Instance.new("Frame", Scroll)
+    PartidaFrame.Size = UDim2.new(1, 0, 0, 50)
+    PartidaFrame.BackgroundColor3 = Color3.fromRGB(60, 70, 90)
+    
+    local PartidaCorner = Instance.new("UICorner", PartidaFrame)
+    PartidaCorner.CornerRadius = UDim.new(0, 8)
+    
+    local PartidaLabel = Instance.new("TextLabel", PartidaFrame)
+    PartidaLabel.Size = UDim2.new(1, -10, 0, 20)
+    PartidaLabel.Position = UDim2.new(0, 5, 0, 5)
+    PartidaLabel.BackgroundTransparency = 1
+    PartidaLabel.Text = "🚩 PONTO DE PARTIDA (TELEPORT 2)"
+    PartidaLabel.Font = Enum.Font.GothamBold
+    PartidaLabel.TextSize = 11
+    PartidaLabel.TextColor3 = Color3.fromRGB(255, 200, 100)
+    PartidaLabel.TextXAlignment = Enum.TextXAlignment.Left
+    
+    local PartidaPos = Instance.new("TextLabel", PartidaFrame)
+    PartidaPos.Size = UDim2.new(1, -10, 0, 20)
+    PartidaPos.Position = UDim2.new(0, 5, 0, 25)
+    PartidaPos.BackgroundTransparency = 1
+    PartidaPos.Text = tostring(PontoPartida)
+    PartidaPos.Font = Enum.Font.Gotham
+    PartidaPos.TextSize = 10
+    PartidaPos.TextColor3 = Color3.fromRGB(180, 180, 180)
+    PartidaPos.TextXAlignment = Enum.TextXAlignment.Left
+    
+    -- Mostrar todos os Teleports
     for nomeTeleport, tp in pairs(Teleports) do
-        local Btn = Instance.new("TextButton", Scroll)
-        Btn.Size = UDim2.new(1, 0, 0, 80)
-        Btn.BackgroundColor3 = Color3.fromRGB(45, 50, 65)
-        Btn.Text = ""
+        local TeleportFrame = Instance.new("Frame", Scroll)
+        TeleportFrame.Size = UDim2.new(1, 0, 0, 90)
+        TeleportFrame.BackgroundColor3 = Color3.fromRGB(45, 50, 65)
         
-        local BtnCorner = Instance.new("UICorner", Btn)
-        BtnCorner.CornerRadius = UDim.new(0, 10)
+        local TeleportCorner = Instance.new("UICorner", TeleportFrame)
+        TeleportCorner.CornerRadius = UDim.new(0, 10)
         
-        local NomeLabel = Instance.new("TextLabel", Btn)
+        -- Nome do Teleport
+        local NomeLabel = Instance.new("TextLabel", TeleportFrame)
         NomeLabel.Size = UDim2.new(1, -10, 0, 30)
         NomeLabel.Position = UDim2.new(0, 5, 0, 5)
         NomeLabel.BackgroundTransparency = 1
@@ -570,35 +337,54 @@ local function CriarAbaTeleports()
         NomeLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
         NomeLabel.TextXAlignment = Enum.TextXAlignment.Left
         
-        local InfoLabel = Instance.new("TextLabel", Btn)
+        -- Info dos pontos
+        local InfoLabel = Instance.new("TextLabel", TeleportFrame)
         InfoLabel.Size = UDim2.new(1, -10, 0, 20)
         InfoLabel.Position = UDim2.new(0, 5, 0, 35)
         InfoLabel.BackgroundTransparency = 1
-        InfoLabel.Text = #tp.Pontos .. " pontos" .. (tp.UsarPartida and " | Com partida" or "")
+        InfoLabel.Text = #tp.Pontos .. " pontos na rota" .. (tp.UsarPartida and " | Começa pelo ponto de partida" or "")
         InfoLabel.Font = Enum.Font.Gotham
         InfoLabel.TextSize = 10
         InfoLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
         InfoLabel.TextXAlignment = Enum.TextXAlignment.Left
         
-        local SelectMark = Instance.new("TextLabel", Btn)
-        SelectMark.Size = UDim2.new(0, 30, 0, 30)
-        SelectMark.Position = UDim2.new(1, -35, 0.5, -15)
-        SelectMark.BackgroundTransparency = 1
-        SelectMark.Text = "⬜"
-        SelectMark.Font = Enum.Font.GothamBold
-        SelectMark.TextSize = 20
+        -- Botão de Selecionar
+        local SelectBtn = Instance.new("TextButton", TeleportFrame)
+        SelectBtn.Size = UDim2.new(1, -10, 0, 30)
+        SelectBtn.Position = UDim2.new(0, 5, 0, 55)
+        SelectBtn.BackgroundColor3 = Color3.fromRGB(60, 70, 90)
+        SelectBtn.Text = "📌 SELECIONAR"
+        SelectBtn.Font = Enum.Font.GothamBold
+        SelectBtn.TextSize = 12
+        SelectBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
         
-        Btn.MouseButton1Click:Connect(function()
+        local SelectCorner = Instance.new("UICorner", SelectBtn)
+        SelectCorner.CornerRadius = UDim.new(0, 6)
+        
+        -- Marca de seleção (check)
+        local CheckMark = Instance.new("TextLabel", TeleportFrame)
+        CheckMark.Size = UDim2.new(0, 30, 0, 30)
+        CheckMark.Position = UDim2.new(1, -35, 0, 5)
+        CheckMark.BackgroundTransparency = 1
+        CheckMark.Text = "⬜"
+        CheckMark.Font = Enum.Font.GothamBold
+        CheckMark.TextSize = 20
+        CheckMark.TextColor3 = Color3.fromRGB(150, 150, 150)
+        
+        SelectBtn.MouseButton1Click:Connect(function()
             teleportSelecionado = nomeTeleport
-            for _, btn in pairs(Scroll:GetChildren()) do
-                if btn:IsA("TextButton") and btn:FindFirstChild("SelectMark") then
-                    btn.SelectMark.Text = "⬜"
+            -- Resetar todos os checks
+            for _, frame in pairs(Scroll:GetChildren()) do
+                if frame:IsA("Frame") and frame:FindFirstChild("CheckMark") then
+                    frame.CheckMark.Text = "⬜"
+                    frame.CheckMark.TextColor3 = Color3.fromRGB(150, 150, 150)
                 end
             end
-            SelectMark.Text = "✅"
+            CheckMark.Text = "✅"
+            CheckMark.TextColor3 = Color3.fromRGB(100, 255, 100)
             
             game:GetService("StarterGui"):SetCore("SendNotification", {
-                Title = "📌 Selecionado";
+                Title = "📌 Teleport Selecionado";
                 Text = nomeTeleport;
                 Duration = 1;
             })
@@ -606,8 +392,10 @@ local function CriarAbaTeleports()
     end
 end
 
--- Criar aba de ANTI CHEAT
-local function CriarAbaAntiCheat()
+-- =============================================
+-- ABA: INFO/CONFIG
+-- =============================================
+local function CriarAbaInfo()
     LimparConteudo()
     
     local Scroll = Instance.new("ScrollingFrame", ContentFrame)
@@ -620,135 +408,74 @@ local function CriarAbaAntiCheat()
     local Layout = Instance.new("UIListLayout", Scroll)
     Layout.Padding = UDim.new(0, 10)
     
-    -- Anti-Ragdoll Toggle
-    local RagFrame = Instance.new("Frame", Scroll)
-    RagFrame.Size = UDim2.new(1, 0, 0, 50)
-    RagFrame.BackgroundColor3 = Color3.fromRGB(45, 50, 65)
+    -- Informações
+    local InfoFrame = Instance.new("Frame", Scroll)
+    InfoFrame.Size = UDim2.new(1, 0, 0, 150)
+    InfoFrame.BackgroundColor3 = Color3.fromRGB(45, 50, 65)
     
-    local RagCorner = Instance.new("UICorner", RagFrame)
-    RagCorner.CornerRadius = UDim.new(0, 8)
+    local InfoCorner = Instance.new("UICorner", InfoFrame)
+    InfoCorner.CornerRadius = UDim.new(0, 8)
     
-    local RagLabel = Instance.new("TextLabel", RagFrame)
-    RagLabel.Size = UDim2.new(0.6, 0, 1, 0)
-    RagLabel.Position = UDim2.new(0, 10, 0, 0)
-    RagLabel.BackgroundTransparency = 1
-    RagLabel.Text = "🛡️ Anti-Ragdoll"
-    RagLabel.Font = Enum.Font.GothamBold
-    RagLabel.TextSize = 13
-    RagLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-    RagLabel.TextXAlignment = Enum.TextXAlignment.Left
+    local InfoTitle = Instance.new("TextLabel", InfoFrame)
+    InfoTitle.Size = UDim2.new(1, -10, 0, 30)
+    InfoTitle.Position = UDim2.new(0, 5, 0, 5)
+    InfoTitle.BackgroundTransparency = 1
+    InfoTitle.Text = "⚙️ INFORMAÇÕES"
+    InfoTitle.Font = Enum.Font.GothamBold
+    InfoTitle.TextSize = 13
+    InfoTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+    InfoTitle.TextXAlignment = Enum.TextXAlignment.Left
     
-    local RagToggle = Instance.new("TextButton", RagFrame)
-    RagToggle.Size = UDim2.new(0, 60, 0, 30)
-    RagToggle.Position = UDim2.new(1, -70, 0.5, -15)
-    RagToggle.BackgroundColor3 = Color3.fromRGB(80, 80, 90)
-    RagToggle.Text = "OFF"
-    RagToggle.Font = Enum.Font.GothamBold
-    RagToggle.TextSize = 12
+    local InfoText = Instance.new("TextLabel", InfoFrame)
+    InfoText.Size = UDim2.new(1, -10, 0, 100)
+    InfoText.Position = UDim2.new(0, 5, 0, 40)
+    InfoText.BackgroundTransparency = 1
+    InfoText.Text = "🔧 COMO FUNCIONA:\n\n• Tapete Voador equipado automaticamente\n• Flash usado antes do teleporte\n• Ponto de partida: -357.6, -7.1, 37.4\n• Delay entre pontos: 0.15s\n\n🎮 CONTROLES:\n• Clique em SELECIONAR no teleport desejado\n• Clique em EXECUTAR ou aperte F"
+    InfoText.Font = Enum.Font.Gotham
+    InfoText.TextSize = 11
+    InfoText.TextColor3 = Color3.fromRGB(180, 180, 180)
+    InfoText.TextXAlignment = Enum.TextXAlignment.Left
+    InfoText.TextYAlignment = Enum.TextYAlignment.Top
+    InfoText.LineHeight = 1.2
     
-    local RagCorner2 = Instance.new("UICorner", RagToggle)
-    RagCorner2.CornerRadius = UDim.new(0, 8)
+    -- Tecla de atalho
+    local HotkeyFrame = Instance.new("Frame", Scroll)
+    HotkeyFrame.Size = UDim2.new(1, 0, 0, 50)
+    HotkeyFrame.BackgroundColor3 = Color3.fromRGB(45, 50, 65)
     
-    RagToggle.MouseButton1Click:Connect(function()
-        antiR = not antiR
-        if antiR then
-            startAnti()
-            RagToggle.Text = "ON"
-            RagToggle.BackgroundColor3 = Color3.fromRGB(80, 150, 80)
-        else
-            stopAnti()
-            RagToggle.Text = "OFF"
-            RagToggle.BackgroundColor3 = Color3.fromRGB(80, 80, 90)
-        end
-    end)
+    local HotkeyCorner = Instance.new("UICorner", HotkeyFrame)
+    HotkeyCorner.CornerRadius = UDim.new(0, 8)
     
-    -- Counter Medusa Toggle
-    local MedusaFrame = Instance.new("Frame", Scroll)
-    MedusaFrame.Size = UDim2.new(1, 0, 0, 50)
-    MedusaFrame.BackgroundColor3 = Color3.fromRGB(45, 50, 65)
+    local HotkeyLabel = Instance.new("TextLabel", HotkeyFrame)
+    HotkeyLabel.Size = UDim2.new(0.5, 0, 1, 0)
+    HotkeyLabel.Position = UDim2.new(0, 10, 0, 0)
+    HotkeyLabel.BackgroundTransparency = 1
+    HotkeyLabel.Text = "⌨️ TECLA DE ATALHO"
+    HotkeyLabel.Font = Enum.Font.GothamBold
+    HotkeyLabel.TextSize = 12
+    HotkeyLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    HotkeyLabel.TextXAlignment = Enum.TextXAlignment.Left
     
-    local MedusaCorner = Instance.new("UICorner", MedusaFrame)
-    MedusaCorner.CornerRadius = UDim.new(0, 8)
+    local HotkeyDisplay = Instance.new("TextLabel", HotkeyFrame)
+    HotkeyDisplay.Size = UDim2.new(0, 50, 0, 30)
+    HotkeyDisplay.Position = UDim2.new(1, -60, 0.5, -15)
+    HotkeyDisplay.BackgroundColor3 = Color3.fromRGB(60, 70, 90)
+    HotkeyDisplay.Text = "F"
+    HotkeyDisplay.Font = Enum.Font.GothamBold
+    HotkeyDisplay.TextSize = 16
+    HotkeyDisplay.TextColor3 = Color3.fromRGB(255, 200, 100)
     
-    local MedusaLabel = Instance.new("TextLabel", MedusaFrame)
-    MedusaLabel.Size = UDim2.new(0.6, 0, 1, 0)
-    MedusaLabel.Position = UDim2.new(0, 10, 0, 0)
-    MedusaLabel.BackgroundTransparency = 1
-    MedusaLabel.Text = "🐍 Counter Medusa"
-    MedusaLabel.Font = Enum.Font.GothamBold
-    MedusaLabel.TextSize = 13
-    MedusaLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-    MedusaLabel.TextXAlignment = Enum.TextXAlignment.Left
-    
-    local MedusaToggle = Instance.new("TextButton", MedusaFrame)
-    MedusaToggle.Size = UDim2.new(0, 60, 0, 30)
-    MedusaToggle.Position = UDim2.new(1, -70, 0.5, -15)
-    MedusaToggle.BackgroundColor3 = Color3.fromRGB(80, 80, 90)
-    MedusaToggle.Text = "OFF"
-    MedusaToggle.Font = Enum.Font.GothamBold
-    MedusaToggle.TextSize = 12
-    
-    local MedusaCorner2 = Instance.new("UICorner", MedusaToggle)
-    MedusaCorner2.CornerRadius = UDim.new(0, 8)
-    
-    MedusaToggle.MouseButton1Click:Connect(function()
-        if MedusaToggle.Text == "OFF" then
-            startCounterMedusa()
-            MedusaToggle.Text = "ON"
-            MedusaToggle.BackgroundColor3 = Color3.fromRGB(80, 150, 80)
-        else
-            stopCounterMedusa()
-            MedusaToggle.Text = "OFF"
-            MedusaToggle.BackgroundColor3 = Color3.fromRGB(80, 80, 90)
-        end
-    end)
-    
-    -- Bat Counter Toggle
-    local BatFrame = Instance.new("Frame", Scroll)
-    BatFrame.Size = UDim2.new(1, 0, 0, 50)
-    BatFrame.BackgroundColor3 = Color3.fromRGB(45, 50, 65)
-    
-    local BatCorner = Instance.new("UICorner", BatFrame)
-    BatCorner.CornerRadius = UDim.new(0, 8)
-    
-    local BatLabel = Instance.new("TextLabel", BatFrame)
-    BatLabel.Size = UDim2.new(0.6, 0, 1, 0)
-    BatLabel.Position = UDim2.new(0, 10, 0, 0)
-    BatLabel.BackgroundTransparency = 1
-    BatLabel.Text = "🏏 Bat Counter"
-    BatLabel.Font = Enum.Font.GothamBold
-    BatLabel.TextSize = 13
-    BatLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-    BatLabel.TextXAlignment = Enum.TextXAlignment.Left
-    
-    local BatToggle = Instance.new("TextButton", BatFrame)
-    BatToggle.Size = UDim2.new(0, 60, 0, 30)
-    BatToggle.Position = UDim2.new(1, -70, 0.5, -15)
-    BatToggle.BackgroundColor3 = Color3.fromRGB(80, 80, 90)
-    BatToggle.Text = "OFF"
-    BatToggle.Font = Enum.Font.GothamBold
-    BatToggle.TextSize = 12
-    
-    local BatCorner2 = Instance.new("UICorner", BatToggle)
-    BatCorner2.CornerRadius = UDim.new(0, 8)
-    
-    BatToggle.MouseButton1Click:Connect(function()
-        if BatToggle.Text == "OFF" then
-            startBatCounter()
-            BatToggle.Text = "ON"
-            BatToggle.BackgroundColor3 = Color3.fromRGB(80, 150, 80)
-        else
-            stopBatCounter()
-            BatToggle.Text = "OFF"
-            BatToggle.BackgroundColor3 = Color3.fromRGB(80, 80, 90)
-        end
-    end)
+    local HotkeyCorner2 = Instance.new("UICorner", HotkeyDisplay)
+    HotkeyCorner2.CornerRadius = UDim.new(0, 8)
 end
 
--- Criar abas
+-- =============================================
+-- CRIAR ABAS
+-- =============================================
 local function CriarAbas()
+    -- Aba Teleports
     local AbaTeleports = Instance.new("TextButton", AbasFrame)
-    AbaTeleports.Size = UDim2.new(0, 120, 1, 0)
+    AbaTeleports.Size = UDim2.new(0, 130, 1, 0)
     AbaTeleports.BackgroundColor3 = Color3.fromRGB(80, 100, 150)
     AbaTeleports.Text = "📍 TELEPORTS"
     AbaTeleports.Font = Enum.Font.GothamBold
@@ -757,28 +484,31 @@ local function CriarAbas()
     local AbaTeleportsCorner = Instance.new("UICorner", AbaTeleports)
     AbaTeleportsCorner.CornerRadius = UDim.new(0, 8)
     
-    local AbaAntiCheat = Instance.new("TextButton", AbasFrame)
-    AbaAntiCheat.Size = UDim2.new(0, 120, 1, 0)
-    AbaAntiCheat.BackgroundColor3 = Color3.fromRGB(45, 50, 65)
-    AbaAntiCheat.Text = "🛡️ ANTI CHEAT"
-    AbaAntiCheat.Font = Enum.Font.GothamBold
-    AbaAntiCheat.TextSize = 13
+    -- Aba Info
+    local AbaInfo = Instance.new("TextButton", AbasFrame)
+    AbaInfo.Size = UDim2.new(0, 130, 1, 0)
+    AbaInfo.BackgroundColor3 = Color3.fromRGB(45, 50, 65)
+    AbaInfo.Text = "ℹ️ INFO"
+    AbaInfo.Font = Enum.Font.GothamBold
+    AbaInfo.TextSize = 13
     
-    local AbaAntiCorner = Instance.new("UICorner", AbaAntiCheat)
-    AbaAntiCorner.CornerRadius = UDim.new(0, 8)
+    local AbaInfoCorner = Instance.new("UICorner", AbaInfo)
+    AbaInfoCorner.CornerRadius = UDim.new(0, 8)
     
+    -- Funções das abas
     AbaTeleports.MouseButton1Click:Connect(function()
         AbaTeleports.BackgroundColor3 = Color3.fromRGB(80, 100, 150)
-        AbaAntiCheat.BackgroundColor3 = Color3.fromRGB(45, 50, 65)
+        AbaInfo.BackgroundColor3 = Color3.fromRGB(45, 50, 65)
         CriarAbaTeleports()
     end)
     
-    AbaAntiCheat.MouseButton1Click:Connect(function()
-        AbaAntiCheat.BackgroundColor3 = Color3.fromRGB(80, 100, 150)
+    AbaInfo.MouseButton1Click:Connect(function()
+        AbaInfo.BackgroundColor3 = Color3.fromRGB(80, 100, 150)
         AbaTeleports.BackgroundColor3 = Color3.fromRGB(45, 50, 65)
-        CriarAbaAntiCheat()
+        CriarAbaInfo()
     end)
     
+    -- Iniciar com aba de teleports
     CriarAbaTeleports()
 end
 
@@ -797,14 +527,16 @@ ExecutarBtn.MouseButton1Click:Connect(function()
     end
 end)
 
--- Hotkey F
+-- Hotkey F para executar
 UserInputService.InputBegan:Connect(function(input)
     if input.KeyCode == Enum.KeyCode.F and teleportSelecionado then
         ExecutarTeleport(teleportSelecionado)
     end
 end)
 
--- DRAG SYSTEM
+-- =============================================
+-- DRAG SYSTEM (MOVER A GUI)
+-- =============================================
 local dragToggle = false
 local dragStart = nil
 local startPos = nil
@@ -831,7 +563,8 @@ UserInputService.InputEnded:Connect(function(input)
 end)
 
 print("========================================")
-print("✅ LAW HUB + ANTI CHEAT CARREGADO!")
-print("📍 ABAS: TELEPORTS | ANTI CHEAT")
-print("🛡️ Anti-Cheat: Anti-Ragdoll | Counter Medusa | Bat Counter")
+print("✅ LAW HUB CARREGADO!")
+print("📍 TELEPORT 1: 4 pontos (sem partida)")
+print("📍 TELEPORT 2: 5 pontos (com partida)")
+print("🎮 Selecione o teleport e aperte F ou clique em EXECUTAR")
 print("========================================")
