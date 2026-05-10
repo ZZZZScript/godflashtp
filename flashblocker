@@ -1,77 +1,64 @@
 -- =============================================
--- ICE HUB + LAW TELEPORT (FULL SYSTEM)
+-- LAW HUB - FLASH STEAL + TELEPORT (CatHUB Style)
 -- =============================================
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
-local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local ProximityPromptService = game:GetService("ProximityPromptService")
 local StarterGui = game:GetService("StarterGui")
 local VirtualInputManager = game:GetService("VirtualInputManager")
-local CoreGui = game:GetService("CoreGui")
 
 local player = Players.LocalPlayer
-local PlayerGui = player:WaitForChild("PlayerGui")
+local playerGui = player:WaitForChild("PlayerGui")
 
 -- =============================================
--- TELEPORT POINTS (PONTO 1 AO 10)
+-- TELEPORT POINTS (1 TO 10)
 -- =============================================
 local StartPoint = Vector3.new(-357.6, -7.1, 37.4) -- Only for Teleport 6-10
 
-local Teleports = {
-    ["TELEPORT 1"] = { Pos = Vector3.new(-368, -7, 69), UseStart = false },
-    ["TELEPORT 2"] = { Pos = Vector3.new(-324.3, -7.1, 37.5), UseStart = false },
-    ["TELEPORT 3"] = { Pos = Vector3.new(-316.1, -7.1, 36.7), UseStart = false },
-    ["TELEPORT 4"] = { Pos = Vector3.new(-309.8, -7.1, 38.3), UseStart = false },
-    ["TELEPORT 5"] = { Pos = Vector3.new(-302.3, -7.1, 41.5), UseStart = false },
-    ["TELEPORT 6"] = { Pos = Vector3.new(-331.6, -7.1, -23.3), UseStart = true },
-    ["TELEPORT 7"] = { Pos = Vector3.new(-324.1, -7.1, -23.2), UseStart = true },
-    ["TELEPORT 8"] = { Pos = Vector3.new(-317.8, -7.1, -23.6), UseStart = true },
-    ["TELEPORT 9"] = { Pos = Vector3.new(-311.1, -7.1, -23.5), UseStart = true },
-    ["TELEPORT 10"] = { Pos = Vector3.new(-302.6, -7.1, -23.9), UseStart = true },
+local TeleportPoints = {
+    -- PONTO 1 (3 teleports juntos)
+    Vector3.new(-368, -7, 69),
+    Vector3.new(-336, -5, 100),
+    Vector3.new(-352, -7, 76),
+    -- PONTO 2 ao 5
+    Vector3.new(-324.3, -7.1, 37.5),
+    Vector3.new(-316.1, -7.1, 36.7),
+    Vector3.new(-309.8, -7.1, 38.3),
+    Vector3.new(-302.3, -7.1, 41.5),
+    -- PONTO 6 ao 10 (com start point)
+    Vector3.new(-331.6, -7.1, -23.3),
+    Vector3.new(-324.1, -7.1, -23.2),
+    Vector3.new(-317.8, -7.1, -23.6),
+    Vector3.new(-311.1, -7.1, -23.5),
+    Vector3.new(-302.6, -7.1, -23.9),
 }
 
 -- =============================================
--- AUTO GRAB VARIABLES
+-- VARIABLES
 -- =============================================
-local GRAB_RADIUS = 7
-local COOLDOWN_TIME = 0.8
-local LastGrabTime = 0
-local IsStealing = false
-local InternalStealCache = {}
-local PromptMemoryCache = {}
-local allAnimalsCache = {}
-
--- =============================================
--- AUTO BLOCK VARIABLES
--- =============================================
+local flashEnabled = true
+local sliderValue = 1
+local manualOverride = false
+local triggerBump = false
+local activeTriggers = {}
+local autoResetEnabled = false
 local autoBlockEnabled = false
-
--- =============================================
--- BALLOON RESET
--- =============================================
-local balloonReset = false
-local deathCoords = CFrame.new(1000003.56, 999999.69, 8.17)
-local lastTrigger = 0
-local RESET_COOLDOWN = 0.2
-
--- =============================================
--- TELEPORT STATE
--- =============================================
-local selectedTeleport = nil
-local dropdownOpen = false
+local teleportIndex = 1
+local teleporting = false
 
 -- =============================================
 -- FUNCTIONS
 -- =============================================
 local function getHRP()
     local char = player.Character
-    return char and (char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("UpperTorso"))
+    return char and char:FindFirstChild("HumanoidRootPart")
 end
 
 local function TeleportTo(pos)
-    local char = player.Character
-    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+    local hrp = getHRP()
     if hrp then
         hrp.CFrame = CFrame.new(pos)
         hrp.AssemblyLinearVelocity = Vector3.zero
@@ -127,7 +114,6 @@ local function UseFlash()
         end
         pcall(function() flash:Activate() end)
         
-        -- Alternative activation methods
         for _, child in ipairs(flash:GetDescendants()) do
             if child:IsA("RemoteEvent") then
                 pcall(function() child:FireServer() end)
@@ -139,44 +125,51 @@ local function UseFlash()
 end
 
 -- =============================================
--- EXECUTE TELEPORT
+-- EXECUTE SEQUENTIAL TELEPORT (1 TO 10)
 -- =============================================
-local function ExecuteTeleport()
-    if not selectedTeleport then
-        StarterGui:SetCore("SendNotification", { Title = "Warning", Text = "Select a teleport first!", Duration = 2 })
+local function ExecuteSequentialTeleport()
+    if teleporting then
+        print("Already teleporting...")
         return
     end
     
-    local tp = Teleports[selectedTeleport]
-    if not tp then return end
+    teleporting = true
+    print("========== STARTING SEQUENTIAL TELEPORT (1 TO 10) ==========")
     
-    print("========== EXECUTING: " .. selectedTeleport .. " ==========")
-    
+    -- Equip Carpet and Flash
     EquipCarpet()
     task.wait(0.2)
-    
     UseFlash()
     task.wait(0.1)
     
-    if tp.UseStart then
-        print("📍 Going to start point...")
-        TeleportTo(StartPoint)
+    -- Teleport through all points
+    for i, point in ipairs(TeleportPoints) do
+        -- For points 8-12 (Teleport 6-10), go to start point first
+        if i == 8 then -- Before Teleport 6
+            print("📍 Going to start point...")
+            TeleportTo(StartPoint)
+            task.wait(0.15)
+        end
+        
+        TeleportTo(point)
+        print("📍 Teleport " .. i .. "/" .. #TeleportPoints)
         task.wait(0.15)
     end
     
-    print("📍 Teleporting to: " .. selectedTeleport)
-    TeleportTo(tp.Pos)
-    task.wait(0.15)
+    print("✅ SEQUENTIAL TELEPORT COMPLETED!")
+    teleporting = false
     
-    print("✅ " .. selectedTeleport .. " completed!")
-    
-    StarterGui:SetCore("SendNotification", { Title = "Complete", Text = selectedTeleport, Duration = 2 })
+    StarterGui:SetCore("SendNotification", {
+        Title = "Complete",
+        Text = "Teleport 1 to 10 executed!",
+        Duration = 2
+    })
 end
 
 -- =============================================
--- INSTA RESET (ULTRA FAST)
+-- RESET FUNCTION (Normal reset, no out of map)
 -- =============================================
-local function InstaReset()
+local function ExecuteReset()
     local char = player.Character
     if not char then return end
     
@@ -184,113 +177,16 @@ local function InstaReset()
     local hum = char:FindFirstChildOfClass("Humanoid")
     
     if hrp and hum then
-        hrp.CFrame = deathCoords
         hum.Health = 0
-        if hum.BreakJointsOnDeath then
-            hum.BreakJointsOnDeath = true
-        end
-        hrp.CFrame = deathCoords
-        print("⚡ INSTA RESET executed!")
+        print("🔄 Reset executed!")
+        
+        StarterGui:SetCore("SendNotification", {
+            Title = "Reset",
+            Text = "Character reset!",
+            Duration = 1
+        })
     end
 end
-
--- =============================================
--- AUTO GRAB (ANIMAL STEAL)
--- =============================================
-local function scanSinglePlot(plot)
-    if not plot or not plot:IsA("Model") then return end
-    local podiums = plot:FindFirstChild("AnimalPodiums")
-    if not podiums then return end
-    for _, podium in ipairs(podiums:GetChildren()) do
-        if podium:IsA("Model") and podium:FindFirstChild("Base") then
-            table.insert(allAnimalsCache, {
-                plot = plot.Name,
-                slot = podium.Name,
-                worldPosition = podium:GetPivot().Position,
-                uid = plot.Name .. "_" .. podium.Name,
-            })
-        end
-    end
-end
-
-local function initializeScanner()
-    task.wait(2)
-    local plots = workspace:WaitForChild("Plots", 10)
-    if plots then
-        for _, plot in ipairs(plots:GetChildren()) do scanSinglePlot(plot) end
-        plots.ChildAdded:Connect(scanSinglePlot)
-    end
-end
-
-local function findPrompt(animal)
-    local cached = PromptMemoryCache[animal.uid]
-    if cached and cached.Parent then return cached end
-    local plots = workspace:FindFirstChild("Plots")
-    local plot = plots and plots:FindFirstChild(animal.plot)
-    local podium = plot and plot.AnimalPodiums:FindFirstChild(animal.slot)
-    local prompt = podium and podium.Base.Spawn.PromptAttachment:FindFirstChildOfClass("ProximityPrompt")
-    if prompt then PromptMemoryCache[animal.uid] = prompt end
-    return prompt
-end
-
-local function buildStealCallbacks(prompt)
-    if InternalStealCache[prompt] then return end
-    local data = { holdCallbacks = {}, triggerCallbacks = {}, ready = true }
-    local ok1, conns1 = pcall(getconnections, prompt.PromptButtonHoldBegan)
-    if ok1 then for _, c in ipairs(conns1) do table.insert(data.holdCallbacks, c.Function) end end
-    local ok2, conns2 = pcall(getconnections, prompt.Triggered)
-    if ok2 then for _, c in ipairs(conns2) do table.insert(data.triggerCallbacks, c.Function) end end
-    InternalStealCache[prompt] = data
-end
-
-local function executeInstantSteal(prompt)
-    if (os.clock() - LastGrabTime) < COOLDOWN_TIME then return end
-    
-    local data = InternalStealCache[prompt]
-    if not data or IsStealing then return end
-    
-    IsStealing = true
-    LastGrabTime = os.clock()
-    
-    task.spawn(function()
-        for _, fn in ipairs(data.holdCallbacks) do task.spawn(fn) end
-        for _, fn in ipairs(data.triggerCallbacks) do task.spawn(fn) end
-        task.wait(COOLDOWN_TIME)
-        IsStealing = false
-    end)
-end
-
-local function getNearestAnimal()
-    local hrp = getHRP()
-    if not hrp then return nil end
-    local nearest, dist = nil, math.huge
-    for _, animal in ipairs(allAnimalsCache) do
-        local d = (hrp.Position - animal.worldPosition).Magnitude
-        if d < dist and d <= GRAB_RADIUS then
-            dist = d
-            nearest = animal
-        end
-    end
-    return nearest
-end
-
--- Auto Grab Loop
-task.spawn(function()
-    initializeScanner()
-    while true do
-        task.wait(0.1)
-        if not IsStealing and (os.clock() - LastGrabTime >= COOLDOWN_TIME) then
-            local animal = getNearestAnimal()
-            if animal then
-                local prompt = findPrompt(animal)
-                if prompt then
-                    buildStealCallbacks(prompt)
-                    executeInstantSteal(prompt)
-                end
-            end
-        end
-    end
-end)
 
 -- =============================================
 -- AUTO BLOCK FUNCTIONS
@@ -336,211 +232,289 @@ local function autoBlockClick()
 end
 
 -- =============================================
--- BALLOON DETECTION
+-- CREATE GUI (CatHUB STYLE)
 -- =============================================
-local function hasBalloon(text)
-    if typeof(text) ~= "string" then return false end
-    local lower = string.lower(text)
-    return lower:find("balloon") or lower:find("ballon")
-end
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "LawHub_Flash"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+ScreenGui.Parent = playerGui
 
-local function checkBalloonText(text)
-    if not balloonReset then return end
-    if not hasBalloon(text) then return end
-    
-    local now = tick()
-    if now - lastTrigger < RESET_COOLDOWN then return end
-    lastTrigger = now
-    InstaReset()
-end
+-- Steal Progress Bar
+local StealBarBG = Instance.new("Frame")
+StealBarBG.Name = "StealBarBG"
+StealBarBG.Size = UDim2.new(0, 220, 0, 16)
+StealBarBG.Position = UDim2.new(0.5, -110, 1, -24)
+StealBarBG.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+StealBarBG.BackgroundTransparency = 0
+StealBarBG.BorderSizePixel = 0
+StealBarBG.Parent = ScreenGui
 
-local function scanGuiObjects(parent)
-    pcall(function()
-        for _, obj in ipairs(parent:GetDescendants()) do
-            if obj:IsA("TextLabel") or obj:IsA("TextButton") or obj:IsA("TextBox") then
-                if obj.Text then
-                    checkBalloonText(obj.Text)
-                    obj:GetPropertyChangedSignal("Text"):Connect(function()
-                        checkBalloonText(obj.Text)
-                    end)
+local StealBarBGCorner = Instance.new("UICorner")
+StealBarBGCorner.CornerRadius = UDim.new(0, 6)
+StealBarBGCorner.Parent = StealBarBG
+
+local StealBarStroke = Instance.new("UIStroke")
+StealBarStroke.Color = Color3.fromRGB(180, 180, 180)
+StealBarStroke.Thickness = 1.5
+StealBarStroke.Parent = StealBarBG
+
+local StealBarInner = Instance.new("Frame")
+StealBarInner.Name = "Inner"
+StealBarInner.Size = UDim2.new(1, -8, 1, -6)
+StealBarInner.Position = UDim2.new(0, 4, 0, 3)
+StealBarInner.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+StealBarInner.BorderSizePixel = 0
+StealBarInner.Parent = StealBarBG
+
+local StealBarInnerCorner = Instance.new("UICorner")
+StealBarInnerCorner.CornerRadius = UDim.new(1, 0)
+StealBarInnerCorner.Parent = StealBarInner
+
+local StealBarFill = Instance.new("Frame")
+StealBarFill.Name = "Fill"
+StealBarFill.Size = UDim2.new(0, 0, 1, 0)
+StealBarFill.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+StealBarFill.BorderSizePixel = 0
+StealBarFill.Parent = StealBarInner
+
+local StealFillCorner = Instance.new("UICorner")
+StealFillCorner.CornerRadius = UDim.new(1, 0)
+StealFillCorner.Parent = StealBarFill
+
+-- Main Frame
+local Main = Instance.new("Frame")
+Main.Name = "Main"
+Main.Size = UDim2.new(0, 220, 0, 230)
+Main.Position = UDim2.new(0.5, -110, 0.5, -115)
+Main.BackgroundColor3 = Color3.new(0, 0, 0)
+Main.BackgroundTransparency = 0.2
+Main.BorderSizePixel = 0
+Main.Parent = ScreenGui
+
+local MainCorner = Instance.new("UICorner")
+MainCorner.CornerRadius = UDim.new(0, 12)
+MainCorner.Parent = Main
+
+-- Animated Stroke
+local MainStroke = Instance.new("UIStroke")
+MainStroke.Color = Color3.new(1, 1, 1)
+MainStroke.Thickness = 1.3
+MainStroke.Parent = Main
+
+local StrokeGradient = Instance.new("UIGradient")
+StrokeGradient.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Color3.new(1, 1, 1)),
+    ColorSequenceKeypoint.new(0.25, Color3.new(0, 0, 0)),
+    ColorSequenceKeypoint.new(0.5, Color3.new(1, 1, 1)),
+    ColorSequenceKeypoint.new(0.75, Color3.new(0, 0, 0)),
+    ColorSequenceKeypoint.new(1, Color3.new(1, 1, 1)),
+})
+StrokeGradient.Parent = MainStroke
+
+task.spawn(function()
+    while StrokeGradient and StrokeGradient.Parent do
+        StrokeGradient.Rotation = (StrokeGradient.Rotation + 0.5) % 360
+        task.wait()
+    end
+end)
+
+-- Title Bar
+local TitleBar = Instance.new("Frame")
+TitleBar.Name = "TitleBar"
+TitleBar.Size = UDim2.new(1, 0, 0, 32)
+TitleBar.BackgroundColor3 = Color3.new(0, 0, 0)
+TitleBar.BackgroundTransparency = 0.5
+TitleBar.BorderSizePixel = 0
+TitleBar.Parent = Main
+
+local TitleBarCorner = Instance.new("UICorner")
+TitleBarCorner.CornerRadius = UDim.new(0, 12)
+TitleBarCorner.Parent = TitleBar
+
+local TitleSep = Instance.new("Frame")
+TitleSep.Name = "Separator"
+TitleSep.Size = UDim2.new(1, 0, 0, 1)
+TitleSep.Position = UDim2.new(0, 0, 1, 0)
+TitleSep.BackgroundColor3 = Color3.new(1, 1, 1)
+TitleSep.BorderSizePixel = 0
+TitleSep.Parent = TitleBar
+
+local TitleLabel = Instance.new("TextLabel")
+TitleLabel.Name = "Title"
+TitleLabel.Size = UDim2.new(1, -20, 1, 0)
+TitleLabel.Position = UDim2.new(0, 10, 0, 0)
+TitleLabel.BackgroundTransparency = 1
+TitleLabel.Text = "LAW HUB"
+TitleLabel.TextColor3 = Color3.new(1, 1, 1)
+TitleLabel.Font = Enum.Font.GothamBold
+TitleLabel.TextSize = 14
+TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+TitleLabel.Parent = TitleBar
+
+-- Dragging
+do
+    local dragging = false
+    local dragInput, dragStart, startPos
+
+    TitleBar.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPos = Main.Position
+
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
                 end
-            end
+            end)
+        end
+    end)
+
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            local delta = input.Position - dragStart
+            Main.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        end
+    end)
+
+    UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = false
         end
     end)
 end
 
--- =============================================
--- GUI (ICE HUB STYLE)
--- =============================================
-local hiddenUI = Instance.new("Folder", CoreGui)
-hiddenUI.Name = "IceHubUI"
+-- Content Area
+local Content = Instance.new("Frame")
+Content.Name = "Content"
+Content.Size = UDim2.new(1, -20, 1, -42)
+Content.Position = UDim2.new(0, 10, 0, 37)
+Content.BackgroundTransparency = 1
+Content.BorderSizePixel = 0
+Content.Parent = Main
 
-local gui = Instance.new("ScreenGui", hiddenUI)
-gui.Name = "IceHubGui"
-gui.ResetOnSpawn = false
-gui.IgnoreGuiInset = true
-gui.DisplayOrder = 999
+-- Teleport Button (Main Action)
+local TeleportButton = Instance.new("TextButton")
+TeleportButton.Name = "TeleportButton"
+TeleportButton.Size = UDim2.new(1, 0, 0, 40)
+TeleportButton.Position = UDim2.new(0, 0, 0, 0)
+TeleportButton.BackgroundColor3 = Color3.new(0.117647, 0.117647, 0.117647)
+TeleportButton.AutoButtonColor = false
+TeleportButton.Text = ""
+TeleportButton.BorderSizePixel = 0
+TeleportButton.Parent = Content
 
-local frame = Instance.new("Frame", gui)
-frame.Size = UDim2.fromOffset(240, 280)
-frame.Position = UDim2.new(0.5, -120, 0.75, -140)
-frame.BackgroundColor3 = Color3.new(0, 0, 0)
-frame.BackgroundTransparency = 0.6
-frame.BorderSizePixel = 0
-frame.ClipsDescendants = true
-Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 10)
+local TeleportButtonCorner = Instance.new("UICorner")
+TeleportButtonCorner.CornerRadius = UDim.new(0, 8)
+TeleportButtonCorner.Parent = TeleportButton
 
--- Title
-local title = Instance.new("TextLabel", frame)
-title.Size = UDim2.new(1, -40, 0, 30)
-title.Position = UDim2.fromOffset(12, 5)
-title.BackgroundTransparency = 1
-title.Text = "ICE HUB + LAW"
-title.Font = Enum.Font.GothamBold
-title.TextSize = 16
-title.TextColor3 = Color3.new(1, 1, 1)
-title.TextXAlignment = Enum.TextXAlignment.Left
+local TeleportLabel = Instance.new("TextLabel")
+TeleportLabel.Name = "Label"
+TeleportLabel.Size = UDim2.new(1, -12, 1, 0)
+TeleportLabel.Position = UDim2.new(0, 12, 0, 0)
+TeleportLabel.BackgroundTransparency = 1
+TeleportLabel.Text = "🚀 SEQUENTIAL TP (1→10)"
+TeleportLabel.TextColor3 = Color3.new(1, 1, 1)
+TeleportLabel.Font = Enum.Font.GothamBold
+TeleportLabel.TextSize = 12
+TeleportLabel.TextXAlignment = Enum.TextXAlignment.Left
+TeleportLabel.Parent = TeleportButton
 
--- Minimize Button
-local minBtn = Instance.new("TextButton", frame)
-minBtn.Size = UDim2.fromOffset(26, 26)
-minBtn.Position = UDim2.new(1, -30, 0, 5)
-minBtn.BackgroundTransparency = 1
-minBtn.Text = "-"
-minBtn.TextColor3 = Color3.new(1, 1, 1)
-minBtn.Font = Enum.Font.GothamBold
-minBtn.TextSize = 20
-minBtn.BorderSizePixel = 0
-minBtn.AutoButtonColor = false
+TeleportButton.MouseEnter:Connect(function()
+    TweenService:Create(TeleportButton, TweenInfo.new(0.15), {BackgroundColor3 = Color3.new(0.18, 0.18, 0.18)}):Play()
+end)
+TeleportButton.MouseLeave:Connect(function()
+    TweenService:Create(TeleportButton, TweenInfo.new(0.15), {BackgroundColor3 = Color3.new(0.117647, 0.117647, 0.117647)}):Play()
+end)
 
--- DROPDOWN BUTTON
-local dropdownBtn = Instance.new("TextButton", frame)
-dropdownBtn.Size = UDim2.fromOffset(210, 35)
-dropdownBtn.Position = UDim2.new(0.5, -105, 0, 45)
-dropdownBtn.BackgroundColor3 = Color3.new(0, 0, 0)
-dropdownBtn.BackgroundTransparency = 0.5
-dropdownBtn.Text = "▼ SELECT TELEPORT"
-dropdownBtn.TextColor3 = Color3.new(1, 1, 1)
-dropdownBtn.Font = Enum.Font.GothamBold
-dropdownBtn.TextSize = 12
-dropdownBtn.BorderSizePixel = 0
-Instance.new("UICorner", dropdownBtn).CornerRadius = UDim.new(0, 6)
+TeleportButton.MouseButton1Click:Connect(function()
+    ExecuteSequentialTeleport()
+end)
 
--- Dropdown Options Frame
-local optionsFrame = Instance.new("Frame", frame)
-optionsFrame.Size = UDim2.fromOffset(210, 200)
-optionsFrame.Position = UDim2.new(0.5, -105, 0, 83)
-optionsFrame.BackgroundColor3 = Color3.new(0, 0, 0)
-optionsFrame.BackgroundTransparency = 0.7
-optionsFrame.Visible = false
-optionsFrame.ClipsDescendants = true
-Instance.new("UICorner", optionsFrame).CornerRadius = UDim.new(0, 6)
+-- Flash TP Toggle Button
+local FlashButton = Instance.new("TextButton")
+FlashButton.Name = "FlashButton"
+FlashButton.Size = UDim2.new(1, 0, 0, 36)
+FlashButton.Position = UDim2.new(0, 0, 0, 46)
+FlashButton.BackgroundColor3 = Color3.new(0.117647, 0.117647, 0.117647)
+FlashButton.AutoButtonColor = false
+FlashButton.Text = ""
+FlashButton.BorderSizePixel = 0
+FlashButton.Parent = Content
 
-local optionsScroll = Instance.new("ScrollingFrame", optionsFrame)
-optionsScroll.Size = UDim2.new(1, 0, 1, 0)
-optionsScroll.BackgroundTransparency = 1
-optionsScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
-optionsScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
-optionsScroll.ScrollBarThickness = 3
+local FlashButtonCorner = Instance.new("UICorner")
+FlashButtonCorner.CornerRadius = UDim.new(0, 8)
+FlashButtonCorner.Parent = FlashButton
 
-local scrollLayout = Instance.new("UIListLayout", optionsScroll)
-scrollLayout.Padding = UDim.new(0, 2)
+local FlashLabel = Instance.new("TextLabel")
+FlashLabel.Name = "Label"
+FlashLabel.Size = UDim2.new(1, -12, 1, 0)
+FlashLabel.Position = UDim2.new(0, 12, 0, 0)
+FlashLabel.BackgroundTransparency = 1
+FlashLabel.Text = "⚡ FLASH TP: ON"
+FlashLabel.TextColor3 = Color3.new(1, 1, 1)
+FlashLabel.Font = Enum.Font.GothamBold
+FlashLabel.TextSize = 12
+FlashLabel.TextXAlignment = Enum.TextXAlignment.Left
+FlashLabel.Parent = FlashButton
 
--- Create teleport options
-for name, _ in pairs(Teleports) do
-    local btn = Instance.new("TextButton", optionsScroll)
-    btn.Size = UDim2.fromOffset(200, 30)
-    btn.BackgroundColor3 = Color3.new(0.2, 0.2, 0.2)
-    btn.BackgroundTransparency = 0.3
-    btn.Text = name
-    btn.TextColor3 = Color3.new(1, 1, 1)
-    btn.Font = Enum.Font.Gotham
-    btn.TextSize = 11
-    btn.BorderSizePixel = 0
-    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 4)
-    
-    btn.MouseButton1Click:Connect(function()
-        selectedTeleport = name
-        dropdownBtn.Text = "▼ " .. name
-        optionsFrame.Visible = false
-        dropdownOpen = false
-        frame.Size = UDim2.fromOffset(240, 280)
-    end)
-end
+FlashButton.MouseEnter:Connect(function()
+    TweenService:Create(FlashButton, TweenInfo.new(0.15), {BackgroundColor3 = Color3.new(0.18, 0.18, 0.18)}):Play()
+end)
+FlashButton.MouseLeave:Connect(function()
+    TweenService:Create(FlashButton, TweenInfo.new(0.15), {BackgroundColor3 = Color3.new(0.117647, 0.117647, 0.117647)}):Play()
+end)
 
--- EXECUTE BUTTON
-local executeBtn = Instance.new("TextButton", frame)
-executeBtn.Size = UDim2.fromOffset(210, 40)
-executeBtn.Position = UDim2.new(0.5, -105, 0, 130)
-executeBtn.BackgroundColor3 = Color3.new(0, 0, 0)
-executeBtn.BackgroundTransparency = 0.5
-executeBtn.Text = "🚀 EXECUTE TELEPORT"
-executeBtn.TextColor3 = Color3.new(0.3, 1, 0.3)
-executeBtn.Font = Enum.Font.GothamBold
-executeBtn.TextSize = 12
-executeBtn.BorderSizePixel = 0
-Instance.new("UICorner", executeBtn).CornerRadius = UDim.new(0, 6)
-
--- AUTO BLOCK TOGGLE BUTTON
-local autoBlockBtn = Instance.new("TextButton", frame)
-autoBlockBtn.Size = UDim2.fromOffset(210, 30)
-autoBlockBtn.Position = UDim2.new(0.5, -105, 0, 178)
-autoBlockBtn.BackgroundColor3 = Color3.new(0, 0, 0)
-autoBlockBtn.BackgroundTransparency = 0.5
-autoBlockBtn.Text = "Auto Block: OFF"
-autoBlockBtn.TextColor3 = Color3.fromRGB(150, 150, 150)
-autoBlockBtn.Font = Enum.Font.GothamMedium
-autoBlockBtn.TextSize = 11
-autoBlockBtn.BorderSizePixel = 0
-Instance.new("UICorner", autoBlockBtn).CornerRadius = UDim.new(0, 5)
-
--- BALLOON RESET TOGGLE BUTTON
-local balloonBtn = Instance.new("TextButton", frame)
-balloonBtn.Size = UDim2.fromOffset(210, 30)
-balloonBtn.Position = UDim2.new(0.5, -105, 0, 215)
-balloonBtn.BackgroundColor3 = Color3.new(0, 0, 0)
-balloonBtn.BackgroundTransparency = 0.5
-balloonBtn.Text = "Balloon Reset: OFF"
-balloonBtn.TextColor3 = Color3.fromRGB(150, 150, 150)
-balloonBtn.Font = Enum.Font.GothamMedium
-balloonBtn.TextSize = 11
-balloonBtn.BorderSizePixel = 0
-Instance.new("UICorner", balloonBtn).CornerRadius = UDim.new(0, 5)
-
--- INSTA RESET BUTTON
-local resetBtn = Instance.new("TextButton", frame)
-resetBtn.Size = UDim2.fromOffset(210, 35)
-resetBtn.Position = UDim2.new(0.5, -105, 0, 253)
-resetBtn.BackgroundColor3 = Color3.new(0, 0, 0)
-resetBtn.BackgroundTransparency = 0.5
-resetBtn.Text = "⚡ INSTA RESET"
-resetBtn.TextColor3 = Color3.new(1, 0.5, 0)
-resetBtn.Font = Enum.Font.GothamBold
-resetBtn.TextSize = 13
-resetBtn.BorderSizePixel = 0
-Instance.new("UICorner", resetBtn).CornerRadius = UDim.new(0, 6)
-
--- =============================================
--- BUTTON FUNCTIONS
--- =============================================
-dropdownBtn.MouseButton1Click:Connect(function()
-    dropdownOpen = not dropdownOpen
-    optionsFrame.Visible = dropdownOpen
-    if dropdownOpen then
-        frame.Size = UDim2.fromOffset(240, 280 + 180)
+FlashButton.MouseButton1Click:Connect(function()
+    flashEnabled = not flashEnabled
+    if flashEnabled then
+        FlashLabel.Text = "⚡ FLASH TP: ON"
+        FlashButton.BackgroundColor3 = Color3.new(0.2, 0.2, 0.2)
     else
-        frame.Size = UDim2.fromOffset(240, 280)
+        FlashLabel.Text = "⚡ FLASH TP: OFF"
+        FlashButton.BackgroundColor3 = Color3.new(0.117647, 0.117647, 0.117647)
     end
 end)
 
-executeBtn.MouseButton1Click:Connect(function()
-    ExecuteTeleport()
+-- Auto Block Toggle Button
+local BlockButton = Instance.new("TextButton")
+BlockButton.Name = "BlockButton"
+BlockButton.Size = UDim2.new(1, 0, 0, 36)
+BlockButton.Position = UDim2.new(0, 0, 0, 88)
+BlockButton.BackgroundColor3 = Color3.new(0.117647, 0.117647, 0.117647)
+BlockButton.AutoButtonColor = false
+BlockButton.Text = ""
+BlockButton.BorderSizePixel = 0
+BlockButton.Parent = Content
+
+local BlockButtonCorner = Instance.new("UICorner")
+BlockButtonCorner.CornerRadius = UDim.new(0, 8)
+BlockButtonCorner.Parent = BlockButton
+
+local BlockLabel = Instance.new("TextLabel")
+BlockLabel.Name = "Label"
+BlockLabel.Size = UDim2.new(1, -12, 1, 0)
+BlockLabel.Position = UDim2.new(0, 12, 0, 0)
+BlockLabel.BackgroundTransparency = 1
+BlockLabel.Text = "🛡️ AUTO BLOCK: OFF"
+BlockLabel.TextColor3 = Color3.new(1, 1, 1)
+BlockLabel.Font = Enum.Font.GothamBold
+BlockLabel.TextSize = 12
+BlockLabel.TextXAlignment = Enum.TextXAlignment.Left
+BlockLabel.Parent = BlockButton
+
+BlockButton.MouseEnter:Connect(function()
+    TweenService:Create(BlockButton, TweenInfo.new(0.15), {BackgroundColor3 = Color3.new(0.18, 0.18, 0.18)}):Play()
+end)
+BlockButton.MouseLeave:Connect(function()
+    TweenService:Create(BlockButton, TweenInfo.new(0.15), {BackgroundColor3 = Color3.new(0.117647, 0.117647, 0.117647)}):Play()
 end)
 
-autoBlockBtn.MouseButton1Click:Connect(function()
+BlockButton.MouseButton1Click:Connect(function()
     autoBlockEnabled = not autoBlockEnabled
-    autoBlockBtn.Text = autoBlockEnabled and "Auto Block: ON" or "Auto Block: OFF"
-    autoBlockBtn.TextColor3 = autoBlockEnabled and Color3.new(0.3, 1, 0.3) or Color3.fromRGB(150, 150, 150)
+    BlockLabel.Text = autoBlockEnabled and "🛡️ AUTO BLOCK: ON" or "🛡️ AUTO BLOCK: OFF"
+    BlockLabel.TextColor3 = autoBlockEnabled and Color3.new(0.3, 1, 0.3) or Color3.new(1, 1, 1)
     
     if autoBlockEnabled then
         local nearest = getNearestPlayer()
@@ -552,105 +526,237 @@ autoBlockBtn.MouseButton1Click:Connect(function()
     end
 end)
 
-balloonBtn.MouseButton1Click:Connect(function()
-    balloonReset = not balloonReset
-    balloonBtn.Text = balloonReset and "Balloon Reset: ON" or "Balloon Reset: OFF"
-    balloonBtn.TextColor3 = balloonReset and Color3.new(0.3, 1, 0.3) or Color3.fromRGB(150, 150, 150)
+-- Reset Button
+local ResetButton = Instance.new("TextButton")
+ResetButton.Name = "ResetButton"
+ResetButton.Size = UDim2.new(1, 0, 0, 36)
+ResetButton.Position = UDim2.new(0, 0, 0, 130)
+ResetButton.BackgroundColor3 = Color3.new(0.117647, 0.117647, 0.117647)
+ResetButton.AutoButtonColor = false
+ResetButton.Text = ""
+ResetButton.BorderSizePixel = 0
+ResetButton.Parent = Content
+
+local ResetButtonCorner = Instance.new("UICorner")
+ResetButtonCorner.CornerRadius = UDim.new(0, 8)
+ResetButtonCorner.Parent = ResetButton
+
+local ResetLabel = Instance.new("TextLabel")
+ResetLabel.Name = "Label"
+ResetLabel.Size = UDim2.new(1, -12, 1, 0)
+ResetLabel.Position = UDim2.new(0, 12, 0, 0)
+ResetLabel.BackgroundTransparency = 1
+ResetLabel.Text = "🔄 INSTA RESET"
+ResetLabel.TextColor3 = Color3.new(1, 1, 1)
+ResetLabel.Font = Enum.Font.GothamBold
+ResetLabel.TextSize = 12
+ResetLabel.TextXAlignment = Enum.TextXAlignment.Left
+ResetLabel.Parent = ResetButton
+
+ResetButton.MouseEnter:Connect(function()
+    TweenService:Create(ResetButton, TweenInfo.new(0.15), {BackgroundColor3 = Color3.new(0.18, 0.18, 0.18)}):Play()
+end)
+ResetButton.MouseLeave:Connect(function()
+    TweenService:Create(ResetButton, TweenInfo.new(0.15), {BackgroundColor3 = Color3.new(0.117647, 0.117647, 0.117647)}):Play()
 end)
 
-resetBtn.MouseButton1Click:Connect(function()
-    resetBtn.Text = "⚡ RESETING..."
-    InstaReset()
-    task.wait(0.2)
-    resetBtn.Text = "⚡ INSTA RESET"
+ResetButton.MouseButton1Click:Connect(function()
+    ExecuteReset()
 end)
 
--- Minimize
-local minimized = false
-local FULL_H = 280
-local MIN_H = 36
+-- Trigger Slider
+local SliderArea = Instance.new("Frame")
+SliderArea.Name = "SliderArea"
+SliderArea.Size = UDim2.new(1, 0, 0, 40)
+SliderArea.Position = UDim2.new(0, 0, 0, 172)
+SliderArea.BackgroundTransparency = 1
+SliderArea.BorderSizePixel = 0
+SliderArea.Parent = Content
 
-minBtn.MouseButton1Click:Connect(function()
-    minimized = not minimized
-    TweenService:Create(frame, TweenInfo.new(0.25, Enum.EasingStyle.Quart), {
-        Size = UDim2.fromOffset(240, minimized and MIN_H or FULL_H)
-    }):Play()
-    minBtn.Text = minimized and "+" or "-"
-    dropdownBtn.Visible = not minimized
-    optionsFrame.Visible = false
-    executeBtn.Visible = not minimized
-    autoBlockBtn.Visible = not minimized
-    balloonBtn.Visible = not minimized
-    resetBtn.Visible = not minimized
-    dropdownOpen = false
-end)
+local TriggerLabel = Instance.new("TextLabel")
+TriggerLabel.Name = "TriggerLabel"
+TriggerLabel.Size = UDim2.new(1, 0, 0, 16)
+TriggerLabel.BackgroundTransparency = 1
+TriggerLabel.Text = "TRIGGER: 100%"
+TriggerLabel.TextColor3 = Color3.new(1, 1, 1)
+TriggerLabel.Font = Enum.Font.GothamBold
+TriggerLabel.TextSize = 10
+TriggerLabel.TextXAlignment = Enum.TextXAlignment.Left
+TriggerLabel.Parent = SliderArea
 
--- =============================================
--- DRAG SYSTEM
--- =============================================
-local dragging = false
-local dragStart, startPos
+local SliderTrack = Instance.new("Frame")
+SliderTrack.Name = "Track"
+SliderTrack.Size = UDim2.new(1, 0, 0, 6)
+SliderTrack.Position = UDim2.new(0, 0, 0, 20)
+SliderTrack.BackgroundColor3 = Color3.new(0.156863, 0.156863, 0.156863)
+SliderTrack.BorderSizePixel = 0
+SliderTrack.Parent = SliderArea
 
-frame.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        dragging = true
-        dragStart = input.Position
-        startPos = frame.Position
-        input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then
-                dragging = false
-            end
-        end)
+local TrackCorner = Instance.new("UICorner")
+TrackCorner.CornerRadius = UDim.new(1, 0)
+TrackCorner.Parent = SliderTrack
+
+local SliderFill = Instance.new("Frame")
+SliderFill.Name = "Fill"
+SliderFill.Size = UDim2.new(1, 0, 1, 0)
+SliderFill.BackgroundColor3 = Color3.new(1, 1, 1)
+SliderFill.BorderSizePixel = 0
+SliderFill.Parent = SliderTrack
+
+local FillCorner = Instance.new("UICorner")
+FillCorner.CornerRadius = UDim.new(1, 0)
+FillCorner.Parent = SliderFill
+
+local SliderKnob = Instance.new("TextButton")
+SliderKnob.Name = "Knob"
+SliderKnob.Size = UDim2.new(0, 14, 0, 14)
+SliderKnob.Position = UDim2.new(1, 0, 0.5, 0)
+SliderKnob.AnchorPoint = Vector2.new(0.5, 0.5)
+SliderKnob.BackgroundColor3 = Color3.new(1, 1, 1)
+SliderKnob.BorderSizePixel = 0
+SliderKnob.Text = ""
+SliderKnob.ZIndex = 2
+SliderKnob.Parent = SliderTrack
+
+local KnobCorner = Instance.new("UICorner")
+KnobCorner.CornerRadius = UDim.new(1, 0)
+KnobCorner.Parent = SliderKnob
+
+-- Slider Logic
+do
+    local sliderDragging = false
+
+    local function updateSlider(inputX)
+        local trackAbsPos = SliderTrack.AbsolutePosition.X
+        local trackAbsSize = SliderTrack.AbsoluteSize.X
+        local relativeX = math.clamp((inputX - trackAbsPos) / trackAbsSize, 0, 1)
+        manualOverride = true
+        sliderValue = relativeX
+        SliderFill.Size = UDim2.new(relativeX, 0, 1, 0)
+        SliderKnob.Position = UDim2.new(relativeX, 0, 0.5, 0)
+        TriggerLabel.Text = "TRIGGER: " .. math.floor(relativeX * 100) .. "%"
+    end
+
+    SliderKnob.MouseButton1Down:Connect(function()
+        sliderDragging = true
+    end)
+
+    SliderTrack.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            sliderDragging = true
+            updateSlider(input.Position.X)
+        end
+    end)
+
+    UserInputService.InputChanged:Connect(function(input)
+        if sliderDragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            updateSlider(input.Position.X)
+        end
+    end)
+
+    UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            sliderDragging = false
+        end
+    end)
+end
+
+-- Auto Ping Adjust
+local function getPingBase(ping)
+    if ping <= 30 then return 0.91
+    elseif ping <= 70 then return 0.92
+    elseif ping <= 120 then return 0.93
+    else return 0.94 end
+end
+
+local function updateSliderVisual(v)
+    sliderValue = v
+    SliderFill.Size = UDim2.new(v, 0, 1, 0)
+    SliderKnob.Position = UDim2.new(v, 0, 0.5, 0)
+    TriggerLabel.Text = "TRIGGER: " .. math.floor(v * 100) .. "%"
+end
+
+RunService.Heartbeat:Connect(function()
+    if not manualOverride then
+        local ping = player:GetNetworkPing() * 1000
+        local base = getPingBase(ping)
+        updateSliderVisual(triggerBump and base + 0.01 or base)
     end
 end)
 
-UserInputService.InputChanged:Connect(function(input)
-    if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-        local delta = input.Position - dragStart
-        frame.Position = UDim2.new(
-            startPos.X.Scale, startPos.X.Offset + delta.X,
-            startPos.Y.Scale, startPos.Y.Offset + delta.Y
-        )
-    end
+-- =============================================
+-- FLASH STEAL CORE (CatHUB Style)
+-- =============================================
+ProximityPromptService.PromptButtonHoldBegan:Connect(function(prompt)
+    if not flashEnabled then return end
+    if activeTriggers[prompt] then return end
+    activeTriggers[prompt] = true
+    local start = os.clock()
+    local fired = false
+
+    StealBarFill.BackgroundTransparency = 0
+    StealBarBG.BackgroundTransparency = 0
+
+    local conn
+    conn = RunService.PreRender:Connect(function()
+        if not prompt or not prompt.Parent then
+            conn:Disconnect()
+            activeTriggers[prompt] = nil
+            TweenService:Create(StealBarFill, TweenInfo.new(0.3), {Size = UDim2.new(0, 0, 1, 0)}):Play()
+            return
+        end
+
+        local progress = math.clamp((os.clock() - start) / prompt.HoldDuration, 0, 1)
+        StealBarFill.Size = UDim2.new(progress, 0, 1, 0)
+
+        if not fired and progress >= sliderValue then
+            fired = true
+            conn:Disconnect()
+            activeTriggers[prompt] = nil
+            triggerBump = not triggerBump
+            local char = player.Character
+            local tool = char and char:FindFirstChildOfClass("Tool")
+            if tool then tool:Activate() end
+
+            StealBarFill.Size = UDim2.new(1, 0, 1, 0)
+            task.delay(0.2, function()
+                TweenService:Create(StealBarFill, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+                    Size = UDim2.new(0, 0, 1, 0)
+                }):Play()
+            end)
+        end
+    end)
+
+    prompt.PromptButtonHoldEnded:Connect(function()
+        if not fired then
+            conn:Disconnect()
+            activeTriggers[prompt] = nil
+            TweenService:Create(StealBarFill, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+                Size = UDim2.new(0, 0, 1, 0)
+            }):Play()
+        end
+    end)
 end)
 
 -- =============================================
--- HOTKEY F
+-- HOTKEYS
 -- =============================================
 UserInputService.InputBegan:Connect(function(input, gpe)
     if gpe then return end
     if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
     
     if input.KeyCode == Enum.KeyCode.F then
-        ExecuteTeleport()
+        ExecuteSequentialTeleport()
     elseif input.KeyCode == Enum.KeyCode.R then
-        InstaReset()
-    end
-end)
-
--- =============================================
--- INITIALIZE SCANNERS
--- =============================================
-pcall(function()
-    for _, obj in ipairs(CoreGui:GetChildren()) do
-        if not obj:IsA("BillboardGui") then
-            scanGuiObjects(obj)
-        end
-    end
-    
-    for _, g in ipairs(PlayerGui:GetChildren()) do
-        if not g:IsA("BillboardGui") then
-            scanGuiObjects(g)
-        end
+        ExecuteReset()
     end
 end)
 
 print("========================================")
-print("✅ ICE HUB + LAW TELEPORT LOADED!")
-print("📍 TELEPORT 1-5: Direct teleport")
-print("📍 TELEPORT 6-10: With start point")
+print("✅ LAW HUB - FLASH STEAL + TELEPORT LOADED!")
+print("📍 Teleports: 1 → 10 sequential")
 print("🎮 Controls:")
-print("   - Dropdown: Select teleport")
-print("   - F Key: Execute teleport")
+print("   - F Key: Execute sequential teleport")
 print("   - R Key: Insta reset")
+print("   - FLASH TP: Auto steal with trigger slider")
 print("========================================")
