@@ -1,816 +1,837 @@
+-- =============================================
+-- LAW HUB + APEX ANTI CHEAT (FUSÃO COMPLETA)
+-- =============================================
+
 local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
-local StarterGui = game:GetService("StarterGui")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local VirtualInputManager = game:GetService("VirtualInputManager")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local LocalPlayer = Players.LocalPlayer
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
-local player = Players.LocalPlayer
-local mouse = player:GetMouse()
-local blockDelay = 0.1 -- Delay between blocking players
+-- =============================================
+-- ANTI CHEAT DO APEX HUB (EclipseX)
+-- =============================================
 
--- auto grab variables
-local GRAB_RADIUS = 7 
-local COOLDOWN_TIME = 0.8 
-local LastGrabTime = 0
-local IsStealing = false
-local InternalStealCache = {}
-local PromptMemoryCache = {}
-local allAnimalsCache = {}
+-- ANTI-RAGDOLL
+local antiConns = {}
+local antiR = false
 
--- Auto Block Variables
-local autoBlockEnabled = false
-
--- Insta Reset Variables
-local Config = {
-    AutoResetOnBalloon = false,
-    TpSettings = {
-        Tool = "Flying Carpet"
-    }
-}
-
--- main screen GUI
-local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "RookieTP"
-screenGui.ResetOnSpawn = false
-screenGui.Parent = player:WaitForChild("PlayerGui")
-
--- main frame with black background
-local mainFrame = Instance.new("Frame")
-mainFrame.Size = UDim2.new(0, 260, 0, 250)
-mainFrame.Position = UDim2.new(0.5, -130, 0.5, -170)
-mainFrame.BackgroundColor3 = Color3.new(0, 0, 0)
-mainFrame.BackgroundTransparency = 0
-mainFrame.BorderSizePixel = 0
-mainFrame.Parent = screenGui
-mainFrame.Active = true
-
--- white outline with rounded edges
-local outline = Instance.new("UIStroke")
-outline.Color = Color3.new(1, 1, 1)
-outline.Thickness = 1.5
-outline.Parent = mainFrame
-
-local corner = Instance.new("UICorner")
-corner.CornerRadius = UDim.new(0, 6)
-corner.Parent = mainFrame
-
--- frame drag
-local dragging = false
-local dragStart
-local startPos
-
-mainFrame.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        dragging = true
-        dragStart = input.Position
-        startPos = mainFrame.Position
-        
-        input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then
-                dragging = false
+local function startAnti()
+    if #antiConns > 0 then return end
+    local c = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+    local hum = c:WaitForChild("Humanoid")
+    local root = c:WaitForChild("HumanoidRootPart")
+    local anim = hum:FindFirstChild("Animator") or Instance.new("Animator", hum)
+    local maxVel = 40
+    local clampVel = 25
+    local maxClamp = 15
+    local lastVel = Vector3.new(0,0,0)
+    
+    local function isRagdoll()
+        local s = hum:GetState()
+        return s == Enum.HumanoidStateType.Physics or 
+               s == Enum.HumanoidStateType.Ragdoll or
+               s == Enum.HumanoidStateType.FallingDown or 
+               s == Enum.HumanoidStateType.GettingUp
+    end
+    
+    local function cleanEffects()
+        for _, obj in pairs(c:GetDescendants()) do
+            if obj:IsA("BallSocketConstraint") or obj:IsA("NoCollisionConstraint") or obj:IsA("HingeConstraint") or
+               (obj:IsA("Attachment") and (obj.Name == "A" or obj.Name == "B")) then 
+                obj:Destroy()
+            elseif obj:IsA("BodyVelocity") or obj:IsA("BodyPosition") or obj:IsA("BodyGyro") then 
+                obj:Destroy()
+            elseif obj:IsA("Motor6D") then 
+                obj.Enabled = true 
             end
+        end
+        for _, track in pairs(anim:GetPlayingAnimationTracks()) do
+            local anName = track.Animation and track.Animation.Name:lower() or ""
+            if anName:find("rag") or anName:find("fall") or anName:find("hurt") or anName:find("down") then 
+                track:Stop(0) 
+            end
+        end
+    end
+    
+    local function reEnable()
+        pcall(function() 
+            require(LocalPlayer:WaitForChild("PlayerScripts"):WaitForChild("PlayerModule")):GetControls():Enable() 
         end)
     end
-end)
-
-UserInputService.InputChanged:Connect(function(input)
-    if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-        local delta = input.Position - dragStart
-        mainFrame.Position = UDim2.new(
-            startPos.X.Scale,
-            startPos.X.Offset + delta.X,
-            startPos.Y.Scale,
-            startPos.Y.Offset + delta.Y
-        )
-    end
-end)
-
--- title (centered)
-local title = Instance.new("TextLabel")
-title.Size = UDim2.new(1, 0, 0, 22)
-title.Position = UDim2.new(0, 0, 0, 5)
-title.BackgroundTransparency = 1
-title.Text = "Rookie TP + Block"
-title.TextColor3 = Color3.new(1, 1, 1)
-title.TextSize = 16
-title.Font = Enum.Font.GothamBold
-title.TextXAlignment = Enum.TextXAlignment.Center
-title.Parent = mainFrame
-
-local titleStroke = Instance.new("UIStroke")
-titleStroke.Color = Color3.new(0, 0, 0)
-titleStroke.Thickness = 1.5
-titleStroke.Parent = title
-
--- Discord link (centered)
-local discordLink = Instance.new("TextLabel")
-discordLink.Size = UDim2.new(1, 0, 0, 14)
-discordLink.Position = UDim2.new(0, 0, 0, 27)
-discordLink.BackgroundTransparency = 1
-discordLink.Text = ".gg/u95xTs2BUS"
-discordLink.TextColor3 = Color3.new(0.8, 0.8, 1)
-discordLink.TextSize = 11
-discordLink.Font = Enum.Font.Gotham
-discordLink.TextXAlignment = Enum.TextXAlignment.Center
-discordLink.Parent = mainFrame
-
-local discordStroke = Instance.new("UIStroke")
-discordStroke.Color = Color3.new(0, 0, 0)
-discordStroke.Thickness = 1
-discordStroke.Parent = discordLink
-
--- TP States
-local tpLeftActive = false
-local tpRightActive = false
-
--- Coordinates
-local leftBaseCoords = Vector3.new(-333.334473, -7.7698164, 66.862793)
-local rightBaseCoords = Vector3.new(-332.479065, -7.7698164, 53.6714478)
-
--- EXACT CAMERA ANGLES
--- Left base
-local LEFT_HORIZONTAL_ANGLE = -0.028922539162458592
-local LEFT_VERTICAL_ANGLE = -0.0764548044968453
-
--- Right base  
-local RIGHT_HORIZONTAL_ANGLE = -3.121297635974515
-local RIGHT_VERTICAL_ANGLE = 0.03068658429335152
-
--- ========== INSTA RESET FUNCTIONS ==========
-local function executeReset()
-    local character = player.Character
-    if not character then return end
-    local humanoid = character:FindFirstChildOfClass("Humanoid")
-    local rootPart = character:FindFirstChild("HumanoidRootPart")
-    if rootPart and humanoid then
-        local toolName = Config.TpSettings.Tool
-        local flying = player.Backpack:FindFirstChild(toolName) or character:FindFirstChild(toolName)
-        if flying then 
-            humanoid:EquipTool(flying) 
+    
+    table.insert(antiConns, hum.StateChanged:Connect(function()
+        if isRagdoll() then 
+            hum:ChangeState(Enum.HumanoidStateType.Running) 
+            cleanEffects() 
+            workspace.CurrentCamera.CameraSubject = hum 
+            reEnable() 
         end
-                
-        rootPart.CFrame = CFrame.new(0, 15000, 0)
-        print("🚀 Reset executed - Teleported to 15000")
+    end))
+    
+    table.insert(antiConns, RunService.Heartbeat:Connect(function()
+        if not antiR then return end
+        if isRagdoll() then
+            cleanEffects()
+            local vel = root.AssemblyLinearVelocity
+            if (vel - lastVel).Magnitude > maxVel and vel.Magnitude > clampVel then
+                root.AssemblyLinearVelocity = vel.Unit * math.min(vel.Magnitude, maxClamp) 
+            end
+            lastVel = vel
+        end
+    end))
+    
+    reEnable() 
+    cleanEffects()
+    print("✅ Anti-Ragdoll ON")
+end
+
+local function stopAnti()
+    for _, conn in ipairs(antiConns) do conn:Disconnect() end
+    antiConns = {}
+    print("❌ Anti-Ragdoll OFF")
+end
+
+-- COUNTER MEDUSA
+local COUNTER_RANGE = 15
+local counterMedusaEnabled = false
+local counterConn = nil
+local counterCircle = nil
+
+local function makeCounterCircle()
+    if counterCircle then counterCircle:Destroy() end
+    counterCircle = Instance.new("Part")
+    counterCircle.Name = "CounterCircle"
+    counterCircle.Shape = Enum.PartType.Cylinder
+    counterCircle.Size = Vector3.new(0.2, COUNTER_RANGE * 2, COUNTER_RANGE * 2)
+    counterCircle.Color = Color3.fromRGB(255, 0, 0)
+    counterCircle.Material = Enum.Material.Neon
+    counterCircle.Transparency = 0.5
+    counterCircle.Anchored = true
+    counterCircle.CanCollide = false
+    counterCircle.Parent = workspace
+end
+
+local function updateCounterCircle()
+    local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    if counterCircle and root then
+        counterCircle.CFrame = CFrame.new(root.Position - Vector3.new(0, 2.6, 0)) * CFrame.Angles(0, 0, math.rad(90))
     end
 end
 
--- ========== BALLOON DETECTION LOOP ==========
-task.spawn(function()
-    local balloonPhrase = 'ran "balloon" on you'
-    while true do
-        task.wait(1)
-        if not Config.AutoResetOnBalloon then 
-            task.wait()
-            continue 
-        end
-        local playerGui = player:FindFirstChild("PlayerGui")
-        if playerGui then
-            for _, gui in ipairs(playerGui:GetDescendants()) do
-                local txt = (gui:IsA("TextLabel") or gui:IsA("TextButton")) and gui.Text
-                if txt and string.find(txt, balloonPhrase) then
-                    print("🎈 Balloon detected! Executing reset...")
-                    executeReset()
-                    break
-                end
+local function findMedusaTool()
+    local char = LocalPlayer.Character
+    local bp = LocalPlayer:FindFirstChildOfClass("Backpack")
+    
+    if char then
+        for _, tool in ipairs(char:GetChildren()) do
+            if tool:IsA("Tool") and (tool.Name:lower():find("medusa") or tool.Name:lower():find("medusa's head")) then
+                return tool
             end
         end
     end
-end)
-
--- AUTO GRAB FUNCTIONS
-local function getHRP()
-    local char = player.Character
-    return char and (char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("UpperTorso"))
-end
-
-local function scanSinglePlot(plot)
-    if not plot or not plot:IsA("Model") then return end
-    local podiums = plot:FindFirstChild("AnimalPodiums")
-    if not podiums then return end
-    for _, podium in ipairs(podiums:GetChildren()) do
-        if podium:IsA("Model") and podium:FindFirstChild("Base") then
-            table.insert(allAnimalsCache, {
-                plot = plot.Name,
-                slot = podium.Name,
-                worldPosition = podium:GetPivot().Position,
-                uid = plot.Name .. "_" .. podium.Name,
-            })
-        end
-    end
-end
-
-local function initializeScanner()
-    task.wait(2)
-    local plots = workspace:WaitForChild("Plots", 10)
-    for _, plot in ipairs(plots:GetChildren()) do scanSinglePlot(plot) end
-    plots.ChildAdded:Connect(scanSinglePlot)
-end
-
-local function findPrompt(animal)
-    local cached = PromptMemoryCache[animal.uid]
-    if cached and cached.Parent then return cached end
-    local plot = workspace.Plots:FindFirstChild(animal.plot)
-    local podium = plot and plot.AnimalPodiums:FindFirstChild(animal.slot)
-    local prompt = podium and podium.Base.Spawn.PromptAttachment:FindFirstChildOfClass("ProximityPrompt")
-    if prompt then PromptMemoryCache[animal.uid] = prompt end
-    return prompt
-end
-
-local function buildStealCallbacks(prompt)
-    if InternalStealCache[prompt] then return end
-    local data = { holdCallbacks = {}, triggerCallbacks = {}, ready = true }
-    local ok1, conns1 = pcall(getconnections, prompt.PromptButtonHoldBegan)
-    if ok1 then for _, c in ipairs(conns1) do table.insert(data.holdCallbacks, c.Function) end end
-    local ok2, conns2 = pcall(getconnections, prompt.Triggered)
-    if ok2 then for _, c in ipairs(conns2) do table.insert(data.triggerCallbacks, c.Function) end end
-    InternalStealCache[prompt] = data
-end
-
-local function executeInstantSteal(prompt)
-    if (os.clock() - LastGrabTime) < COOLDOWN_TIME then return end
-    
-    local data = InternalStealCache[prompt]
-    if not data or IsStealing then return end
-    
-    IsStealing = true
-    LastGrabTime = os.clock()
-    
-    task.spawn(function()
-        for _, fn in ipairs(data.holdCallbacks) do task.spawn(fn) end
-        for _, fn in ipairs(data.triggerCallbacks) do task.spawn(fn) end
-        
-        print("Auto Grab: Grabbed animal")
-        task.wait(COOLDOWN_TIME)
-        IsStealing = false
-    end)
-end
-
-local function getNearestAnimal()
-    local hrp = getHRP()
-    if not hrp then return nil end
-    local nearest, dist = nil, math.huge
-    for _, animal in ipairs(allAnimalsCache) do
-        local d = (hrp.Position - animal.worldPosition).Magnitude
-        if d < dist and d <= GRAB_RADIUS then
-            dist = d
-            nearest = animal
-        end
-    end
-    return nearest
-end
-
--- AUTO GRAB LOOP (ALWAYS ON)
-task.spawn(function()
-    initializeScanner()
-    while true do
-        task.wait(0.1)
-        if not IsStealing and (os.clock() - LastGrabTime >= COOLDOWN_TIME) then
-            local animal = getNearestAnimal()
-            if animal then
-                local prompt = findPrompt(animal)
-                if prompt then
-                    buildStealCallbacks(prompt)
-                    executeInstantSteal(prompt)
-                end
+    if bp then
+        for _, tool in ipairs(bp:GetChildren()) do
+            if tool:IsA("Tool") and (tool.Name:lower():find("medusa") or tool.Name:lower():find("medusa's head")) then
+                return tool
             end
         end
     end
-end)
-
--- Function to set both character AND camera
-local function setPOV(targetCoords, horizontalAngleRadians, verticalAngleRadians)
-    local character = player.Character
-    if not character then return end
-    
-    local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
-    if not humanoidRootPart then return end
-    
-    local targetCFrame = CFrame.new(targetCoords) * CFrame.Angles(verticalAngleRadians, horizontalAngleRadians, 0)
-    humanoidRootPart.CFrame = targetCFrame
-    
-    local camera = workspace.CurrentCamera
-    if camera then
-        camera.CFrame = targetCFrame
-    end
-    
-    print("POV set - Horizontal: " .. horizontalAngleRadians .. " rad, Vertical: " .. verticalAngleRadians .. " rad")
-    task.wait(0.06)
-end
-
--- Function to find item
-local function findItem(itemName)
-    local character = player.Character
-    local backpack = player:FindFirstChild("Backpack")
-    
-    if backpack then
-        for _, item in ipairs(backpack:GetChildren()) do
-            if item.Name == itemName then
-                return item
-            end
-        end
-    end
-    
-    if character then
-        for _, item in ipairs(character:GetChildren()) do
-            if item:IsA("Tool") and item.Name == itemName then
-                return item
-            end
-        end
-    end
-    
     return nil
 end
 
--- Function to EQUIP item
-local function equipItem(itemName)
-    local item = findItem(itemName)
-    if not item then
-        print("Item not found: " .. itemName)
-        return false
-    end
+local function enemyHasMedusa()
+    local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    if not root then return false end
     
-    local character = player.Character
-    if not character then return false end
-    
-    local humanoid = character:FindFirstChildOfClass("Humanoid")
-    if not humanoid then return false end
-    
-    if item.Parent == player:FindFirstChild("Backpack") then
-        humanoid:EquipTool(item)
-        print("Equipped: " .. itemName)
-        task.wait(0.01)
-        return true
-    elseif item.Parent == character then
-        print("Already equipped: " .. itemName)
-        return true
-    end
-    
-    return false
-end
-
--- Function to USE Flash Teleport
-local function useFlashTeleport()
-    local flashItem = findItem("Flash Teleport")
-    if not flashItem then
-        print("Flash Teleport not found in inventory!")
-        return false
-    end
-    
-    local character = player.Character
-    if not character then return false end
-    
-    local humanoid = character:FindFirstChildOfClass("Humanoid")
-    if not humanoid then return false end
-    
-    print("Found Flash Teleport, attempting to use...")
-    
-    if flashItem.Parent == player:FindFirstChild("Backpack") then
-        humanoid:EquipTool(flashItem)
-        task.wait(0.025)
-    end
-    
-    local success = false
-    
-    pcall(function()
-        flashItem:Activate()
-        success = true
-        print("Method 1: Activate() called")
-    end)
-    
-    task.wait(0.04)
-    
-    pcall(function()
-        local clickDetector = flashItem:FindFirstChildOfClass("ClickDetector")
-        if clickDetector then
-            clickDetector:MouseClick(player)
-            success = true
-            print("Method 2: ClickDetector used")
-        end
-    end)
-    
-    for _, child in ipairs(flashItem:GetDescendants()) do
-        if child:IsA("RemoteEvent") then
-            pcall(function()
-                child:FireServer()
-                success = true
-                print("Method 3: RemoteEvent fired: " .. child.Name)
-            end)
-        elseif child:IsA("RemoteFunction") then
-            pcall(function()
-                child:InvokeServer()
-                success = true
-                print("Method 3: RemoteFunction invoked: " .. child.Name)
-            end)
-        end
-    end
-    
-    if success then
-        print("Flash Teleport activated successfully!")
-    else
-        print("Warning: Could not confirm Flash Teleport activation")
-    end
-    
-    return true
-end
-
--- Function to teleport character
-local function teleportCharacter(targetCoords)
-    local character = player.Character
-    if not character then 
-        print("No character found")
-        return 
-    end
-    
-    print("Teleporting to: " .. tostring(targetCoords))
-    character:MoveTo(targetCoords)
-    task.wait(0.03)
-end
-
--- Find Nearest Player
-local function getNearestPlayer()
-    local character = player.Character
-    if not character then return nil end
-    
-    local rootPart = character:FindFirstChild("HumanoidRootPart")
-    if not rootPart then return nil end
-    
-    local nearestPlayer = nil
-    local shortestDistance = math.huge
-    
-    for _, plr in ipairs(Players:GetPlayers()) do
-        if plr ~= player then
-            local otherChar = plr.Character
-            if otherChar then
-                local otherRoot = otherChar:FindFirstChild("HumanoidRootPart")
-                if otherRoot then
-                    local distance = (rootPart.Position - otherRoot.Position).Magnitude
-                    if distance < shortestDistance then
-                        shortestDistance = distance
-                        nearestPlayer = plr
+    for _, other in ipairs(Players:GetPlayers()) do
+        if other ~= LocalPlayer and other.Character then
+            local otherRoot = other.Character:FindFirstChild("HumanoidRootPart")
+            local otherHum = other.Character:FindFirstChildOfClass("Humanoid")
+            if otherRoot and otherHum and otherHum.Health > 0 then
+                local dist = (root.Position - otherRoot.Position).Magnitude
+                if dist <= COUNTER_RANGE then
+                    for _, tool in ipairs(other.Character:GetChildren()) do
+                        if tool:IsA("Tool") and (tool.Name:lower():find("medusa") or tool.Name:lower():find("medusa's head")) then
+                            return true
+                        end
                     end
                 end
             end
         end
     end
-    
-    return nearestPlayer, shortestDistance
+    return false
 end
 
--- ========== BLOQUEIO COMPLETO CORRIGIDO ==========
-local function blockPlayerComplete(plr)
-    if not plr or plr == player then return end
+local function startCounterMedusa()
+    if counterConn then return end
+    counterMedusaEnabled = true
+    makeCounterCircle()
     
-    print("🔴 Iniciando bloqueio para: " .. plr.Name)
-    
-    -- Método 1: Clica no personagem do jogador
-    local character = plr.Character
-    if character then
-        local rootPart = character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("Head")
-        local camera = workspace.CurrentCamera
-        
-        if rootPart and camera then
-            local vector, onScreen = camera:WorldToScreenPoint(rootPart.Position)
-            
-            if onScreen then
-                print("🎯 Clicando no jogador: " .. plr.Name)
-                VirtualInputManager:SendMouseButtonEvent(vector.X, vector.Y, 0, true, game, 1)
-                task.wait(0.05)
-                VirtualInputManager:SendMouseButtonEvent(vector.X, vector.Y, 0, false, game, 1)
-                task.wait(0.15)
-            end
-        end
-    end
-    
-    -- Método 2: Abre o menu de bloqueio
-    pcall(function()
-        StarterGui:SetCore("PromptBlockPlayer", plr)
+    RunService:BindToRenderStep("CounterCircleUpdate", 1, function()
+        if counterMedusaEnabled then updateCounterCircle() end
     end)
     
-    task.wait(0.1)
-    
-    -- Método 3: Procura e clica no botão de bloqueio
-    local playerGui = player:FindFirstChild("PlayerGui")
-    if playerGui then
-        for _, descendant in ipairs(playerGui:GetDescendants()) do
-            if (descendant:IsA("TextButton") or descendant:IsA("ImageButton")) then
-                local text = (descendant.Text or ""):lower()
-                local name = (descendant.Name or ""):lower()
+    counterConn = RunService.Heartbeat:Connect(function()
+        if counterMedusaEnabled then
+            if enemyHasMedusa() then
+                if counterCircle then
+                    counterCircle.Color = Color3.fromRGB(255, 0, 0)
+                    counterCircle.Transparency = 0.2
+                end
                 
-                if text:find("block") or name:find("block") or text:find("bloquear") then
-                    local x = descendant.AbsolutePosition.X + descendant.AbsoluteSize.X / 2
-                    local y = descendant.AbsolutePosition.Y + descendant.AbsoluteSize.Y / 2
-                    
-                    print("🔘 Clicando no botão BLOCK")
-                    VirtualInputManager:SendMouseButtonEvent(x, y, 0, true, game, 1)
-                    task.wait(0.05)
-                    VirtualInputManager:SendMouseButtonEvent(x, y, 0, false, game, 1)
-                    
-                    print("✅ Jogador bloqueado com sucesso: " .. plr.Name)
-                    return
+                local medusa = findMedusaTool()
+                if medusa then
+                    local hum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+                    if hum then
+                        if medusa.Parent ~= LocalPlayer.Character then
+                            pcall(function() hum:EquipTool(medusa) end)
+                        end
+                        pcall(function() medusa:Activate() end)
+                    end
+                end
+            else
+                if counterCircle then
+                    counterCircle.Color = Color3.fromRGB(255, 100, 100)
+                    counterCircle.Transparency = 0.5
                 end
             end
         end
-    end
+    end)
     
-    print("⚠️ Não foi possível bloquear automaticamente - " .. plr.Name .. " pode precisar de bloqueio manual")
+    print("✅ Counter Medusa ON")
 end
 
--- Auto Block Click Function (manter compatibilidade)
-local function autoBlockClick()
-    print("🔴 Auto Block: Realizando clique virtual em (963, 516)")
-    
-    VirtualInputManager:SendMouseButtonEvent(963, 516, 0, true, game, 1)
-    task.wait(0.05)
-    VirtualInputManager:SendMouseButtonEvent(963, 516, 0, false, game, 1)
-    
-    print("✅ Auto Block: Clique virtual completo")
+local function stopCounterMedusa()
+    counterMedusaEnabled = false
+    if counterConn then
+        counterConn:Disconnect()
+        counterConn = nil
+    end
+    if counterCircle then
+        counterCircle:Destroy()
+        counterCircle = nil
+    end
+    RunService:UnbindFromRenderStep("CounterCircleUpdate")
+    print("❌ Counter Medusa OFF")
 end
 
--- Main TP + Block function (SEQUÊNCIA CORRIGIDA)
-local function executeTPPlusBlock()
-    local character = player.Character
-    if not character then 
-        print("No character - can't execute")
-        return 
+-- BAT COUNTER
+local batCounterEnabled = false
+local batCounterConn = nil
+local lastHitTime = 0
+local BAT_COUNTER_COOLDOWN = 0.5
+
+local function findBatToolForCounter()
+    local char = LocalPlayer.Character
+    local bp = LocalPlayer:FindFirstChildOfClass("Backpack")
+    
+    if char then
+        for _, tool in ipairs(char:GetChildren()) do
+            if tool:IsA("Tool") and (tool.Name:lower():find("bat") or tool.Name:lower():find("slap")) then
+                return tool
+            end
+        end
+    end
+    if bp then
+        for _, tool in ipairs(bp:GetChildren()) do
+            if tool:IsA("Tool") and (tool.Name:lower():find("bat") or tool.Name:lower():find("slap")) then
+                return tool
+            end
+        end
+    end
+    return nil
+end
+
+local function onHit()
+    local now = tick()
+    if now - lastHitTime < BAT_COUNTER_COOLDOWN then return end
+    lastHitTime = now
+    
+    if batCounterEnabled then
+        local myBat = findBatToolForCounter()
+        if myBat then
+            local hum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+            if hum then
+                if myBat.Parent ~= LocalPlayer.Character then
+                    pcall(function() hum:EquipTool(myBat) end)
+                end
+                task.wait(0.05)
+                pcall(function() myBat:Activate() end)
+                print("⚡ BAT COUNTER: Hit back!")
+            end
+        end
+    end
+end
+
+local function startBatCounter()
+    if batCounterConn then return end
+    batCounterEnabled = true
+    
+    local function setupHitDetection(char)
+        local hum = char and char:FindFirstChildOfClass("Humanoid")
+        if hum then
+            local healthConn = hum:GetPropertyChangedSignal("Health"):Connect(function()
+                if batCounterEnabled then
+                    onHit()
+                end
+            end)
+            table.insert(batCounterConn or {}, healthConn)
+        end
     end
     
-    print("========== TP + Block EXECUTANDO ==========")
+    batCounterConn = {}
+    setupHitDetection(LocalPlayer.Character)
     
-    -- ===== STEP 1: BLOQUEIA O JOGADOR MAIS PRÓXIMO =====
-    print("Passo 1: Procurando jogador mais próximo para bloquear...")
-    local nearestPlayer, distance = getNearestPlayer()
+    local charConn = LocalPlayer.CharacterAdded:Connect(function(newChar)
+        task.wait(0.5)
+        setupHitDetection(newChar)
+    end)
+    table.insert(batCounterConn, charConn)
     
-    if nearestPlayer then
-        print("🎯 Jogador mais próximo: " .. nearestPlayer.Name .. " (Distância: " .. math.floor(distance) .. " studs)")
-        print("🚀 Bloqueando " .. nearestPlayer.Name .. " AGORA...")
-        blockPlayerComplete(nearestPlayer)
-    else
-        print("⚠️ Nenhum jogador encontrado por perto para bloquear")
+    print("✅ BAT COUNTER ON - Will hit back when attacked!")
+end
+
+local function stopBatCounter()
+    batCounterEnabled = false
+    if batCounterConn then
+        for _, conn in ipairs(batCounterConn) do
+            pcall(function() conn:Disconnect() end)
+        end
+        batCounterConn = nil
+    end
+    print("❌ Bat Counter OFF")
+end
+
+-- =============================================
+-- TELEPORT SYSTEM (TAPETE + FLASH)
+-- =============================================
+
+-- PONTO DE PARTIDA (SÓ PARA TELEPORT 2, 3, 4...)
+local PontoPartida = Vector3.new(-357.6, -7.1, 37.4)
+
+-- LISTA DE TELEPORTS
+local Teleports = {
+    ["📌 TELEPORT 1"] = {
+        UsarPartida = false,
+        Pontos = {
+            Vector3.new(-324.3, -7.1, 37.5),
+            Vector3.new(-316.1, -7.1, 36.7),
+            Vector3.new(-309.8, -7.1, 38.3),
+            Vector3.new(-302.3, -7.1, 41.5),
+        }
+    },
+    
+    ["📌 TELEPORT 2"] = {
+        UsarPartida = true,
+        Pontos = {
+            Vector3.new(-331.6, -7.1, -23.3),
+            Vector3.new(-324.1, -7.1, -23.2),
+            Vector3.new(-317.8, -7.1, -23.6),
+            Vector3.new(-311.1, -7.1, -23.5),
+            Vector3.new(-302.6, -7.1, -23.9),
+        }
+    },
+}
+
+-- VARIÁVEIS
+local RootPart = nil
+local Humanoid = nil
+local teleportando = false
+local teleportSelecionado = nil
+
+-- FUNÇÕES PERSONAGEM
+local function AtualizarPersonagem()
+    local char = LocalPlayer.Character
+    if char then
+        RootPart = char:FindFirstChild("HumanoidRootPart")
+        Humanoid = char:FindFirstChildOfClass("Humanoid")
+    end
+end
+
+LocalPlayer.CharacterAdded:Connect(function()
+    task.wait(0.5)
+    AtualizarPersonagem()
+end)
+AtualizarPersonagem()
+
+-- Equipar Tapete
+local function EquiparTapete()
+    local char = LocalPlayer.Character
+    local bp = LocalPlayer:FindFirstChild("Backpack")
+    if not char or not bp then return end
+    
+    for _, tool in pairs(char:GetChildren()) do
+        if tool:IsA("Tool") then
+            tool.Parent = bp
+        end
     end
     
-    -- ===== STEP 2: Equipar Flying Carpet =====
-    print("Passo 2: Equipando Flying Carpet...")
-    local carpetEquipped = equipItem("Flying Carpet")
-    if not carpetEquipped then
-        print("Falha ao equipar Flying Carpet - parando sequência TP")
-        print("========== TP + Block COMPLETO (Block feito, TP falhou) ==========")
+    local tapete = bp:FindFirstChild("Flying Carpet")
+    if tapete and Humanoid then
+        Humanoid:EquipTool(tapete)
+        task.wait(0.2)
+    end
+end
+
+-- Usar Flash
+local function UsarFlash()
+    local char = LocalPlayer.Character
+    local bp = LocalPlayer:FindFirstChild("Backpack")
+    
+    if not char then return end
+    
+    local flash = nil
+    for _, tool in pairs(char:GetChildren()) do
+        if tool:IsA("Tool") and (tool.Name:lower():find("flash") or tool.Name:lower():find("flashlight")) then
+            flash = tool
+            break
+        end
+    end
+    
+    if not flash and bp then
+        for _, tool in pairs(bp:GetChildren()) do
+            if tool:IsA("Tool") and (tool.Name:lower():find("flash") or tool.Name:lower():find("flashlight")) then
+                flash = tool
+                break
+            end
+        end
+    end
+    
+    if flash then
+        if flash.Parent == bp then
+            flash.Parent = char
+            task.wait(0.1)
+        end
+        pcall(function() flash:Activate() end)
+    end
+end
+
+-- Teleportar
+local function TeleportarPosicao(posicao)
+    if not RootPart then return false end
+    RootPart.CFrame = CFrame.new(posicao)
+    RootPart.AssemblyLinearVelocity = Vector3.zero
+    return true
+end
+
+-- Executar TELEPORT
+local function ExecutarTeleport(nomeTeleport)
+    if teleportando then
+        print("⚠️ Já está teleportando...")
         return
     end
     
-    -- ===== STEP 3: Teleportar para base selecionada =====
-    if tpLeftActive then
-        print("Passo 3: Base esquerda selecionada - teleportando...")
-        teleportCharacter(leftBaseCoords)
-        print("Configurando POV na base esquerda...")
-        setPOV(leftBaseCoords, LEFT_HORIZONTAL_ANGLE, LEFT_VERTICAL_ANGLE)
-        
-    elseif tpRightActive then
-        print("Passo 3: Base direita selecionada - teleportando...")
-        teleportCharacter(rightBaseCoords)
-        print("Configurando POV na base direita...")
-        setPOV(rightBaseCoords, RIGHT_HORIZONTAL_ANGLE, RIGHT_VERTICAL_ANGLE)
-        
-    else
-        print("Passo 3: Nenhuma base selecionada - pulando teleporte")
+    local tp = Teleports[nomeTeleport]
+    if not tp then
+        print("❌ Teleport não encontrado: " .. nomeTeleport)
+        return
     end
     
-    task.wait(0.15)
+    teleportando = true
     
-    -- ===== STEP 4: Auto Block click se habilitado =====
-    if autoBlockEnabled then
-        print("Passo 4: Auto Block está habilitado - realizando clique virtual...")
-        autoBlockClick()
-    else
-        print("Passo 4: Auto Block desabilitado - pulando")
-    end
+    -- Equipa Tapete
+    EquiparTapete()
+    task.wait(0.2)
     
+    -- Usa Flash
+    UsarFlash()
     task.wait(0.1)
     
-    -- ===== STEP 5: Usar Flash Teleport =====
-    print("Passo 5: Usando Flash Teleport...")
-    local flashSuccess = false
-    for i = 1, 3 do
-        flashSuccess = useFlashTeleport()
-        if flashSuccess then
-            print("Flash Teleport processado com sucesso na tentativa " .. i)
-            break
-        end
-        print("Tentando novamente Flash Teleport... Tentativa " .. i + 1)
-        task.wait(0.1)
+    -- Se precisar usar ponto de partida
+    if tp.UsarPartida then
+        print("📍 Indo para ponto de partida...")
+        TeleportarPosicao(PontoPartida)
+        task.wait(0.15)
     end
     
-    print("========== TP + Block COMPLETO ==========")
+    -- Teleporta por todos os pontos
+    for i, ponto in ipairs(tp.Pontos) do
+        TeleportarPosicao(ponto)
+        print("📍 Ponto " .. i .. "/" .. #tp.Pontos)
+        task.wait(0.15)
+    end
+    
+    print("✅ " .. nomeTeleport .. " concluído!")
+    
+    game:GetService("StarterGui"):SetCore("SendNotification", {
+        Title = "✅ Concluído!";
+        Text = nomeTeleport;
+        Duration = 2;
+    })
+    
+    teleportando = false
 end
 
--- ========== CREATE GREEN CIRCLE TOGGLE FUNCTION ==========
-local function createToggle(parent, position, labelText, toggleState, onToggleCallback)
-    local row = Instance.new("Frame")
-    row.Size = UDim2.new(0.9, 0, 0, 24)
-    row.Position = position
-    row.BackgroundTransparency = 1
-    row.Parent = parent
-    
-    local label = Instance.new("TextLabel")
-    label.Size = UDim2.new(1, -40, 1, 0)
-    label.Position = UDim2.new(0, 10, 0, 0)
-    label.BackgroundTransparency = 1
-    label.Text = labelText
-    label.TextColor3 = Color3.new(1, 1, 1)
-    label.TextSize = 13
-    label.Font = Enum.Font.Gotham
-    label.TextXAlignment = Enum.TextXAlignment.Left
-    label.TextYAlignment = Enum.TextYAlignment.Center
-    label.Parent = row
-    
-    local labelStroke = Instance.new("UIStroke")
-    labelStroke.Color = Color3.new(0, 0, 0)
-    labelStroke.Thickness = 1
-    labelStroke.Parent = label
-    
-    local circle = Instance.new("Frame")
-    circle.Size = UDim2.new(0, 16, 0, 16)
-    circle.Position = UDim2.new(1, -20, 0.5, -8)
-    circle.BackgroundColor3 = toggleState and Color3.new(0.3, 1, 0.3) or Color3.new(0.4, 0.4, 0.4)
-    circle.BackgroundTransparency = 0
-    circle.BorderSizePixel = 0
-    circle.Parent = row
-    
-    local circleCorner = Instance.new("UICorner")
-    circleCorner.CornerRadius = UDim.new(1, 0)
-    circleCorner.Parent = circle
-    
-    local clickArea = Instance.new("TextButton")
-    clickArea.Size = UDim2.new(1, 0, 1, 0)
-    clickArea.Position = UDim2.new(0, 0, 0, 0)
-    clickArea.BackgroundTransparency = 1
-    clickArea.Text = ""
-    clickArea.Parent = row
-    
-    local function updateToggle()
-        circle.BackgroundColor3 = toggleState and Color3.new(0.3, 1, 0.3) or Color3.new(0.4, 0.4, 0.4)
+-- =============================================
+-- GUI PRINCIPAL (COM ABAS TÓPICOS)
+-- =============================================
+
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "LawHub"
+ScreenGui.Parent = PlayerGui
+ScreenGui.ResetOnSpawn = false
+
+-- Frame Principal
+local MainFrame = Instance.new("Frame")
+MainFrame.Size = UDim2.new(0, 350, 0, 520)
+MainFrame.Position = UDim2.new(0.5, -175, 0.2, 0)
+MainFrame.BackgroundColor3 = Color3.fromRGB(25, 30, 40)
+MainFrame.BackgroundTransparency = 0.05
+MainFrame.Active = true
+MainFrame.Draggable = true
+MainFrame.Parent = ScreenGui
+
+local MainCorner = Instance.new("UICorner", MainFrame)
+MainCorner.CornerRadius = UDim.new(0, 15)
+
+-- Título
+local Title = Instance.new("TextLabel", MainFrame)
+Title.Size = UDim2.new(1, 0, 0, 50)
+Title.BackgroundTransparency = 1
+Title.Text = "🔥 LAW HUB + ANTI CHEAT"
+Title.Font = Enum.Font.GothamBold
+Title.TextSize = 18
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+
+-- =============================================
+-- SISTEMA DE ABAS (TÓPICOS)
+-- =============================================
+local AbasFrame = Instance.new("Frame", MainFrame)
+AbasFrame.Position = UDim2.new(0, 10, 0, 55)
+AbasFrame.Size = UDim2.new(1, -20, 0, 40)
+AbasFrame.BackgroundTransparency = 1
+
+local AbasLayout = Instance.new("UIListLayout", AbasFrame)
+AbasLayout.FillDirection = Enum.FillDirection.Horizontal
+AbasLayout.Padding = UDim.new(0, 10)
+AbasLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+
+-- Painel de Conteúdo
+local ContentFrame = Instance.new("Frame", MainFrame)
+ContentFrame.Position = UDim2.new(0, 10, 0, 105)
+ContentFrame.Size = UDim2.new(1, -20, 1, -160)
+ContentFrame.BackgroundTransparency = 1
+
+-- Botão Executar
+local ExecutarBtn = Instance.new("TextButton", MainFrame)
+ExecutarBtn.Position = UDim2.new(0, 10, 1, -55)
+ExecutarBtn.Size = UDim2.new(1, -20, 0, 45)
+ExecutarBtn.BackgroundColor3 = Color3.fromRGB(80, 120, 200)
+ExecutarBtn.Text = "🚀 EXECUTAR TELEPORT SELECIONADO"
+ExecutarBtn.Font = Enum.Font.GothamBold
+ExecutarBtn.TextSize = 13
+ExecutarBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+
+local ExecutarCorner = Instance.new("UICorner", ExecutarBtn)
+ExecutarCorner.CornerRadius = UDim.new(0, 8)
+
+-- Limpar conteúdo
+local function LimparConteudo()
+    for _, child in pairs(ContentFrame:GetChildren()) do
+        if child:IsA("ScrollingFrame") then
+            child:Destroy()
+        end
     end
-    
-    clickArea.MouseButton1Click:Connect(function()
-        toggleState = not toggleState
-        updateToggle()
-        if onToggleCallback then
-            onToggleCallback(toggleState)
-        end
-    end)
-    
-    clickArea.MouseEnter:Connect(function()
-        label.TextColor3 = Color3.new(0.7, 0.7, 0.7)
-    end)
-    
-    clickArea.MouseLeave:Connect(function()
-        label.TextColor3 = Color3.new(1, 1, 1)
-    end)
-    
-    updateToggle()
-    
-    return {
-        row = row,
-        label = label,
-        circle = circle,
-        getState = function() return toggleState end,
-        setState = function(state)
-            toggleState = state
-            updateToggle()
-        end
-    }
 end
 
--- ========== CREATE TOGGLES ==========
--- TP To Left Base toggle
-local leftToggleState = false
-local leftToggle = createToggle(mainFrame, UDim2.new(0.05, 0, 0, 45), "TP To Left Base", leftToggleState, function(state)
-    leftToggleState = state
-    tpLeftActive = state
-    if state and tpRightActive then
-        tpRightActive = false
-        rightToggle.setState(false)
-    end
-    print("Left base: " .. (state and "ON" or "OFF"))
-end)
-
--- TP To Right Base toggle
-local rightToggleState = false
-local rightToggle = createToggle(mainFrame, UDim2.new(0.05, 0, 0, 71), "TP To Right Base", rightToggleState, function(state)
-    rightToggleState = state
-    tpRightActive = state
-    if state and tpLeftActive then
-        tpLeftActive = false
-        leftToggle.setState(false)
-    end
-    print("Right base: " .. (state and "ON" or "OFF"))
-end)
-
--- Auto Block toggle
-local autoBlockToggleState = false
-local autoBlockToggle = createToggle(mainFrame, UDim2.new(0.05, 0, 0, 97), "Auto Block", autoBlockToggleState, function(state)
-    autoBlockToggleState = state
-    autoBlockEnabled = state
-    print("Auto Block: " .. (state and "ON" or "OFF"))
-end)
-
--- TP + Block button
-local tpBlockBtn = Instance.new("TextButton")
-tpBlockBtn.Size = UDim2.new(0.9, 0, 0, 28)
-tpBlockBtn.Position = UDim2.new(0.05, 0, 0, 125)
-tpBlockBtn.BackgroundTransparency = 1
-tpBlockBtn.Text = "TP + BLOCK"
-tpBlockBtn.TextColor3 = Color3.new(1, 1, 1)
-tpBlockBtn.TextSize = 13
-tpBlockBtn.Font = Enum.Font.Gotham
-tpBlockBtn.TextXAlignment = Enum.TextXAlignment.Center
-tpBlockBtn.Parent = mainFrame
-
-local tpBlockTextStroke = Instance.new("UIStroke")
-tpBlockTextStroke.Color = Color3.new(0, 0, 0)
-tpBlockTextStroke.Thickness = 1.5
-tpBlockTextStroke.Parent = tpBlockBtn
-
-tpBlockBtn.MouseEnter:Connect(function()
-    tpBlockTextStroke.Thickness = 2.5
-end)
-
-tpBlockBtn.MouseLeave:Connect(function()
-    tpBlockTextStroke.Thickness = 1.5
-end)
-
-tpBlockBtn.MouseButton1Click:Connect(function()
-    print("========== TP + Block BUTTON PRESSED ==========")
-    task.spawn(executeTPPlusBlock)
-end)
-
--- INSTA RESET button
-local resetButton = Instance.new("TextButton")
-resetButton.Size = UDim2.new(0.9, 0, 0, 28)
-resetButton.Position = UDim2.new(0.05, 0, 0, 158)
-resetButton.BackgroundTransparency = 1
-resetButton.Text = "INSTA RESET"
-resetButton.TextColor3 = Color3.new(1, 1, 1)
-resetButton.TextSize = 13
-resetButton.Font = Enum.Font.Gotham
-resetButton.TextXAlignment = Enum.TextXAlignment.Center
-resetButton.Parent = mainFrame
-
-local resetTextStroke = Instance.new("UIStroke")
-resetTextStroke.Color = Color3.new(0, 0, 0)
-resetTextStroke.Thickness = 1.5
-resetTextStroke.Parent = resetButton
-
--- Loading bar for reset
-local resetLoadingBar = Instance.new("Frame")
-resetLoadingBar.Size = UDim2.new(0, 0, 0, 2)
-resetLoadingBar.Position = UDim2.new(0.05, 0, 1, -5)
-resetLoadingBar.BackgroundColor3 = Color3.new(1, 1, 1)
-resetLoadingBar.BackgroundTransparency = 0
-resetLoadingBar.BorderSizePixel = 0
-resetLoadingBar.Visible = false
-resetLoadingBar.Parent = mainFrame
-
-local resetLoadingCorner = Instance.new("UICorner")
-resetLoadingCorner.CornerRadius = UDim.new(0, 2)
-resetLoadingCorner.Parent = resetLoadingBar
-
-resetButton.MouseEnter:Connect(function()
-    resetTextStroke.Thickness = 2.5
-end)
-
-resetButton.MouseLeave:Connect(function()
-    resetTextStroke.Thickness = 1.5
-end)
-
-resetButton.MouseButton1Click:Connect(function()
-    resetButton.Text = "RESETTING..."
-    resetTextStroke.Thickness = 2.5
+-- Criar aba de TELEPORTS
+local function CriarAbaTeleports()
+    LimparConteudo()
     
-    resetLoadingBar.Visible = true
-    resetLoadingBar.Size = UDim2.new(0, 0, 0, 2)
+    local Scroll = Instance.new("ScrollingFrame", ContentFrame)
+    Scroll.Size = UDim2.new(1, 0, 1, 0)
+    Scroll.BackgroundTransparency = 1
+    Scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+    Scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+    Scroll.ScrollBarThickness = 4
     
-    coroutine.wrap(function()
-        for i = 0, 234, 4 do
-            resetLoadingBar.Size = UDim2.new(0, i, 0, 2)
-            task.wait(0.01)
+    local Layout = Instance.new("UIListLayout", Scroll)
+    Layout.Padding = UDim.new(0, 10)
+    Layout.SortOrder = Enum.SortOrder.LayoutOrder
+    
+    for nomeTeleport, tp in pairs(Teleports) do
+        local Btn = Instance.new("TextButton", Scroll)
+        Btn.Size = UDim2.new(1, 0, 0, 80)
+        Btn.BackgroundColor3 = Color3.fromRGB(45, 50, 65)
+        Btn.Text = ""
+        
+        local BtnCorner = Instance.new("UICorner", Btn)
+        BtnCorner.CornerRadius = UDim.new(0, 10)
+        
+        local NomeLabel = Instance.new("TextLabel", Btn)
+        NomeLabel.Size = UDim2.new(1, -10, 0, 30)
+        NomeLabel.Position = UDim2.new(0, 5, 0, 5)
+        NomeLabel.BackgroundTransparency = 1
+        NomeLabel.Text = nomeTeleport
+        NomeLabel.Font = Enum.Font.GothamBold
+        NomeLabel.TextSize = 14
+        NomeLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+        NomeLabel.TextXAlignment = Enum.TextXAlignment.Left
+        
+        local InfoLabel = Instance.new("TextLabel", Btn)
+        InfoLabel.Size = UDim2.new(1, -10, 0, 20)
+        InfoLabel.Position = UDim2.new(0, 5, 0, 35)
+        InfoLabel.BackgroundTransparency = 1
+        InfoLabel.Text = #tp.Pontos .. " pontos" .. (tp.UsarPartida and " | Com partida" or "")
+        InfoLabel.Font = Enum.Font.Gotham
+        InfoLabel.TextSize = 10
+        InfoLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
+        InfoLabel.TextXAlignment = Enum.TextXAlignment.Left
+        
+        local SelectMark = Instance.new("TextLabel", Btn)
+        SelectMark.Size = UDim2.new(0, 30, 0, 30)
+        SelectMark.Position = UDim2.new(1, -35, 0.5, -15)
+        SelectMark.BackgroundTransparency = 1
+        SelectMark.Text = "⬜"
+        SelectMark.Font = Enum.Font.GothamBold
+        SelectMark.TextSize = 20
+        
+        Btn.MouseButton1Click:Connect(function()
+            teleportSelecionado = nomeTeleport
+            for _, btn in pairs(Scroll:GetChildren()) do
+                if btn:IsA("TextButton") and btn:FindFirstChild("SelectMark") then
+                    btn.SelectMark.Text = "⬜"
+                end
+            end
+            SelectMark.Text = "✅"
+            
+            game:GetService("StarterGui"):SetCore("SendNotification", {
+                Title = "📌 Selecionado";
+                Text = nomeTeleport;
+                Duration = 1;
+            })
+        end)
+    end
+end
+
+-- Criar aba de ANTI CHEAT
+local function CriarAbaAntiCheat()
+    LimparConteudo()
+    
+    local Scroll = Instance.new("ScrollingFrame", ContentFrame)
+    Scroll.Size = UDim2.new(1, 0, 1, 0)
+    Scroll.BackgroundTransparency = 1
+    Scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+    Scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+    Scroll.ScrollBarThickness = 4
+    
+    local Layout = Instance.new("UIListLayout", Scroll)
+    Layout.Padding = UDim.new(0, 10)
+    
+    -- Anti-Ragdoll Toggle
+    local RagFrame = Instance.new("Frame", Scroll)
+    RagFrame.Size = UDim2.new(1, 0, 0, 50)
+    RagFrame.BackgroundColor3 = Color3.fromRGB(45, 50, 65)
+    
+    local RagCorner = Instance.new("UICorner", RagFrame)
+    RagCorner.CornerRadius = UDim.new(0, 8)
+    
+    local RagLabel = Instance.new("TextLabel", RagFrame)
+    RagLabel.Size = UDim2.new(0.6, 0, 1, 0)
+    RagLabel.Position = UDim2.new(0, 10, 0, 0)
+    RagLabel.BackgroundTransparency = 1
+    RagLabel.Text = "🛡️ Anti-Ragdoll"
+    RagLabel.Font = Enum.Font.GothamBold
+    RagLabel.TextSize = 13
+    RagLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    RagLabel.TextXAlignment = Enum.TextXAlignment.Left
+    
+    local RagToggle = Instance.new("TextButton", RagFrame)
+    RagToggle.Size = UDim2.new(0, 60, 0, 30)
+    RagToggle.Position = UDim2.new(1, -70, 0.5, -15)
+    RagToggle.BackgroundColor3 = Color3.fromRGB(80, 80, 90)
+    RagToggle.Text = "OFF"
+    RagToggle.Font = Enum.Font.GothamBold
+    RagToggle.TextSize = 12
+    
+    local RagCorner2 = Instance.new("UICorner", RagToggle)
+    RagCorner2.CornerRadius = UDim.new(0, 8)
+    
+    RagToggle.MouseButton1Click:Connect(function()
+        antiR = not antiR
+        if antiR then
+            startAnti()
+            RagToggle.Text = "ON"
+            RagToggle.BackgroundColor3 = Color3.fromRGB(80, 150, 80)
+        else
+            stopAnti()
+            RagToggle.Text = "OFF"
+            RagToggle.BackgroundColor3 = Color3.fromRGB(80, 80, 90)
         end
-        resetLoadingBar.Size = UDim2.new(0.9, 0, 0, 2)
-    end)()
+    end)
     
-    executeReset()
+    -- Counter Medusa Toggle
+    local MedusaFrame = Instance.new("Frame", Scroll)
+    MedusaFrame.Size = UDim2.new(1, 0, 0, 50)
+    MedusaFrame.BackgroundColor3 = Color3.fromRGB(45, 50, 65)
     
-    task.wait(0.5)
-    resetButton.Text = "INSTA RESET"
-    resetLoadingBar.Visible = false
-    resetLoadingBar.Size = UDim2.new(0, 0, 0, 2)
-    resetTextStroke.Thickness = 1.5
+    local MedusaCorner = Instance.new("UICorner", MedusaFrame)
+    MedusaCorner.CornerRadius = UDim.new(0, 8)
+    
+    local MedusaLabel = Instance.new("TextLabel", MedusaFrame)
+    MedusaLabel.Size = UDim2.new(0.6, 0, 1, 0)
+    MedusaLabel.Position = UDim2.new(0, 10, 0, 0)
+    MedusaLabel.BackgroundTransparency = 1
+    MedusaLabel.Text = "🐍 Counter Medusa"
+    MedusaLabel.Font = Enum.Font.GothamBold
+    MedusaLabel.TextSize = 13
+    MedusaLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    MedusaLabel.TextXAlignment = Enum.TextXAlignment.Left
+    
+    local MedusaToggle = Instance.new("TextButton", MedusaFrame)
+    MedusaToggle.Size = UDim2.new(0, 60, 0, 30)
+    MedusaToggle.Position = UDim2.new(1, -70, 0.5, -15)
+    MedusaToggle.BackgroundColor3 = Color3.fromRGB(80, 80, 90)
+    MedusaToggle.Text = "OFF"
+    MedusaToggle.Font = Enum.Font.GothamBold
+    MedusaToggle.TextSize = 12
+    
+    local MedusaCorner2 = Instance.new("UICorner", MedusaToggle)
+    MedusaCorner2.CornerRadius = UDim.new(0, 8)
+    
+    MedusaToggle.MouseButton1Click:Connect(function()
+        if MedusaToggle.Text == "OFF" then
+            startCounterMedusa()
+            MedusaToggle.Text = "ON"
+            MedusaToggle.BackgroundColor3 = Color3.fromRGB(80, 150, 80)
+        else
+            stopCounterMedusa()
+            MedusaToggle.Text = "OFF"
+            MedusaToggle.BackgroundColor3 = Color3.fromRGB(80, 80, 90)
+        end
+    end)
+    
+    -- Bat Counter Toggle
+    local BatFrame = Instance.new("Frame", Scroll)
+    BatFrame.Size = UDim2.new(1, 0, 0, 50)
+    BatFrame.BackgroundColor3 = Color3.fromRGB(45, 50, 65)
+    
+    local BatCorner = Instance.new("UICorner", BatFrame)
+    BatCorner.CornerRadius = UDim.new(0, 8)
+    
+    local BatLabel = Instance.new("TextLabel", BatFrame)
+    BatLabel.Size = UDim2.new(0.6, 0, 1, 0)
+    BatLabel.Position = UDim2.new(0, 10, 0, 0)
+    BatLabel.BackgroundTransparency = 1
+    BatLabel.Text = "🏏 Bat Counter"
+    BatLabel.Font = Enum.Font.GothamBold
+    BatLabel.TextSize = 13
+    BatLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    BatLabel.TextXAlignment = Enum.TextXAlignment.Left
+    
+    local BatToggle = Instance.new("TextButton", BatFrame)
+    BatToggle.Size = UDim2.new(0, 60, 0, 30)
+    BatToggle.Position = UDim2.new(1, -70, 0.5, -15)
+    BatToggle.BackgroundColor3 = Color3.fromRGB(80, 80, 90)
+    BatToggle.Text = "OFF"
+    BatToggle.Font = Enum.Font.GothamBold
+    BatToggle.TextSize = 12
+    
+    local BatCorner2 = Instance.new("UICorner", BatToggle)
+    BatCorner2.CornerRadius = UDim.new(0, 8)
+    
+    BatToggle.MouseButton1Click:Connect(function()
+        if BatToggle.Text == "OFF" then
+            startBatCounter()
+            BatToggle.Text = "ON"
+            BatToggle.BackgroundColor3 = Color3.fromRGB(80, 150, 80)
+        else
+            stopBatCounter()
+            BatToggle.Text = "OFF"
+            BatToggle.BackgroundColor3 = Color3.fromRGB(80, 80, 90)
+        end
+    end)
+end
+
+-- Criar abas
+local function CriarAbas()
+    local AbaTeleports = Instance.new("TextButton", AbasFrame)
+    AbaTeleports.Size = UDim2.new(0, 120, 1, 0)
+    AbaTeleports.BackgroundColor3 = Color3.fromRGB(80, 100, 150)
+    AbaTeleports.Text = "📍 TELEPORTS"
+    AbaTeleports.Font = Enum.Font.GothamBold
+    AbaTeleports.TextSize = 13
+    
+    local AbaTeleportsCorner = Instance.new("UICorner", AbaTeleports)
+    AbaTeleportsCorner.CornerRadius = UDim.new(0, 8)
+    
+    local AbaAntiCheat = Instance.new("TextButton", AbasFrame)
+    AbaAntiCheat.Size = UDim2.new(0, 120, 1, 0)
+    AbaAntiCheat.BackgroundColor3 = Color3.fromRGB(45, 50, 65)
+    AbaAntiCheat.Text = "🛡️ ANTI CHEAT"
+    AbaAntiCheat.Font = Enum.Font.GothamBold
+    AbaAntiCheat.TextSize = 13
+    
+    local AbaAntiCorner = Instance.new("UICorner", AbaAntiCheat)
+    AbaAntiCorner.CornerRadius = UDim.new(0, 8)
+    
+    AbaTeleports.MouseButton1Click:Connect(function()
+        AbaTeleports.BackgroundColor3 = Color3.fromRGB(80, 100, 150)
+        AbaAntiCheat.BackgroundColor3 = Color3.fromRGB(45, 50, 65)
+        CriarAbaTeleports()
+    end)
+    
+    AbaAntiCheat.MouseButton1Click:Connect(function()
+        AbaAntiCheat.BackgroundColor3 = Color3.fromRGB(80, 100, 150)
+        AbaTeleports.BackgroundColor3 = Color3.fromRGB(45, 50, 65)
+        CriarAbaAntiCheat()
+    end)
+    
+    CriarAbaTeleports()
+end
+
+CriarAbas()
+
+-- Botão Executar
+ExecutarBtn.MouseButton1Click:Connect(function()
+    if teleportSelecionado then
+        ExecutarTeleport(teleportSelecionado)
+    else
+        game:GetService("StarterGui"):SetCore("SendNotification", {
+            Title = "⚠️ Atenção!";
+            Text = "Selecione um teleport primeiro!";
+            Duration = 2;
+        })
+    end
 end)
 
--- Reset On Balloon toggle
-local balloonToggleState = false
-local balloonToggle = createToggle(mainFrame, UDim2.new(0.05, 0, 0, 191), "Reset On Balloon", balloonToggleState, function(state)
-    balloonToggleState = state
-    Config.AutoResetOnBalloon = state
-    print("Balloon Reset: " .. (state and "ACTIVE" or "INACTIVE"))
+-- Hotkey F
+UserInputService.InputBegan:Connect(function(input)
+    if input.KeyCode == Enum.KeyCode.F and teleportSelecionado then
+        ExecutarTeleport(teleportSelecionado)
+    end
 end)
+
+-- DRAG SYSTEM
+local dragToggle = false
+local dragStart = nil
+local startPos = nil
+
+MainFrame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragToggle = true
+        dragStart = input.Position
+        startPos = MainFrame.Position
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if dragToggle and input.UserInputType == Enum.UserInputType.MouseMovement then
+        local delta = input.Position - dragStart
+        MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragToggle = false
+    end
+end)
+
+print("========================================")
+print("✅ LAW HUB + ANTI CHEAT CARREGADO!")
+print("📍 ABAS: TELEPORTS | ANTI CHEAT")
+print("🛡️ Anti-Cheat: Anti-Ragdoll | Counter Medusa | Bat Counter")
+print("========================================")
