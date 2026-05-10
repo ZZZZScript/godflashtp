@@ -1,570 +1,636 @@
 -- =============================================
--- LAW HUB - TELEPORT SYSTEM (TAPETE + FLASH)
+-- ROOKIE TP + LAW HUB (TELEPORT 1 & 2)
 -- =============================================
 
 local Players = game:GetService("Players")
-local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
-local TweenService = game:GetService("TweenService")
-local LocalPlayer = Players.LocalPlayer
-local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+local UserInputService = game:GetService("UserInputService")
+local StarterGui = game:GetService("StarterGui")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local VirtualInputManager = game:GetService("VirtualInputManager")
+
+local player = Players.LocalPlayer
+local mouse = player:GetMouse()
 
 -- =============================================
--- PONTO DE PARTIDA (SÓ PARA TELEPORT 2)
+-- TELEPORT POSITIONS (SEQUENCIAIS)
 -- =============================================
+
+-- PONTO DE PARTIDA (vai primeiro em TELEPORT 2)
 local PontoPartida = Vector3.new(-357.6, -7.1, 37.4)
 
--- =============================================
--- LISTA DE TELEPORTS
--- =============================================
-local Teleports = {
-    ["📌 TELEPORT 1"] = {
-        UsarPartida = false,
-        Pontos = {
-            Vector3.new(-324.3, -7.1, 37.5),
-            Vector3.new(-316.1, -7.1, 36.7),
-            Vector3.new(-309.8, -7.1, 38.3),
-            Vector3.new(-302.3, -7.1, 41.5),
-        }
-    },
-    
-    ["📌 TELEPORT 2"] = {
-        UsarPartida = true,
-        Pontos = {
-            Vector3.new(-331.6, -7.1, -23.3),
-            Vector3.new(-324.1, -7.1, -23.2),
-            Vector3.new(-317.8, -7.1, -23.6),
-            Vector3.new(-311.1, -7.1, -23.5),
-            Vector3.new(-302.6, -7.1, -23.9),
-        }
-    },
+-- TELEPORT 1 (4 pontos)
+local Teleport1Points = {
+    Vector3.new(-324.3, -7.1, 37.5),
+    Vector3.new(-316.1, -7.1, 36.7),
+    Vector3.new(-309.8, -7.1, 38.3),
+    Vector3.new(-302.3, -7.1, 41.5),
+}
+
+-- TELEPORT 2 (5 pontos + ponto de partida)
+local Teleport2Points = {
+    Vector3.new(-331.6, -7.1, -23.3),
+    Vector3.new(-324.1, -7.1, -23.2),
+    Vector3.new(-317.8, -7.1, -23.6),
+    Vector3.new(-311.1, -7.1, -23.5),
+    Vector3.new(-302.6, -7.1, -23.9),
 }
 
 -- =============================================
--- VARIÁVEIS
+-- TELEPORT STATES
 -- =============================================
-local RootPart = nil
-local Humanoid = nil
-local teleportando = false
-local teleportSelecionado = nil
+local teleport1Active = false
+local teleport2Active = false
 
 -- =============================================
--- FUNÇÕES DO PERSONAGEM
+-- AUTO GRAB VARIABLES
 -- =============================================
-local function AtualizarPersonagem()
-    local char = LocalPlayer.Character
-    if char then
-        RootPart = char:FindFirstChild("HumanoidRootPart")
-        Humanoid = char:FindFirstChildOfClass("Humanoid")
-    end
-end
-
-LocalPlayer.CharacterAdded:Connect(function()
-    task.wait(0.5)
-    AtualizarPersonagem()
-end)
-AtualizarPersonagem()
+local GRAB_RADIUS = 7 
+local COOLDOWN_TIME = 0.8 
+local LastGrabTime = 0
+local IsStealing = false
+local InternalStealCache = {}
+local PromptMemoryCache = {}
+local allAnimalsCache = {}
 
 -- =============================================
--- EQUIPAR TAPETE VOADOR
+-- AUTO BLOCK VARIABLES
 -- =============================================
-local function EquiparTapete()
-    local char = LocalPlayer.Character
-    local bp = LocalPlayer:FindFirstChild("Backpack")
-    if not char or not bp then return end
-    
-    -- Guarda todas as tools na mochila
-    for _, tool in pairs(char:GetChildren()) do
-        if tool:IsA("Tool") then
-            tool.Parent = bp
-        end
-    end
-    
-    -- Equipa o tapete
-    local tapete = bp:FindFirstChild("Flying Carpet")
-    if tapete and Humanoid then
-        Humanoid:EquipTool(tapete)
-        task.wait(0.2)
-    end
-end
+local autoBlockEnabled = false
 
 -- =============================================
--- USAR FLASH
+-- INSTA RESET
 -- =============================================
-local function UsarFlash()
-    local char = LocalPlayer.Character
-    local bp = LocalPlayer:FindFirstChild("Backpack")
+local Config = {
+    AutoResetOnBalloon = false,
+    TpSettings = {
+        Tool = "Flying Carpet"
+    }
+}
+
+-- =============================================
+-- COORDENADAS DAS BASES (PARA TP + BLOCK)
+-- =============================================
+local leftBaseCoords = Vector3.new(-333.334473, -7.7698164, 66.862793)
+local rightBaseCoords = Vector3.new(-332.479065, -7.7698164, 53.6714478)
+
+-- =============================================
+-- FUNÇÃO PARA EQUIPAR ITEM
+-- =============================================
+local function findItem(itemName)
+    local character = player.Character
+    local backpack = player:FindFirstChild("Backpack")
     
-    if not char then return end
-    
-    -- Procura o Flash
-    local flash = nil
-    for _, tool in pairs(char:GetChildren()) do
-        if tool:IsA("Tool") and (tool.Name:lower():find("flash") or tool.Name:lower():find("flashlight")) then
-            flash = tool
-            break
-        end
-    end
-    
-    if not flash and bp then
-        for _, tool in pairs(bp:GetChildren()) do
-            if tool:IsA("Tool") and (tool.Name:lower():find("flash") or tool.Name:lower():find("flashlight")) then
-                flash = tool
-                break
+    if backpack then
+        for _, item in ipairs(backpack:GetChildren()) do
+            if item.Name == itemName then
+                return item
             end
         end
     end
     
-    -- Usa o Flash
-    if flash then
-        if flash.Parent == bp then
-            flash.Parent = char
-            task.wait(0.1)
+    if character then
+        for _, item in ipairs(character:GetChildren()) do
+            if item:IsA("Tool") and item.Name == itemName then
+                return item
+            end
         end
-        pcall(function() 
-            flash:Activate() 
-        end)
     end
+    
+    return nil
+end
+
+local function equipItem(itemName)
+    local item = findItem(itemName)
+    if not item then
+        print("Item not found: " .. itemName)
+        return false
+    end
+    
+    local character = player.Character
+    if not character then return false end
+    
+    local humanoid = character:FindFirstChildOfClass("Humanoid")
+    if not humanoid then return false end
+    
+    if item.Parent == player:FindFirstChild("Backpack") then
+        humanoid:EquipTool(item)
+        print("Equipped: " .. itemName)
+        task.wait(0.01)
+        return true
+    elseif item.Parent == character then
+        print("Already equipped: " .. itemName)
+        return true
+    end
+    
+    return false
 end
 
 -- =============================================
--- TELEPORTAR PARA POSIÇÃO
+-- FUNÇÃO PARA USAR FLASH TELEPORT
 -- =============================================
-local function TeleportarPosicao(posicao)
-    if not RootPart then return false end
-    RootPart.CFrame = CFrame.new(posicao)
-    RootPart.AssemblyLinearVelocity = Vector3.zero
+local function useFlashTeleport()
+    local flashItem = findItem("Flash Teleport")
+    if not flashItem then
+        print("Flash Teleport not found!")
+        return false
+    end
+    
+    local character = player.Character
+    if not character then return false end
+    
+    local humanoid = character:FindFirstChildOfClass("Humanoid")
+    if not humanoid then return false end
+    
+    print("Using Flash Teleport...")
+    
+    if flashItem.Parent == player:FindFirstChild("Backpack") then
+        humanoid:EquipTool(flashItem)
+        task.wait(0.025)
+    end
+    
+    local success = false
+    
+    pcall(function()
+        flashItem:Activate()
+        success = true
+    end)
+    
+    task.wait(0.04)
+    
+    pcall(function()
+        local clickDetector = flashItem:FindFirstChildOfClass("ClickDetector")
+        if clickDetector then
+            clickDetector:MouseClick(player)
+            success = true
+        end
+    end)
+    
+    for _, child in ipairs(flashItem:GetDescendants()) do
+        if child:IsA("RemoteEvent") then
+            pcall(function()
+                child:FireServer()
+                success = true
+            end)
+        elseif child:IsA("RemoteFunction") then
+            pcall(function()
+                child:InvokeServer()
+                success = true
+            end)
+        end
+    end
+    
+    return success
+end
+
+-- =============================================
+-- FUNÇÃO PARA TELEPORTAR SEQUENCIAL
+-- =============================================
+local function TeleportarSequencial(pontos, usarPartida)
+    local character = player.Character
+    if not character then return false end
+    
+    local rootPart = character:FindFirstChild("HumanoidRootPart")
+    if not rootPart then return false end
+    
+    -- Equipa Flying Carpet primeiro
+    equipItem("Flying Carpet")
+    task.wait(0.1)
+    
+    -- Usa Flash Teleport
+    useFlashTeleport()
+    task.wait(0.1)
+    
+    -- Se precisar usar ponto de partida
+    if usarPartida then
+        print("📍 Indo para ponto de partida...")
+        rootPart.CFrame = CFrame.new(PontoPartida)
+        rootPart.AssemblyLinearVelocity = Vector3.zero
+        task.wait(0.15)
+    end
+    
+    -- Teleporta por todos os pontos
+    for i, ponto in ipairs(pontos) do
+        rootPart.CFrame = CFrame.new(ponto)
+        rootPart.AssemblyLinearVelocity = Vector3.zero
+        print("📍 Ponto " .. i .. "/" .. #pontos)
+        task.wait(0.15)
+    end
+    
+    print("✅ Teleport concluído!")
     return true
 end
 
 -- =============================================
--- EXECUTAR TELEPORT COMPLETO
+-- FUNÇÃO PARA BLOQUEAR PLAYER
 -- =============================================
-local function ExecutarTeleport(nomeTeleport)
-    if teleportando then
-        print("⚠️ Já está teleportando...")
-        return
+local function getNearestPlayer()
+    local character = player.Character
+    if not character then return nil end
+    
+    local rootPart = character:FindFirstChild("HumanoidRootPart")
+    if not rootPart then return nil end
+    
+    local nearestPlayer = nil
+    local shortestDistance = math.huge
+    
+    for _, plr in ipairs(Players:GetPlayers()) do
+        if plr ~= player then
+            local otherChar = plr.Character
+            if otherChar then
+                local otherRoot = otherChar:FindFirstChild("HumanoidRootPart")
+                if otherRoot then
+                    local distance = (rootPart.Position - otherRoot.Position).Magnitude
+                    if distance < shortestDistance then
+                        shortestDistance = distance
+                        nearestPlayer = plr
+                    end
+                end
+            end
+        end
     end
     
-    local tp = Teleports[nomeTeleport]
-    if not tp then
-        print("❌ Teleport não encontrado: " .. nomeTeleport)
-        return
-    end
-    
-    teleportando = true
-    
-    -- PASSO 1: Equipa o Tapete Voador
-    print("🔧 Equipando Tapete Voador...")
-    EquiparTapete()
-    task.wait(0.2)
-    
-    -- PASSO 2: Usa o Flash
-    print("⚡ Usando Flash...")
-    UsarFlash()
-    task.wait(0.1)
-    
-    -- PASSO 3: Se precisar, vai pro ponto de partida
-    if tp.UsarPartida then
-        print("📍 Teleportando para ponto de partida...")
-        TeleportarPosicao(PontoPartida)
-        task.wait(0.15)
-    end
-    
-    -- PASSO 4: Teleporta por todos os pontos da rota
-    for i, ponto in ipairs(tp.Pontos) do
-        TeleportarPosicao(ponto)
-        print("📍 Teleport " .. i .. "/" .. #tp.Pontos .. ": " .. tostring(ponto))
-        task.wait(0.15)
-    end
-    
-    print("✅ " .. nomeTeleport .. " concluído!")
-    
-    -- Notificação
-    game:GetService("StarterGui"):SetCore("SendNotification", {
-        Title = "✅ Teleport Concluído!";
-        Text = nomeTeleport;
-        Duration = 2;
-    })
-    
-    teleportando = false
+    return nearestPlayer, shortestDistance
+end
+
+local function blockPlayerInstant(plr)
+    if not plr or plr == player then return end
+    pcall(function()
+        StarterGui:SetCore("PromptBlockPlayer", plr)
+    end)
+    print("✅ Blocked: " .. plr.Name)
+end
+
+local function autoBlockClick()
+    VirtualInputManager:SendMouseButtonEvent(963, 516, 0, true, game, 1)
+    task.wait(0.05)
+    VirtualInputManager:SendMouseButtonEvent(963, 516, 0, false, game, 1)
+    print("✅ Auto Block click")
 end
 
 -- =============================================
--- GUI PRINCIPAL (COM ABAS TÓPICOS)
+-- EXECUTAR TELEPORT + BLOCK
 -- =============================================
-
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "LawHub"
-ScreenGui.Parent = PlayerGui
-ScreenGui.ResetOnSpawn = false
-
--- Frame Principal
-local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 350, 0, 500)
-MainFrame.Position = UDim2.new(0.5, -175, 0.2, 0)
-MainFrame.BackgroundColor3 = Color3.fromRGB(25, 30, 40)
-MainFrame.BackgroundTransparency = 0.05
-MainFrame.Active = true
-MainFrame.Draggable = true
-MainFrame.Parent = ScreenGui
-
-local MainCorner = Instance.new("UICorner", MainFrame)
-MainCorner.CornerRadius = UDim.new(0, 15)
-
--- Título
-local Title = Instance.new("TextLabel", MainFrame)
-Title.Size = UDim2.new(1, 0, 0, 50)
-Title.BackgroundTransparency = 1
-Title.Text = "🔥 LAW HUB - TELEPORT"
-Title.Font = Enum.Font.GothamBold
-Title.TextSize = 20
-Title.TextColor3 = Color3.fromRGB(255, 255, 255)
-
--- Subtítulo
-local SubTitle = Instance.new("TextLabel", MainFrame)
-SubTitle.Size = UDim2.new(1, 0, 0, 20)
-SubTitle.Position = UDim2.new(0, 0, 0, 45)
-SubTitle.BackgroundTransparency = 1
-SubTitle.Text = "Tapete Voador + Flash"
-SubTitle.Font = Enum.Font.Gotham
-SubTitle.TextSize = 11
-SubTitle.TextColor3 = Color3.fromRGB(180, 180, 180)
+local function executeTeleport()
+    local character = player.Character
+    if not character then return end
+    
+    print("========== EXECUTANDO TELEPORT ==========")
+    
+    -- Step 1: Block nearest player (se auto block ligado)
+    if autoBlockEnabled then
+        local nearest = getNearestPlayer()
+        if nearest then
+            blockPlayerInstant(nearest)
+        end
+        task.wait(0.1)
+        autoBlockClick()
+    end
+    
+    -- Step 2: Executa o teleport selecionado
+    if teleport1Active then
+        print("▶️ Executando TELEPORT 1...")
+        TeleportarSequencial(Teleport1Points, false)
+    elseif teleport2Active then
+        print("▶️ Executando TELEPORT 2...")
+        TeleportarSequencial(Teleport2Points, true)
+    else
+        print("⚠️ Nenhum teleport selecionado!")
+    end
+    
+    print("========== TELEPORT CONCLUÍDO ==========")
+end
 
 -- =============================================
--- SISTEMA DE ABAS (TÓPICOS)
+-- INSTA RESET
 -- =============================================
-local AbasFrame = Instance.new("Frame", MainFrame)
-AbasFrame.Position = UDim2.new(0, 10, 0, 70)
-AbasFrame.Size = UDim2.new(1, -20, 0, 40)
-AbasFrame.BackgroundTransparency = 1
+local function executeReset()
+    local character = player.Character
+    if not character then return end
+    local humanoid = character:FindFirstChildOfClass("Humanoid")
+    local rootPart = character:FindFirstChild("HumanoidRootPart")
+    if rootPart and humanoid then
+        local toolName = Config.TpSettings.Tool
+        local flying = player.Backpack:FindFirstChild(toolName) or character:FindFirstChild(toolName)
+        if flying then humanoid:EquipTool(flying) end
+        rootPart.CFrame = CFrame.new(0, 15000, 0)
+        print("✅ Reset executado!")
+    end
+end
 
-local AbasLayout = Instance.new("UIListLayout", AbasFrame)
-AbasLayout.FillDirection = Enum.FillDirection.Horizontal
-AbasLayout.Padding = UDim.new(0, 10)
-AbasLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+-- =============================================
+-- BALLOON DETECTION
+-- =============================================
+task.spawn(function()
+    local balloonPhrase = 'ran "balloon" on you'
+    while true do
+        task.wait(1)
+        if Config.AutoResetOnBalloon then
+            local playerGui = player:FindFirstChild("PlayerGui")
+            if playerGui then
+                for _, gui in ipairs(playerGui:GetDescendants()) do
+                    local txt = (gui:IsA("TextLabel") or gui:IsA("TextButton")) and gui.Text
+                    if txt and string.find(txt, balloonPhrase) then
+                        executeReset()
+                        break
+                    end
+                end
+            end
+        end
+    end
+end)
 
--- Painel de Conteúdo (muda conforme aba)
-local ContentFrame = Instance.new("Frame", MainFrame)
-ContentFrame.Position = UDim2.new(0, 10, 0, 120)
-ContentFrame.Size = UDim2.new(1, -20, 1, -175)
-ContentFrame.BackgroundTransparency = 1
+-- =============================================
+-- AUTO GRAB (DO SCRIPT ORIGINAL)
+-- =============================================
+local function getHRP()
+    local char = player.Character
+    return char and (char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("UpperTorso"))
+end
 
--- Botão Executar (fora das abas)
-local ExecutarBtn = Instance.new("TextButton", MainFrame)
-ExecutarBtn.Position = UDim2.new(0, 10, 1, -55)
-ExecutarBtn.Size = UDim2.new(1, -20, 0, 45)
-ExecutarBtn.BackgroundColor3 = Color3.fromRGB(80, 120, 200)
-ExecutarBtn.Text = "🚀 EXECUTAR TELEPORT SELECIONADO"
-ExecutarBtn.Font = Enum.Font.GothamBold
-ExecutarBtn.TextSize = 14
-ExecutarBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-
-local ExecutarCorner = Instance.new("UICorner", ExecutarBtn)
-ExecutarCorner.CornerRadius = UDim.new(0, 8)
-
--- Limpar conteúdo
-local function LimparConteudo()
-    for _, child in pairs(ContentFrame:GetChildren()) do
-        if child:IsA("ScrollingFrame") then
-            child:Destroy()
+local function scanSinglePlot(plot)
+    if not plot or not plot:IsA("Model") then return end
+    local podiums = plot:FindFirstChild("AnimalPodiums")
+    if not podiums then return end
+    for _, podium in ipairs(podiums:GetChildren()) do
+        if podium:IsA("Model") and podium:FindFirstChild("Base") then
+            table.insert(allAnimalsCache, {
+                plot = plot.Name,
+                slot = podium.Name,
+                worldPosition = podium:GetPivot().Position,
+                uid = plot.Name .. "_" .. podium.Name,
+            })
         end
     end
 end
 
--- =============================================
--- ABA: TELEPORTS
--- =============================================
-local function CriarAbaTeleports()
-    LimparConteudo()
-    
-    local Scroll = Instance.new("ScrollingFrame", ContentFrame)
-    Scroll.Size = UDim2.new(1, 0, 1, 0)
-    Scroll.BackgroundTransparency = 1
-    Scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
-    Scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
-    Scroll.ScrollBarThickness = 4
-    
-    local Layout = Instance.new("UIListLayout", Scroll)
-    Layout.Padding = UDim.new(0, 12)
-    Layout.SortOrder = Enum.SortOrder.LayoutOrder
-    
-    -- Mostrar Ponto de Partida
-    local PartidaFrame = Instance.new("Frame", Scroll)
-    PartidaFrame.Size = UDim2.new(1, 0, 0, 50)
-    PartidaFrame.BackgroundColor3 = Color3.fromRGB(60, 70, 90)
-    
-    local PartidaCorner = Instance.new("UICorner", PartidaFrame)
-    PartidaCorner.CornerRadius = UDim.new(0, 8)
-    
-    local PartidaLabel = Instance.new("TextLabel", PartidaFrame)
-    PartidaLabel.Size = UDim2.new(1, -10, 0, 20)
-    PartidaLabel.Position = UDim2.new(0, 5, 0, 5)
-    PartidaLabel.BackgroundTransparency = 1
-    PartidaLabel.Text = "🚩 PONTO DE PARTIDA (TELEPORT 2)"
-    PartidaLabel.Font = Enum.Font.GothamBold
-    PartidaLabel.TextSize = 11
-    PartidaLabel.TextColor3 = Color3.fromRGB(255, 200, 100)
-    PartidaLabel.TextXAlignment = Enum.TextXAlignment.Left
-    
-    local PartidaPos = Instance.new("TextLabel", PartidaFrame)
-    PartidaPos.Size = UDim2.new(1, -10, 0, 20)
-    PartidaPos.Position = UDim2.new(0, 5, 0, 25)
-    PartidaPos.BackgroundTransparency = 1
-    PartidaPos.Text = tostring(PontoPartida)
-    PartidaPos.Font = Enum.Font.Gotham
-    PartidaPos.TextSize = 10
-    PartidaPos.TextColor3 = Color3.fromRGB(180, 180, 180)
-    PartidaPos.TextXAlignment = Enum.TextXAlignment.Left
-    
-    -- Mostrar todos os Teleports
-    for nomeTeleport, tp in pairs(Teleports) do
-        local TeleportFrame = Instance.new("Frame", Scroll)
-        TeleportFrame.Size = UDim2.new(1, 0, 0, 90)
-        TeleportFrame.BackgroundColor3 = Color3.fromRGB(45, 50, 65)
-        
-        local TeleportCorner = Instance.new("UICorner", TeleportFrame)
-        TeleportCorner.CornerRadius = UDim.new(0, 10)
-        
-        -- Nome do Teleport
-        local NomeLabel = Instance.new("TextLabel", TeleportFrame)
-        NomeLabel.Size = UDim2.new(1, -10, 0, 30)
-        NomeLabel.Position = UDim2.new(0, 5, 0, 5)
-        NomeLabel.BackgroundTransparency = 1
-        NomeLabel.Text = nomeTeleport
-        NomeLabel.Font = Enum.Font.GothamBold
-        NomeLabel.TextSize = 14
-        NomeLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-        NomeLabel.TextXAlignment = Enum.TextXAlignment.Left
-        
-        -- Info dos pontos
-        local InfoLabel = Instance.new("TextLabel", TeleportFrame)
-        InfoLabel.Size = UDim2.new(1, -10, 0, 20)
-        InfoLabel.Position = UDim2.new(0, 5, 0, 35)
-        InfoLabel.BackgroundTransparency = 1
-        InfoLabel.Text = #tp.Pontos .. " pontos na rota" .. (tp.UsarPartida and " | Começa pelo ponto de partida" or "")
-        InfoLabel.Font = Enum.Font.Gotham
-        InfoLabel.TextSize = 10
-        InfoLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
-        InfoLabel.TextXAlignment = Enum.TextXAlignment.Left
-        
-        -- Botão de Selecionar
-        local SelectBtn = Instance.new("TextButton", TeleportFrame)
-        SelectBtn.Size = UDim2.new(1, -10, 0, 30)
-        SelectBtn.Position = UDim2.new(0, 5, 0, 55)
-        SelectBtn.BackgroundColor3 = Color3.fromRGB(60, 70, 90)
-        SelectBtn.Text = "📌 SELECIONAR"
-        SelectBtn.Font = Enum.Font.GothamBold
-        SelectBtn.TextSize = 12
-        SelectBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-        
-        local SelectCorner = Instance.new("UICorner", SelectBtn)
-        SelectCorner.CornerRadius = UDim.new(0, 6)
-        
-        -- Marca de seleção (check)
-        local CheckMark = Instance.new("TextLabel", TeleportFrame)
-        CheckMark.Size = UDim2.new(0, 30, 0, 30)
-        CheckMark.Position = UDim2.new(1, -35, 0, 5)
-        CheckMark.BackgroundTransparency = 1
-        CheckMark.Text = "⬜"
-        CheckMark.Font = Enum.Font.GothamBold
-        CheckMark.TextSize = 20
-        CheckMark.TextColor3 = Color3.fromRGB(150, 150, 150)
-        
-        SelectBtn.MouseButton1Click:Connect(function()
-            teleportSelecionado = nomeTeleport
-            -- Resetar todos os checks
-            for _, frame in pairs(Scroll:GetChildren()) do
-                if frame:IsA("Frame") and frame:FindFirstChild("CheckMark") then
-                    frame.CheckMark.Text = "⬜"
-                    frame.CheckMark.TextColor3 = Color3.fromRGB(150, 150, 150)
+local function initializeScanner()
+    task.wait(2)
+    local plots = workspace:WaitForChild("Plots", 10)
+    for _, plot in ipairs(plots:GetChildren()) do scanSinglePlot(plot) end
+    plots.ChildAdded:Connect(scanSinglePlot)
+end
+
+initializeScanner()
+
+-- AUTO GRAB LOOP
+task.spawn(function()
+    while true do
+        task.wait(0.1)
+        if not IsStealing and (os.clock() - LastGrabTime >= COOLDOWN_TIME) then
+            local hrp = getHRP()
+            if hrp then
+                for _, animal in ipairs(allAnimalsCache) do
+                    local dist = (hrp.Position - animal.worldPosition).Magnitude
+                    if dist <= GRAB_RADIUS then
+                        print("🎯 Auto Grab: " .. animal.slot)
+                        LastGrabTime = os.clock()
+                        break
+                    end
                 end
             end
-            CheckMark.Text = "✅"
-            CheckMark.TextColor3 = Color3.fromRGB(100, 255, 100)
-            
-            game:GetService("StarterGui"):SetCore("SendNotification", {
-                Title = "📌 Teleport Selecionado";
-                Text = nomeTeleport;
-                Duration = 1;
-            })
-        end)
-    end
-end
-
--- =============================================
--- ABA: INFO/CONFIG
--- =============================================
-local function CriarAbaInfo()
-    LimparConteudo()
-    
-    local Scroll = Instance.new("ScrollingFrame", ContentFrame)
-    Scroll.Size = UDim2.new(1, 0, 1, 0)
-    Scroll.BackgroundTransparency = 1
-    Scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
-    Scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
-    Scroll.ScrollBarThickness = 4
-    
-    local Layout = Instance.new("UIListLayout", Scroll)
-    Layout.Padding = UDim.new(0, 10)
-    
-    -- Informações
-    local InfoFrame = Instance.new("Frame", Scroll)
-    InfoFrame.Size = UDim2.new(1, 0, 0, 150)
-    InfoFrame.BackgroundColor3 = Color3.fromRGB(45, 50, 65)
-    
-    local InfoCorner = Instance.new("UICorner", InfoFrame)
-    InfoCorner.CornerRadius = UDim.new(0, 8)
-    
-    local InfoTitle = Instance.new("TextLabel", InfoFrame)
-    InfoTitle.Size = UDim2.new(1, -10, 0, 30)
-    InfoTitle.Position = UDim2.new(0, 5, 0, 5)
-    InfoTitle.BackgroundTransparency = 1
-    InfoTitle.Text = "⚙️ INFORMAÇÕES"
-    InfoTitle.Font = Enum.Font.GothamBold
-    InfoTitle.TextSize = 13
-    InfoTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
-    InfoTitle.TextXAlignment = Enum.TextXAlignment.Left
-    
-    local InfoText = Instance.new("TextLabel", InfoFrame)
-    InfoText.Size = UDim2.new(1, -10, 0, 100)
-    InfoText.Position = UDim2.new(0, 5, 0, 40)
-    InfoText.BackgroundTransparency = 1
-    InfoText.Text = "🔧 COMO FUNCIONA:\n\n• Tapete Voador equipado automaticamente\n• Flash usado antes do teleporte\n• Ponto de partida: -357.6, -7.1, 37.4\n• Delay entre pontos: 0.15s\n\n🎮 CONTROLES:\n• Clique em SELECIONAR no teleport desejado\n• Clique em EXECUTAR ou aperte F"
-    InfoText.Font = Enum.Font.Gotham
-    InfoText.TextSize = 11
-    InfoText.TextColor3 = Color3.fromRGB(180, 180, 180)
-    InfoText.TextXAlignment = Enum.TextXAlignment.Left
-    InfoText.TextYAlignment = Enum.TextYAlignment.Top
-    InfoText.LineHeight = 1.2
-    
-    -- Tecla de atalho
-    local HotkeyFrame = Instance.new("Frame", Scroll)
-    HotkeyFrame.Size = UDim2.new(1, 0, 0, 50)
-    HotkeyFrame.BackgroundColor3 = Color3.fromRGB(45, 50, 65)
-    
-    local HotkeyCorner = Instance.new("UICorner", HotkeyFrame)
-    HotkeyCorner.CornerRadius = UDim.new(0, 8)
-    
-    local HotkeyLabel = Instance.new("TextLabel", HotkeyFrame)
-    HotkeyLabel.Size = UDim2.new(0.5, 0, 1, 0)
-    HotkeyLabel.Position = UDim2.new(0, 10, 0, 0)
-    HotkeyLabel.BackgroundTransparency = 1
-    HotkeyLabel.Text = "⌨️ TECLA DE ATALHO"
-    HotkeyLabel.Font = Enum.Font.GothamBold
-    HotkeyLabel.TextSize = 12
-    HotkeyLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-    HotkeyLabel.TextXAlignment = Enum.TextXAlignment.Left
-    
-    local HotkeyDisplay = Instance.new("TextLabel", HotkeyFrame)
-    HotkeyDisplay.Size = UDim2.new(0, 50, 0, 30)
-    HotkeyDisplay.Position = UDim2.new(1, -60, 0.5, -15)
-    HotkeyDisplay.BackgroundColor3 = Color3.fromRGB(60, 70, 90)
-    HotkeyDisplay.Text = "F"
-    HotkeyDisplay.Font = Enum.Font.GothamBold
-    HotkeyDisplay.TextSize = 16
-    HotkeyDisplay.TextColor3 = Color3.fromRGB(255, 200, 100)
-    
-    local HotkeyCorner2 = Instance.new("UICorner", HotkeyDisplay)
-    HotkeyCorner2.CornerRadius = UDim.new(0, 8)
-end
-
--- =============================================
--- CRIAR ABAS
--- =============================================
-local function CriarAbas()
-    -- Aba Teleports
-    local AbaTeleports = Instance.new("TextButton", AbasFrame)
-    AbaTeleports.Size = UDim2.new(0, 130, 1, 0)
-    AbaTeleports.BackgroundColor3 = Color3.fromRGB(80, 100, 150)
-    AbaTeleports.Text = "📍 TELEPORTS"
-    AbaTeleports.Font = Enum.Font.GothamBold
-    AbaTeleports.TextSize = 13
-    
-    local AbaTeleportsCorner = Instance.new("UICorner", AbaTeleports)
-    AbaTeleportsCorner.CornerRadius = UDim.new(0, 8)
-    
-    -- Aba Info
-    local AbaInfo = Instance.new("TextButton", AbasFrame)
-    AbaInfo.Size = UDim2.new(0, 130, 1, 0)
-    AbaInfo.BackgroundColor3 = Color3.fromRGB(45, 50, 65)
-    AbaInfo.Text = "ℹ️ INFO"
-    AbaInfo.Font = Enum.Font.GothamBold
-    AbaInfo.TextSize = 13
-    
-    local AbaInfoCorner = Instance.new("UICorner", AbaInfo)
-    AbaInfoCorner.CornerRadius = UDim.new(0, 8)
-    
-    -- Funções das abas
-    AbaTeleports.MouseButton1Click:Connect(function()
-        AbaTeleports.BackgroundColor3 = Color3.fromRGB(80, 100, 150)
-        AbaInfo.BackgroundColor3 = Color3.fromRGB(45, 50, 65)
-        CriarAbaTeleports()
-    end)
-    
-    AbaInfo.MouseButton1Click:Connect(function()
-        AbaInfo.BackgroundColor3 = Color3.fromRGB(80, 100, 150)
-        AbaTeleports.BackgroundColor3 = Color3.fromRGB(45, 50, 65)
-        CriarAbaInfo()
-    end)
-    
-    -- Iniciar com aba de teleports
-    CriarAbaTeleports()
-end
-
-CriarAbas()
-
--- Botão Executar
-ExecutarBtn.MouseButton1Click:Connect(function()
-    if teleportSelecionado then
-        ExecutarTeleport(teleportSelecionado)
-    else
-        game:GetService("StarterGui"):SetCore("SendNotification", {
-            Title = "⚠️ Atenção!";
-            Text = "Selecione um teleport primeiro!";
-            Duration = 2;
-        })
-    end
-end)
-
--- Hotkey F para executar
-UserInputService.InputBegan:Connect(function(input)
-    if input.KeyCode == Enum.KeyCode.F and teleportSelecionado then
-        ExecutarTeleport(teleportSelecionado)
+        end
     end
 end)
 
 -- =============================================
--- DRAG SYSTEM (MOVER A GUI)
+-- GUI
 -- =============================================
-local dragToggle = false
-local dragStart = nil
-local startPos = nil
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "LawHub"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = player:WaitForChild("PlayerGui")
 
-MainFrame.InputBegan:Connect(function(input)
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0, 280, 0, 320)
+mainFrame.Position = UDim2.new(0.5, -140, 0.5, -160)
+mainFrame.BackgroundColor3 = Color3.new(0, 0, 0)
+mainFrame.BackgroundTransparency = 0
+mainFrame.BorderSizePixel = 0
+mainFrame.Parent = screenGui
+mainFrame.Active = true
+
+local outline = Instance.new("UIStroke")
+outline.Color = Color3.new(1, 1, 1)
+outline.Thickness = 1.5
+outline.Parent = mainFrame
+
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 8)
+corner.Parent = mainFrame
+
+-- DRAG
+local dragging = false
+local dragStart, startPos
+
+mainFrame.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        dragToggle = true
+        dragging = true
         dragStart = input.Position
-        startPos = MainFrame.Position
+        startPos = mainFrame.Position
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
+        end)
     end
 end)
 
 UserInputService.InputChanged:Connect(function(input)
-    if dragToggle and input.UserInputType == Enum.UserInputType.MouseMovement then
+    if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
         local delta = input.Position - dragStart
-        MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        mainFrame.Position = UDim2.new(
+            startPos.X.Scale,
+            startPos.X.Offset + delta.X,
+            startPos.Y.Scale,
+            startPos.Y.Offset + delta.Y
+        )
     end
 end)
 
-UserInputService.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        dragToggle = false
+-- TITLE
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, 0, 0, 30)
+title.Position = UDim2.new(0, 0, 0, 5)
+title.BackgroundTransparency = 1
+title.Text = "🔥 LAW HUB"
+title.TextColor3 = Color3.new(1, 1, 1)
+title.TextSize = 18
+title.Font = Enum.Font.GothamBold
+title.TextXAlignment = Enum.TextXAlignment.Center
+title.Parent = mainFrame
+
+-- =============================================
+-- FUNÇÃO CRIAR TOGGLE (BOTÃO VERDE)
+-- =============================================
+local function createToggle(parent, yPos, labelText, getState, setState)
+    local row = Instance.new("Frame")
+    row.Size = UDim2.new(0.9, 0, 0, 30)
+    row.Position = UDim2.new(0.05, 0, 0, yPos)
+    row.BackgroundTransparency = 1
+    row.Parent = parent
+    
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(1, -50, 1, 0)
+    label.Position = UDim2.new(0, 10, 0, 0)
+    label.BackgroundTransparency = 1
+    label.Text = labelText
+    label.TextColor3 = Color3.new(1, 1, 1)
+    label.TextSize = 13
+    label.Font = Enum.Font.GothamBold
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.TextYAlignment = Enum.TextYAlignment.Center
+    label.Parent = row
+    
+    local circle = Instance.new("Frame")
+    circle.Size = UDim2.new(0, 20, 0, 20)
+    circle.Position = UDim2.new(1, -25, 0.5, -10)
+    circle.BackgroundColor3 = getState() and Color3.new(0.3, 1, 0.3) or Color3.new(0.4, 0.4, 0.4)
+    circle.BorderSizePixel = 0
+    circle.Parent = row
+    
+    local circleCorner = Instance.new("UICorner")
+    circleCorner.CornerRadius = UDim.new(1, 0)
+    circleCorner.Parent = circle
+    
+    local clickArea = Instance.new("TextButton")
+    clickArea.Size = UDim2.new(1, 0, 1, 0)
+    clickArea.BackgroundTransparency = 1
+    clickArea.Text = ""
+    clickArea.Parent = row
+    
+    clickArea.MouseButton1Click:Connect(function()
+        setState(not getState())
+        circle.BackgroundColor3 = getState() and Color3.new(0.3, 1, 0.3) or Color3.new(0.4, 0.4, 0.4)
+    end)
+    
+    return row
+end
+
+-- TELEPORT 1 TOGGLE
+local teleport1State = false
+local function setTeleport1(v)
+    teleport1State = v
+    teleport1Active = v
+    if v and teleport2Active then
+        teleport2State = false
+        teleport2Active = false
+        if teleport2Row then
+            teleport2Row:FindFirstChild("Circle").BackgroundColor3 = Color3.new(0.4, 0.4, 0.4)
+        end
+    end
+    print("TELEPORT 1: " .. (v and "ON" or "OFF"))
+end
+local function getTeleport1() return teleport1State end
+
+-- TELEPORT 2 TOGGLE
+local teleport2State = false
+local function setTeleport2(v)
+    teleport2State = v
+    teleport2Active = v
+    if v and teleport1Active then
+        teleport1State = false
+        teleport1Active = false
+        if teleport1Row then
+            teleport1Row:FindFirstChild("Circle").BackgroundColor3 = Color3.new(0.4, 0.4, 0.4)
+        end
+    end
+    print("TELEPORT 2: " .. (v and "ON" or "OFF"))
+end
+local function getTeleport2() return teleport2State end
+
+-- AUTO BLOCK TOGGLE
+local autoBlockState = false
+local function setAutoBlock(v)
+    autoBlockState = v
+    autoBlockEnabled = v
+    print("AUTO BLOCK: " .. (v and "ON" or "OFF"))
+end
+local function getAutoBlock() return autoBlockState end
+
+-- BALLOON RESET TOGGLE
+local balloonState = false
+local function setBalloon(v)
+    balloonState = v
+    Config.AutoResetOnBalloon = v
+    print("BALLOON RESET: " .. (v and "ON" or "OFF"))
+end
+local function getBalloon() return balloonState end
+
+-- CRIAR TOGGLES
+local teleport1Row = createToggle(mainFrame, 50, "📌 TELEPORT 1", getTeleport1, setTeleport1)
+local teleport2Row = createToggle(mainFrame, 85, "📌 TELEPORT 2", getTeleport2, setTeleport2)
+local autoBlockRow = createToggle(mainFrame, 120, "🛡️ AUTO BLOCK", getAutoBlock, setAutoBlock)
+local balloonRow = createToggle(mainFrame, 155, "🎈 RESET ON BALLOON", getBalloon, setBalloon)
+
+-- Salvar referências dos circles
+teleport1Row.Circle = teleport1Row:FindFirstChildWhichIsA("Frame")
+teleport2Row.Circle = teleport2Row:FindFirstChildWhichIsA("Frame")
+
+-- INFO TEXT
+local infoLabel = Instance.new("TextLabel")
+infoLabel.Size = UDim2.new(0.9, 0, 0, 30)
+infoLabel.Position = UDim2.new(0.05, 0, 0, 190)
+infoLabel.BackgroundTransparency = 1
+infoLabel.Text = "TELEPORT 1: 4 pontos\nTELEPORT 2: 5 pontos + partida"
+infoLabel.TextColor3 = Color3.new(0.7, 0.7, 0.7)
+infoLabel.TextSize = 10
+infoLabel.Font = Enum.Font.Gotham
+infoLabel.TextXAlignment = Enum.TextXAlignment.Left
+infoLabel.TextYAlignment = Enum.TextYAlignment.Top
+infoLabel.Parent = mainFrame
+
+-- BOTÃO EXECUTAR
+local executeBtn = Instance.new("TextButton")
+executeBtn.Size = UDim2.new(0.9, 0, 0, 35)
+executeBtn.Position = UDim2.new(0.05, 0, 0, 230)
+executeBtn.BackgroundTransparency = 1
+executeBtn.Text = "🚀 EXECUTAR TELEPORT"
+executeBtn.TextColor3 = Color3.new(1, 1, 1)
+executeBtn.TextSize = 14
+executeBtn.Font = Enum.Font.GothamBold
+executeBtn.Parent = mainFrame
+
+local executeStroke = Instance.new("UIStroke")
+executeStroke.Color = Color3.new(0.3, 1, 0.3)
+executeStroke.Thickness = 1.5
+executeStroke.Parent = executeBtn
+
+-- BOTÃO RESET
+local resetBtn = Instance.new("TextButton")
+resetBtn.Size = UDim2.new(0.9, 0, 0, 35)
+resetBtn.Position = UDim2.new(0.05, 0, 0, 270)
+resetBtn.BackgroundTransparency = 1
+resetBtn.Text = "🔄 INSTA RESET"
+resetBtn.TextColor3 = Color3.new(1, 1, 1)
+resetBtn.TextSize = 14
+resetBtn.Font = Enum.Font.GothamBold
+resetBtn.Parent = mainFrame
+
+local resetStroke = Instance.new("UIStroke")
+resetStroke.Color = Color3.new(1, 0.5, 0)
+resetStroke.Thickness = 1.5
+resetStroke.Parent = resetBtn
+
+-- EVENTOS DOS BOTÕES
+executeBtn.MouseButton1Click:Connect(function()
+    task.spawn(executeTeleport)
+end)
+
+resetBtn.MouseButton1Click:Connect(function()
+    executeReset()
+end)
+
+-- HOTKEY F
+UserInputService.InputBegan:Connect(function(input)
+    if input.KeyCode == Enum.KeyCode.F then
+        executeTeleport()
     end
 end)
 
 print("========================================")
 print("✅ LAW HUB CARREGADO!")
-print("📍 TELEPORT 1: 4 pontos (sem partida)")
-print("📍 TELEPORT 2: 5 pontos (com partida)")
-print("🎮 Selecione o teleport e aperte F ou clique em EXECUTAR")
+print("📍 TELEPORT 1: 4 pontos")
+print("📍 TELEPORT 2: 5 pontos + ponto de partida")
+print("🎮 Selecione o teleport e aperte F")
 print("========================================")
