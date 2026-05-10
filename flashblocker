@@ -1,5 +1,5 @@
 -- =============================================
--- LAW HUB - COMPLETE SYSTEM (FLASH FIXED)
+-- LAW HUB - CORRECT COORDINATES ONLY
 -- =============================================
 
 local Players = game:GetService("Players")
@@ -115,22 +115,29 @@ end)
 print("🛡️ ANTI-CHEAT ACTIVATED")
 
 -- =============================================
--- TELEPORT POINTS
+-- TELEPORT COORDINATES (ONLY THE ONES YOU SENT)
 -- =============================================
+
+-- PONTO DE PARTIDA (usado antes do TELEPORT 6-10)
 local StartPoint = Vector3.new(-357.6, -7.1, 37.4)
 
-local TeleportPoints = {
-    { name = "1. TELEPORT 1", pts = {Vector3.new(-368, -7, 69), Vector3.new(-336, -5, 100), Vector3.new(-352, -7, 76)}, useStart = false },
-    { name = "2. TELEPORT 2", pos = Vector3.new(-324.3, -7.1, 37.5), useStart = false },
-    { name = "3. TELEPORT 3", pos = Vector3.new(-316.1, -7.1, 36.7), useStart = false },
-    { name = "4. TELEPORT 4", pos = Vector3.new(-309.8, -7.1, 38.3), useStart = false },
-    { name = "5. TELEPORT 5", pos = Vector3.new(-302.3, -7.1, 41.5), useStart = false },
-    { name = "6. TELEPORT 6", pos = Vector3.new(-331.6, -7.1, -23.3), useStart = true },
-    { name = "7. TELEPORT 7", pos = Vector3.new(-324.1, -7.1, -23.2), useStart = true },
-    { name = "8. TELEPORT 8", pos = Vector3.new(-317.8, -7.1, -23.6), useStart = true },
-    { name = "9. TELEPORT 9", pos = Vector3.new(-311.1, -7.1, -23.5), useStart = true },
-    { name = "10. TELEPORT 10", pos = Vector3.new(-302.6, -7.1, -23.9), useStart = true },
+-- TELEPORT 1 (3 pontos em sequência)
+local Teleport1Points = {
+    Vector3.new(-368, -7, 69),
+    Vector3.new(-336, -5, 100),
+    Vector3.new(-352, -7, 76),
 }
+
+-- PONTOS INDIVIDUAIS (2 ao 10)
+local Teleport2Pos = Vector3.new(-324.3, -7.1, 37.5)
+local Teleport3Pos = Vector3.new(-316.1, -7.1, 36.7)
+local Teleport4Pos = Vector3.new(-309.8, -7.1, 38.3)
+local Teleport5Pos = Vector3.new(-302.3, -7.1, 41.5)
+local Teleport6Pos = Vector3.new(-331.6, -7.1, -23.3)
+local Teleport7Pos = Vector3.new(-324.1, -7.1, -23.2)
+local Teleport8Pos = Vector3.new(-317.8, -7.1, -23.6)
+local Teleport9Pos = Vector3.new(-311.1, -7.1, -23.5)
+local Teleport10Pos = Vector3.new(-302.6, -7.1, -23.9)
 
 -- =============================================
 -- VARIABLES
@@ -202,14 +209,15 @@ local function UseFlash()
             task.wait(0.1)
         end
         pcall(function() flash:Activate() end)
-        task.wait(0.2) -- ESPERA O FLASH TERMINAR
+        task.wait(0.2)
     end
 end
 
 local function TeleportTo(pos)
     local hrp = getHRP()
-    if not hrp then return end
+    if not hrp then return false end
     
+    print("📍 Teleportando para: " .. tostring(pos))
     hrp.CFrame = CFrame.new(pos)
     hrp.AssemblyLinearVelocity = Vector3.zero
     task.wait(0.05)
@@ -220,6 +228,8 @@ local function TeleportTo(pos)
         local lookDir = hrp.CFrame.LookVector
         cam.CFrame = CFrame.new(hrp.Position + Vector3.new(0, 2, 0), hrp.Position + lookDir + Vector3.new(0, 2, 0))
     end
+    
+    return true
 end
 
 local function ExecuteTeleport()
@@ -231,46 +241,87 @@ local function ExecuteTeleport()
     if teleporting then return end
     teleporting = true
     
-    local tp = TeleportPoints[selectedTeleport]
-    if not tp then teleporting = false return end
+    print("===== EXECUTANDO TELEPORT =====")
     
-    print("===== EXECUTANDO: " .. tp.name .. " =====")
-    
-    -- PASSO 1: Equipar Tapete
-    print("📌 Equipando Tapete...")
+    -- Equipar Tapete
     EquipCarpet()
     task.wait(0.1)
     
-    -- PASSO 2: Usar Flash (se ativado)
+    -- Usar Flash se ativado
     if flashEnabled then
-        print("⚡ Usando Flash Teleport...")
+        print("⚡ Usando Flash...")
         UseFlash()
-        print("⚡ Flash Teleport concluído!")
     end
     
-    -- PASSO 3: Teleportar
-    print("📍 Teleportando...")
-    if tp.pts then
-        for i, point in ipairs(tp.pts) do
-            print("   Ponto " .. i .. "/" .. #tp.pts)
+    -- Executar o teleport selecionado
+    if selectedTeleport == 1 then
+        print("📍 TELEPORT 1 (3 pontos)")
+        for i, point in ipairs(Teleport1Points) do
+            print("   Ponto " .. i .. "/3")
             TeleportTo(point)
-            task.wait(0.12)
+            task.wait(0.15)
         end
-    else
-        if tp.useStart then
-            print("   Indo para ponto de partida...")
-            TeleportTo(StartPoint)
-            task.wait(0.12)
-        end
-        print("   Indo para destino final...")
-        TeleportTo(tp.pos)
-        task.wait(0.12)
+        
+    elseif selectedTeleport == 2 then
+        print("📍 TELEPORT 2")
+        TeleportTo(Teleport2Pos)
+        
+    elseif selectedTeleport == 3 then
+        print("📍 TELEPORT 3")
+        TeleportTo(Teleport3Pos)
+        
+    elseif selectedTeleport == 4 then
+        print("📍 TELEPORT 4")
+        TeleportTo(Teleport4Pos)
+        
+    elseif selectedTeleport == 5 then
+        print("📍 TELEPORT 5")
+        TeleportTo(Teleport5Pos)
+        
+    elseif selectedTeleport == 6 then
+        print("📍 TELEPORT 6 (com ponto de partida)")
+        print("   Indo para ponto de partida...")
+        TeleportTo(StartPoint)
+        task.wait(0.15)
+        TeleportTo(Teleport6Pos)
+        
+    elseif selectedTeleport == 7 then
+        print("📍 TELEPORT 7 (com ponto de partida)")
+        print("   Indo para ponto de partida...")
+        TeleportTo(StartPoint)
+        task.wait(0.15)
+        TeleportTo(Teleport7Pos)
+        
+    elseif selectedTeleport == 8 then
+        print("📍 TELEPORT 8 (com ponto de partida)")
+        print("   Indo para ponto de partida...")
+        TeleportTo(StartPoint)
+        task.wait(0.15)
+        TeleportTo(Teleport8Pos)
+        
+    elseif selectedTeleport == 9 then
+        print("📍 TELEPORT 9 (com ponto de partida)")
+        print("   Indo para ponto de partida...")
+        TeleportTo(StartPoint)
+        task.wait(0.15)
+        TeleportTo(Teleport9Pos)
+        
+    elseif selectedTeleport == 10 then
+        print("📍 TELEPORT 10 (com ponto de partida)")
+        print("   Indo para ponto de partida...")
+        TeleportTo(StartPoint)
+        task.wait(0.15)
+        TeleportTo(Teleport10Pos)
     end
     
-    print("✅ " .. tp.name .. " concluído!")
+    print("✅ TELEPORT CONCLUÍDO!")
     teleporting = false
     
-    StarterGui:SetCore("SendNotification", {Title = "Complete", Text = tp.name, Duration = 2})
+    StarterGui:SetCore("SendNotification", {
+        Title = "Complete", 
+        Text = "TELEPORT " .. selectedTeleport, 
+        Duration = 2
+    })
 end
 
 -- =============================================
@@ -526,11 +577,25 @@ local ScrollLayout = Instance.new("UIListLayout")
 ScrollLayout.Padding = UDim.new(0, 3)
 ScrollLayout.Parent = OptionsScroll
 
-for i, tp in ipairs(TeleportPoints) do
+-- Teleport options
+local teleportNames = {
+    "1. TELEPORT 1 (3 pontos)",
+    "2. TELEPORT 2",
+    "3. TELEPORT 3",
+    "4. TELEPORT 4",
+    "5. TELEPORT 5",
+    "6. TELEPORT 6 (com partida)",
+    "7. TELEPORT 7 (com partida)",
+    "8. TELEPORT 8 (com partida)",
+    "9. TELEPORT 9 (com partida)",
+    "10. TELEPORT 10 (com partida)"
+}
+
+for i = 1, 10 do
     local btn = Instance.new("TextButton")
     btn.Size = UDim2.new(1, 0, 0, 36)
     btn.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
-    btn.Text = tp.name
+    btn.Text = teleportNames[i]
     btn.TextColor3 = Color3.new(1, 1, 1)
     btn.Font = Enum.Font.Gotham
     btn.TextSize = 13
@@ -544,7 +609,7 @@ for i, tp in ipairs(TeleportPoints) do
     
     btn.MouseButton1Click:Connect(function()
         selectedTeleport = i
-        DropdownLabel.Text = "▼ " .. tp.name
+        DropdownLabel.Text = "▼ " .. teleportNames[i]
         OptionsFrame.Visible = false
         dropdownOpen = false
         Main.Size = UDim2.new(0, 260, 0, 380)
@@ -762,9 +827,12 @@ end)
 print("========================================")
 print("✅ LAW HUB LOADED!")
 print("🛡️ Anti-Cheat Active")
-print("📍 Dropdown: Select 1. to 10.")
-print("⚡ Flash TP: Auto on teleport (with delay)")
-print("🛡️ Auto Block: Only on F press")
-print("🔄 Reset: 0.1 seconds")
-print("🎮 F = Teleport + Block | R = Reset")
+print("📍 Coordinates:")
+print("   1. (-368,-7,69) → (-336,-5,100) → (-352,-7,76)")
+print("   2. -324.3, -7.1, 37.5")
+print("   3. -316.1, -7.1, 36.7")
+print("   4. -309.8, -7.1, 38.3")
+print("   5. -302.3, -7.1, 41.5")
+print("   6-10: StartPoint + coordinate")
+print("🎮 F = Teleport | R = Reset")
 print("========================================")
