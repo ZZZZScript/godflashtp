@@ -1,5 +1,5 @@
 -- =============================================
--- LAW HUB - FULL SYSTEM (TP + FLASH + AUTO BLOCK ON F)
+-- LAW HUB - COMPLETE SYSTEM (RESET 0.1s)
 -- =============================================
 
 local Players = game:GetService("Players")
@@ -12,16 +12,14 @@ local CoreGui = game:GetService("CoreGui")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TeleportService = game:GetService("TeleportService")
 local TextChatService = game:GetService("TextChatService")
-local HttpService = game:GetService("HttpService")
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
 -- =============================================
--- MAXIMUM ANTI-CHEAT SYSTEM (12 Systems)
+-- ANTI-CHEAT SYSTEM
 -- =============================================
 
--- 1. ANTI-KICK TOTAL
 local function AntiKickTotal()
     pcall(function()
         local ts = TeleportService
@@ -33,34 +31,20 @@ local function AntiKickTotal()
                 return oldIndex(self, key)
             end
         end
-        
-        local plrs = Players
-        local plrsMt = getrawmetatable(plrs)
-        if plrsMt then
-            local oldIndex = plrsMt.__index
-            plrsMt.__index = function(self, key)
-                if key == "Kick" then return function() end end
-                return oldIndex(self, key)
-            end
-        end
-        
-        local lp = player
-        lp.Kick = function() end
+        player.Kick = function() end
+        Players.Kick = function() end
     end)
     
     for _, remote in ipairs(game:GetDescendants()) do
         if remote:IsA("RemoteEvent") then
             local name = string.lower(remote.Name)
             if name:find("kick") or name:find("ban") or name:find("cheat") then
-                pcall(function()
-                    remote.OnServerEvent:Connect(function() return end)
-                end)
+                pcall(function() remote.OnServerEvent:Connect(function() return end) end)
             end
         end
     end
 end
 
--- 2. ANTI-RAGDOLL
 local function AntiRagdoll()
     local char = player.Character
     if not char then return end
@@ -79,8 +63,7 @@ local function AntiRagdoll()
     end
 end
 
--- 3. ANTI-FREEZE
-local lastPosition = nil
+local lastPos = nil
 local freezeCount = 0
 local function AntiFreeze()
     local char = player.Character
@@ -88,9 +71,8 @@ local function AntiFreeze()
     local hrp = char:FindFirstChild("HumanoidRootPart")
     local hum = char:FindFirstChildOfClass("Humanoid")
     if hrp and hum then
-        local currentPos = hrp.Position
-        if lastPosition then
-            if (currentPos - lastPosition).Magnitude < 0.5 then
+        if lastPos then
+            if (hrp.Position - lastPos).Magnitude < 0.5 then
                 freezeCount = freezeCount + 1
                 if freezeCount > 10 then
                     hrp.AssemblyLinearVelocity = Vector3.zero
@@ -101,113 +83,36 @@ local function AntiFreeze()
                 freezeCount = 0
             end
         end
-        lastPosition = currentPos
+        lastPos = hrp.Position
     end
 end
 
--- 4. ANTI-ANIMATION LOCK
 local function AntiAnimationLock()
     local char = player.Character
     if not char then return end
     local hum = char:FindFirstChildOfClass("Humanoid")
     if hum and hum:FindFirstChild("Animator") then
         for _, track in pairs(hum.Animator:GetPlayingAnimationTracks()) do
-            local animName = string.lower(track.Animation and track.Animation.Name or "")
-            if animName:find("rag") or animName:find("fall") or animName:find("hurt") then
+            local name = string.lower(track.Animation and track.Animation.Name or "")
+            if name:find("rag") or name:find("fall") or name:find("hurt") then
                 track:Stop(0)
             end
         end
     end
 end
 
--- 5. ANTI-VELOCITY
-local function AntiVelocity()
-    local char = player.Character
-    if not char then return end
-    local hrp = char:FindFirstChild("HumanoidRootPart")
-    if hrp then
-        local vel = hrp.AssemblyLinearVelocity
-        if vel.Magnitude > 200 then
-            hrp.AssemblyLinearVelocity = vel.Unit * 150
-        end
-    end
-end
-
--- 6. ANTI-TELEPORT LOCK
-local lastCFrame = nil
-local teleportAttempts = 0
-local isTeleporting = false
-local function AntiTeleportLock()
-    local char = player.Character
-    if not char then return end
-    local hrp = char:FindFirstChild("HumanoidRootPart")
-    if hrp and lastCFrame and not isTeleporting then
-        local distance = (hrp.Position - lastCFrame.Position).Magnitude
-        if distance > 100 then
-            teleportAttempts = teleportAttempts + 1
-            if teleportAttempts > 3 then
-                hrp.CFrame = lastCFrame
-                teleportAttempts = 0
-            end
-        else
-            teleportAttempts = 0
-        end
-    end
-    if hrp then lastCFrame = hrp.CFrame end
-end
-
--- 7. ANTI-CHAT KICK
-local function AntiChatKick()
-    pcall(function()
-        local textChannels = TextChatService:FindFirstChild("TextChannels")
-        if textChannels then
-            local rbGeneral = textChannels:FindFirstChild("RBXGeneral")
-            if rbGeneral then
-                rbGeneral.OnIncomingMessage = function(message)
-                    return message
-                end
-            end
-        end
-    end)
-end
-
--- 8. ANTI-EFFECTS
-local DisabledRemotes = {}
-local function killRemote(remote)
-    if not getconnections then return end
-    if not remote:IsA("RemoteEvent") then return end
-    if DisabledRemotes[remote] then return end
-    local name = string.lower(remote.Name)
-    if name:find("useitem") or name:find("combatservice") or name:find("ragdoll") or name:find("effect") then
-        DisabledRemotes[remote] = {}
-        for _, c in ipairs(getconnections(remote.OnClientEvent)) do
-            if c.Disable then c:Disable() table.insert(DisabledRemotes[remote], c) end
-        end
-    end
-end
-
--- Start anti-cheat loops
 RunService.Heartbeat:Connect(AntiRagdoll)
 RunService.Heartbeat:Connect(AntiFreeze)
 RunService.Heartbeat:Connect(AntiAnimationLock)
-RunService.Heartbeat:Connect(AntiVelocity)
-RunService.Stepped:Connect(AntiTeleportLock)
-
 AntiKickTotal()
-AntiChatKick()
-
-for _, obj in ipairs(ReplicatedStorage:GetDescendants()) do killRemote(obj) end
-ReplicatedStorage.DescendantAdded:Connect(killRemote)
 
 player.CharacterAdded:Connect(function(char)
     task.wait(0.5)
     local hum = char:FindFirstChildOfClass("Humanoid")
     if hum then hum.BreakJointsOnDeath = false end
-    lastCFrame = nil
-    teleportAttempts = 0
 end)
 
-print("🛡️ ANTI-CHEAT ACTIVATED (8 systems)")
+print("🛡️ ANTI-CHEAT ACTIVATED")
 
 -- =============================================
 -- TELEPORT POINTS
@@ -249,11 +154,6 @@ local function getHum()
     return char and char:FindFirstChildOfClass("Humanoid")
 end
 
-local function getCam()
-    return workspace.CurrentCamera
-end
-
--- Equipar Tapete
 local function EquipCarpet()
     local char = player.Character
     local bp = player:FindFirstChild("Backpack")
@@ -273,7 +173,6 @@ local function EquipCarpet()
     end
 end
 
--- Usar Flash
 local function UseFlash()
     local char = player.Character
     local bp = player:FindFirstChild("Backpack")
@@ -306,30 +205,22 @@ local function UseFlash()
     end
 end
 
--- Teleportar e virar câmera de frente
 local function TeleportTo(pos)
     local hrp = getHRP()
     if not hrp then return end
     
-    isTeleporting = true
-    
-    -- Teleporta o personagem
     hrp.CFrame = CFrame.new(pos)
     hrp.AssemblyLinearVelocity = Vector3.zero
     task.wait(0.05)
     
-    -- Vira a câmera de frente para onde o personagem está olhando
-    local cam = getCam()
+    -- Vira a câmera
+    local cam = workspace.CurrentCamera
     if cam and hrp then
-        -- Faz a câmera olhar na direção que o personagem está virado
-        local lookDirection = hrp.CFrame.LookVector
-        cam.CFrame = CFrame.new(hrp.Position + Vector3.new(0, 2, 0), hrp.Position + lookDirection + Vector3.new(0, 2, 0))
+        local lookDir = hrp.CFrame.LookVector
+        cam.CFrame = CFrame.new(hrp.Position + Vector3.new(0, 2, 0), hrp.Position + lookDir + Vector3.new(0, 2, 0))
     end
-    
-    isTeleporting = false
 end
 
--- Executar Teleport
 local function ExecuteTeleport()
     if not selectedTeleport then
         StarterGui:SetCore("SendNotification", {Title = "Warning", Text = "Select a teleport first!", Duration = 2})
@@ -342,21 +233,16 @@ local function ExecuteTeleport()
     local tp = TeleportPoints[selectedTeleport]
     if not tp then teleporting = false return end
     
-    print("Executing: " .. tp.name)
-    
-    -- 1. Equipa Tapete
     EquipCarpet()
     task.wait(0.15)
     
-    -- 2. Usa Flash
     if flashEnabled then
         UseFlash()
         task.wait(0.1)
     end
     
-    -- 3. Teleporta
     if tp.pts then
-        for i, point in ipairs(tp.pts) do
+        for _, point in ipairs(tp.pts) do
             TeleportTo(point)
             task.wait(0.12)
         end
@@ -373,16 +259,36 @@ local function ExecuteTeleport()
     StarterGui:SetCore("SendNotification", {Title = "Complete", Text = tp.name, Duration = 2})
 end
 
--- Insta Reset
+-- =============================================
+-- INSTA RESET (0.1 SEGUNDOS)
+-- =============================================
 local function InstaReset()
-    local hum = getHum()
-    if hum then
-        hum.Health = 0
+    local char = player.Character
+    if not char then 
         player:LoadCharacter()
+        return
     end
+    
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    
+    if hum then
+        -- Método 1: Mata o personagem
+        hum.Health = 0
+    end
+    
+    if hrp then
+        -- Método 2: Teleporta para o céu
+        hrp.CFrame = CFrame.new(0, 100000, 0)
+    end
+    
+    -- Força o respawn em 0.1 segundos
+    task.wait(0.1)
+    player:LoadCharacter()
+    
+    print("🔄 INSTA RESET (0.1s) EXECUTED!")
 end
 
--- Block Player (quando aperta F, não ao ligar toggle)
 local function getNearestPlayer()
     local hrp = getHRP()
     if not hrp then return nil end
@@ -410,18 +316,14 @@ local function blockPlayer(plr)
     pcall(function() StarterGui:SetCore("PromptBlockPlayer", plr) end)
 end
 
--- Função principal do F (Teleport + Block)
 local function OnFPressed()
-    -- Primeiro: Executa o teleport
     ExecuteTeleport()
-    
-    -- Depois do teleport, se auto block estiver ativado, bloqueia o player mais próximo
     task.wait(0.3)
     if autoBlockEnabled then
         local nearest = getNearestPlayer()
         if nearest then
             blockPlayer(nearest)
-            print("🛡️ Blocked: " .. nearest.Name)
+            print("Blocked: " .. nearest.Name)
         end
     end
 end
@@ -433,8 +335,10 @@ local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "LawHub"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.Parent = playerGui
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+ScreenGui.DisplayOrder = 999
 
--- Steal Progress Bar
+-- Progress Bar
 local StealBarBG = Instance.new("Frame")
 StealBarBG.Size = UDim2.new(0, 220, 0, 16)
 StealBarBG.Position = UDim2.new(0.5, -110, 1, -24)
@@ -469,14 +373,10 @@ StealBarFill.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 StealBarFill.BorderSizePixel = 0
 StealBarFill.Parent = StealBarInner
 
-local StealFillCorner = Instance.new("UICorner")
-StealFillCorner.CornerRadius = UDim.new(1, 0)
-StealFillCorner.Parent = StealBarFill
-
 -- Main Frame
 local Main = Instance.new("Frame")
-Main.Size = UDim2.new(0, 250, 0, 360)
-Main.Position = UDim2.new(0.5, -125, 0.5, -180)
+Main.Size = UDim2.new(0, 260, 0, 380)
+Main.Position = UDim2.new(0.5, -130, 0.5, -190)
 Main.BackgroundColor3 = Color3.new(0, 0, 0)
 Main.BackgroundTransparency = 0.2
 Main.BorderSizePixel = 0
@@ -494,7 +394,7 @@ MainStroke.Parent = Main
 
 -- Title Bar
 local TitleBar = Instance.new("Frame")
-TitleBar.Size = UDim2.new(1, 0, 0, 35)
+TitleBar.Size = UDim2.new(1, 0, 0, 38)
 TitleBar.BackgroundColor3 = Color3.new(0, 0, 0)
 TitleBar.BackgroundTransparency = 0.5
 TitleBar.BorderSizePixel = 0
@@ -512,14 +412,14 @@ TitleSep.BorderSizePixel = 0
 TitleSep.Parent = TitleBar
 
 local TitleLabel = Instance.new("TextLabel")
-TitleLabel.Size = UDim2.new(1, -40, 1, 0)
-TitleLabel.Position = UDim2.new(0, 10, 0, 0)
+TitleLabel.Size = UDim2.new(1, -50, 1, 0)
+TitleLabel.Position = UDim2.new(0, 15, 0, 0)
 TitleLabel.BackgroundTransparency = 1
 TitleLabel.Text = "🔥 LAW HUB"
 TitleLabel.TextColor3 = Color3.new(1, 1, 1)
 TitleLabel.Font = Enum.Font.GothamBold
-TitleLabel.TextSize = 16
-TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+TitleLabel.TextSize = 18
+TitleLabel.TextXAlignment = Enum.TextXAlignment.Center
 TitleLabel.Parent = TitleBar
 
 -- DRAG SYSTEM
@@ -531,11 +431,6 @@ TitleBar.InputBegan:Connect(function(input)
         dragging = true
         dragStart = input.Position
         startPos = Main.Position
-        input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then
-                dragging = false
-            end
-        end)
     end
 end)
 
@@ -546,49 +441,65 @@ UserInputService.InputChanged:Connect(function(input)
     end
 end)
 
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = false
+    end
+end)
+
 -- Content
 local Content = Instance.new("Frame")
-Content.Size = UDim2.new(1, -20, 1, -45)
-Content.Position = UDim2.new(0, 10, 0, 40)
+Content.Size = UDim2.new(1, -16, 1, -48)
+Content.Position = UDim2.new(0, 8, 0, 45)
 Content.BackgroundTransparency = 1
 Content.Parent = Main
+Content.ZIndex = 10
 
--- DROPDOWN
+-- DROPDOWN BUTTON
 local DropdownButton = Instance.new("TextButton")
-DropdownButton.Size = UDim2.new(1, 0, 0, 38)
+DropdownButton.Size = UDim2.new(1, 0, 0, 42)
 DropdownButton.Position = UDim2.new(0, 0, 0, 0)
-DropdownButton.BackgroundColor3 = Color3.new(0.117647, 0.117647, 0.117647)
+DropdownButton.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
 DropdownButton.Text = ""
 DropdownButton.BorderSizePixel = 0
 DropdownButton.Parent = Content
+DropdownButton.ZIndex = 20
 
 local DropdownCorner = Instance.new("UICorner")
-DropdownCorner.CornerRadius = UDim.new(0, 8)
+DropdownCorner.CornerRadius = UDim.new(0, 10)
 DropdownCorner.Parent = DropdownButton
 
 local DropdownLabel = Instance.new("TextLabel")
-DropdownLabel.Size = UDim2.new(1, -12, 1, 0)
+DropdownLabel.Size = UDim2.new(1, -20, 1, 0)
 DropdownLabel.Position = UDim2.new(0, 12, 0, 0)
 DropdownLabel.BackgroundTransparency = 1
 DropdownLabel.Text = "▼ SELECT TELEPORT"
 DropdownLabel.TextColor3 = Color3.new(1, 1, 1)
 DropdownLabel.Font = Enum.Font.GothamBold
-DropdownLabel.TextSize = 12
+DropdownLabel.TextSize = 13
 DropdownLabel.TextXAlignment = Enum.TextXAlignment.Left
 DropdownLabel.Parent = DropdownButton
+DropdownLabel.ZIndex = 20
 
--- Options Frame
+-- DROPDOWN OPTIONS
 local OptionsFrame = Instance.new("Frame")
-OptionsFrame.Size = UDim2.new(1, 0, 0, 260)
-OptionsFrame.Position = UDim2.new(0, 0, 0, 40)
-OptionsFrame.BackgroundColor3 = Color3.new(0, 0, 0)
-OptionsFrame.BackgroundTransparency = 0.3
+OptionsFrame.Size = UDim2.new(1, 0, 0, 280)
+OptionsFrame.Position = UDim2.new(0, 0, 0, 44)
+OptionsFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 28)
+OptionsFrame.BackgroundTransparency = 0.1
 OptionsFrame.Visible = false
+OptionsFrame.BorderSizePixel = 0
 OptionsFrame.Parent = Content
+OptionsFrame.ZIndex = 25
 
 local OptionsCorner = Instance.new("UICorner")
-OptionsCorner.CornerRadius = UDim.new(0, 8)
+OptionsCorner.CornerRadius = UDim.new(0, 10)
 OptionsCorner.Parent = OptionsFrame
+
+local OptionsStroke = Instance.new("UIStroke")
+OptionsStroke.Color = Color3.new(1, 1, 1)
+OptionsStroke.Thickness = 1
+OptionsStroke.Parent = OptionsFrame
 
 local OptionsScroll = Instance.new("ScrollingFrame")
 OptionsScroll.Size = UDim2.new(1, -4, 1, -4)
@@ -598,24 +509,26 @@ OptionsScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
 OptionsScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
 OptionsScroll.ScrollBarThickness = 4
 OptionsScroll.Parent = OptionsFrame
+OptionsScroll.ZIndex = 25
 
 local ScrollLayout = Instance.new("UIListLayout")
-ScrollLayout.Padding = UDim.new(0, 2)
+ScrollLayout.Padding = UDim.new(0, 3)
 ScrollLayout.Parent = OptionsScroll
 
 for i, tp in ipairs(TeleportPoints) do
     local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(1, 0, 0, 34)
-    btn.BackgroundColor3 = Color3.new(0.156863, 0.156863, 0.156863)
+    btn.Size = UDim2.new(1, 0, 0, 36)
+    btn.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
     btn.Text = tp.name
     btn.TextColor3 = Color3.new(1, 1, 1)
     btn.Font = Enum.Font.Gotham
-    btn.TextSize = 12
+    btn.TextSize = 13
     btn.BorderSizePixel = 0
     btn.Parent = OptionsScroll
+    btn.ZIndex = 25
     
     local btnCorner = Instance.new("UICorner")
-    btnCorner.CornerRadius = UDim.new(0, 4)
+    btnCorner.CornerRadius = UDim.new(0, 6)
     btnCorner.Parent = btn
     
     btn.MouseButton1Click:Connect(function()
@@ -623,41 +536,65 @@ for i, tp in ipairs(TeleportPoints) do
         DropdownLabel.Text = "▼ " .. tp.name
         OptionsFrame.Visible = false
         dropdownOpen = false
-        Main.Size = UDim2.new(0, 250, 0, 360)
+        Main.Size = UDim2.new(0, 260, 0, 380)
     end)
 end
 
+-- Toggle dropdown
 DropdownButton.MouseButton1Click:Connect(function()
     dropdownOpen = not dropdownOpen
     OptionsFrame.Visible = dropdownOpen
     if dropdownOpen then
-        Main.Size = UDim2.new(0, 250, 0, 400)
+        Main.Size = UDim2.new(0, 260, 0, 420)
     else
-        Main.Size = UDim2.new(0, 250, 0, 360)
+        Main.Size = UDim2.new(0, 260, 0, 380)
     end
 end)
 
--- EXECUTE BUTTON (também usa o mesmo sistema do F)
+-- Close when clicking outside
+UserInputService.InputBegan:Connect(function(input)
+    if dropdownOpen and input.UserInputType == Enum.UserInputType.MouseButton1 then
+        local mousePos = UserInputService:GetMouseLocation()
+        local btnPos = DropdownButton.AbsolutePosition
+        local btnSize = DropdownButton.AbsoluteSize
+        local optionsPos = OptionsFrame.AbsolutePosition
+        local optionsSize = OptionsFrame.AbsoluteSize
+        
+        local inside = (mousePos.X >= btnPos.X and mousePos.X <= btnPos.X + btnSize.X and
+                        mousePos.Y >= btnPos.Y and mousePos.Y <= btnPos.Y + btnSize.Y) or
+                       (mousePos.X >= optionsPos.X and mousePos.X <= optionsPos.X + optionsSize.X and
+                        mousePos.Y >= optionsPos.Y and mousePos.Y <= optionsPos.Y + optionsSize.Y)
+        
+        if not inside then
+            OptionsFrame.Visible = false
+            dropdownOpen = false
+            Main.Size = UDim2.new(0, 260, 0, 380)
+        end
+    end
+end)
+
+-- EXECUTE BUTTON
 local ExecuteButton = Instance.new("TextButton")
-ExecuteButton.Size = UDim2.new(1, 0, 0, 40)
-ExecuteButton.Position = UDim2.new(0, 0, 0, 45)
-ExecuteButton.BackgroundColor3 = Color3.new(0.117647, 0.117647, 0.117647)
+ExecuteButton.Size = UDim2.new(1, 0, 0, 44)
+ExecuteButton.Position = UDim2.new(0, 0, 0, 50)
+ExecuteButton.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
 ExecuteButton.Text = ""
 ExecuteButton.BorderSizePixel = 0
 ExecuteButton.Parent = Content
+ExecuteButton.ZIndex = 15
 
 local ExecuteCorner = Instance.new("UICorner")
-ExecuteCorner.CornerRadius = UDim.new(0, 8)
+ExecuteCorner.CornerRadius = UDim.new(0, 10)
 ExecuteCorner.Parent = ExecuteButton
 
 local ExecuteLabel = Instance.new("TextLabel")
-ExecuteLabel.Size = UDim2.new(1, -12, 1, 0)
+ExecuteLabel.Size = UDim2.new(1, -20, 1, 0)
 ExecuteLabel.Position = UDim2.new(0, 12, 0, 0)
 ExecuteLabel.BackgroundTransparency = 1
 ExecuteLabel.Text = "🚀 EXECUTE TELEPORT"
-ExecuteLabel.TextColor3 = Color3.new(0.3, 1, 0.3)
+ExecuteLabel.TextColor3 = Color3.fromRGB(80, 255, 80)
 ExecuteLabel.Font = Enum.Font.GothamBold
-ExecuteLabel.TextSize = 13
+ExecuteLabel.TextSize = 14
 ExecuteLabel.TextXAlignment = Enum.TextXAlignment.Left
 ExecuteLabel.Parent = ExecuteButton
 
@@ -665,93 +602,95 @@ ExecuteButton.MouseButton1Click:Connect(OnFPressed)
 
 -- FLASH TOGGLE
 local FlashButton = Instance.new("TextButton")
-FlashButton.Size = UDim2.new(1, 0, 0, 36)
-FlashButton.Position = UDim2.new(0, 0, 0, 90)
-FlashButton.BackgroundColor3 = Color3.new(0.117647, 0.117647, 0.117647)
+FlashButton.Size = UDim2.new(1, 0, 0, 40)
+FlashButton.Position = UDim2.new(0, 0, 0, 100)
+FlashButton.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
 FlashButton.Text = ""
 FlashButton.BorderSizePixel = 0
 FlashButton.Parent = Content
+FlashButton.ZIndex = 15
 
 local FlashCorner = Instance.new("UICorner")
-FlashCorner.CornerRadius = UDim.new(0, 8)
+FlashCorner.CornerRadius = UDim.new(0, 10)
 FlashCorner.Parent = FlashButton
 
 local FlashLabel = Instance.new("TextLabel")
-FlashLabel.Size = UDim2.new(1, -12, 1, 0)
+FlashLabel.Size = UDim2.new(1, -20, 1, 0)
 FlashLabel.Position = UDim2.new(0, 12, 0, 0)
 FlashLabel.BackgroundTransparency = 1
 FlashLabel.Text = "⚡ FLASH TP: ON"
 FlashLabel.TextColor3 = Color3.new(1, 1, 1)
 FlashLabel.Font = Enum.Font.GothamBold
-FlashLabel.TextSize = 12
+FlashLabel.TextSize = 13
 FlashLabel.TextXAlignment = Enum.TextXAlignment.Left
 FlashLabel.Parent = FlashButton
 
 FlashButton.MouseButton1Click:Connect(function()
     flashEnabled = not flashEnabled
     FlashLabel.Text = flashEnabled and "⚡ FLASH TP: ON" or "⚡ FLASH TP: OFF"
-    FlashLabel.TextColor3 = flashEnabled and Color3.new(0.3, 1, 0.3) or Color3.new(1, 0.5, 0.5)
+    FlashLabel.TextColor3 = flashEnabled and Color3.fromRGB(80, 255, 80) or Color3.fromRGB(255, 100, 100)
 end)
 
--- AUTO BLOCK TOGGLE (só ativa/desativa, não bloqueia ao ligar)
+-- AUTO BLOCK TOGGLE
 local BlockButton = Instance.new("TextButton")
-BlockButton.Size = UDim2.new(1, 0, 0, 36)
-BlockButton.Position = UDim2.new(0, 0, 0, 131)
-BlockButton.BackgroundColor3 = Color3.new(0.117647, 0.117647, 0.117647)
+BlockButton.Size = UDim2.new(1, 0, 0, 40)
+BlockButton.Position = UDim2.new(0, 0, 0, 146)
+BlockButton.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
 BlockButton.Text = ""
 BlockButton.BorderSizePixel = 0
 BlockButton.Parent = Content
+BlockButton.ZIndex = 15
 
 local BlockCorner = Instance.new("UICorner")
-BlockCorner.CornerRadius = UDim.new(0, 8)
+BlockCorner.CornerRadius = UDim.new(0, 10)
 BlockCorner.Parent = BlockButton
 
 local BlockLabel = Instance.new("TextLabel")
-BlockLabel.Size = UDim2.new(1, -12, 1, 0)
+BlockLabel.Size = UDim2.new(1, -20, 1, 0)
 BlockLabel.Position = UDim2.new(0, 12, 0, 0)
 BlockLabel.BackgroundTransparency = 1
 BlockLabel.Text = "🛡️ AUTO BLOCK: OFF"
 BlockLabel.TextColor3 = Color3.new(1, 1, 1)
 BlockLabel.Font = Enum.Font.GothamBold
-BlockLabel.TextSize = 12
+BlockLabel.TextSize = 13
 BlockLabel.TextXAlignment = Enum.TextXAlignment.Left
 BlockLabel.Parent = BlockButton
 
 BlockButton.MouseButton1Click:Connect(function()
     autoBlockEnabled = not autoBlockEnabled
     BlockLabel.Text = autoBlockEnabled and "🛡️ AUTO BLOCK: ON" or "🛡️ AUTO BLOCK: OFF"
-    BlockLabel.TextColor3 = autoBlockEnabled and Color3.new(0.3, 1, 0.3) or Color3.new(1, 1, 1)
-    -- NÃO BLOQUEIA AQUI! Só muda o toggle
+    BlockLabel.TextColor3 = autoBlockEnabled and Color3.fromRGB(80, 255, 80) or Color3.new(1, 1, 1)
 end)
 
--- RESET BUTTON
+-- RESET BUTTON (0.1s)
 local ResetButton = Instance.new("TextButton")
-ResetButton.Size = UDim2.new(1, 0, 0, 40)
-ResetButton.Position = UDim2.new(0, 0, 0, 172)
-ResetButton.BackgroundColor3 = Color3.new(0.117647, 0.117647, 0.117647)
+ResetButton.Size = UDim2.new(1, 0, 0, 44)
+ResetButton.Position = UDim2.new(0, 0, 0, 192)
+ResetButton.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
 ResetButton.Text = ""
 ResetButton.BorderSizePixel = 0
 ResetButton.Parent = Content
+ResetButton.ZIndex = 15
 
 local ResetCorner = Instance.new("UICorner")
-ResetCorner.CornerRadius = UDim.new(0, 8)
+ResetCorner.CornerRadius = UDim.new(0, 10)
 ResetCorner.Parent = ResetButton
 
 local ResetLabel = Instance.new("TextLabel")
-ResetLabel.Size = UDim2.new(1, -12, 1, 0)
+ResetLabel.Size = UDim2.new(1, -20, 1, 0)
 ResetLabel.Position = UDim2.new(0, 12, 0, 0)
 ResetLabel.BackgroundTransparency = 1
-ResetLabel.Text = "🔄 INSTA RESET"
-ResetLabel.TextColor3 = Color3.new(1, 0.5, 0)
+ResetLabel.Text = "🔄 INSTA RESET (0.1s)"
+ResetLabel.TextColor3 = Color3.fromRGB(255, 150, 50)
 ResetLabel.Font = Enum.Font.GothamBold
-ResetLabel.TextSize = 13
+ResetLabel.TextSize = 14
 ResetLabel.TextXAlignment = Enum.TextXAlignment.Left
 ResetLabel.Parent = ResetButton
 
 ResetButton.MouseButton1Click:Connect(InstaReset)
 
 -- =============================================
--- FLASH STEAL (AUTO STEAL)
+-- FLASH STEAL
 -- =============================================
 ProximityPromptService.PromptButtonHoldBegan:Connect(function(prompt)
     if not flashEnabled then return end
@@ -761,6 +700,7 @@ ProximityPromptService.PromptButtonHoldBegan:Connect(function(prompt)
     
     StealBarFill.BackgroundTransparency = 0
     StealBarBG.BackgroundTransparency = 0
+    StealBarFill.Size = UDim2.new(0, 0, 1, 0)
     
     local conn = RunService.PreRender:Connect(function()
         if not prompt or not prompt.Parent then
@@ -795,7 +735,7 @@ ProximityPromptService.PromptButtonHoldBegan:Connect(function(prompt)
 end)
 
 -- =============================================
--- HOTKEY F (Teleport + Block depois)
+-- HOTKEYS
 -- =============================================
 UserInputService.InputBegan:Connect(function(input, gpe)
     if gpe then return end
@@ -810,9 +750,10 @@ end)
 
 print("========================================")
 print("✅ LAW HUB LOADED!")
-print("🛡️ Anti-Cheat: 8 systems active")
-print("📍 Select teleport from dropdown")
-print("⚡ Flash TP: AUTO on teleport")
-print("🛡️ Auto Block: ONLY when you press F")
+print("🛡️ Anti-Cheat Active")
+print("📍 Dropdown: Select 1. to 10.")
+print("⚡ Flash TP: Auto on teleport")
+print("🛡️ Auto Block: Only on F press")
+print("🔄 Reset: 0.1 seconds")
 print("🎮 F = Teleport + Block | R = Reset")
 print("========================================")
