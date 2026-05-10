@@ -1,5 +1,5 @@
 -- =============================================
--- LAW HUB - COMPLETE SYSTEM (RESET 0.1s)
+-- LAW HUB - COMPLETE SYSTEM (FLASH FIXED)
 -- =============================================
 
 local Players = game:GetService("Players")
@@ -169,7 +169,7 @@ local function EquipCarpet()
     local hum = getHum()
     if carpet and hum then
         hum:EquipTool(carpet)
-        task.wait(0.15)
+        task.wait(0.1)
     end
 end
 
@@ -202,6 +202,7 @@ local function UseFlash()
             task.wait(0.1)
         end
         pcall(function() flash:Activate() end)
+        task.wait(0.2) -- ESPERA O FLASH TERMINAR
     end
 end
 
@@ -233,29 +234,42 @@ local function ExecuteTeleport()
     local tp = TeleportPoints[selectedTeleport]
     if not tp then teleporting = false return end
     
-    EquipCarpet()
-    task.wait(0.15)
+    print("===== EXECUTANDO: " .. tp.name .. " =====")
     
+    -- PASSO 1: Equipar Tapete
+    print("📌 Equipando Tapete...")
+    EquipCarpet()
+    task.wait(0.1)
+    
+    -- PASSO 2: Usar Flash (se ativado)
     if flashEnabled then
+        print("⚡ Usando Flash Teleport...")
         UseFlash()
-        task.wait(0.1)
+        print("⚡ Flash Teleport concluído!")
     end
     
+    -- PASSO 3: Teleportar
+    print("📍 Teleportando...")
     if tp.pts then
-        for _, point in ipairs(tp.pts) do
+        for i, point in ipairs(tp.pts) do
+            print("   Ponto " .. i .. "/" .. #tp.pts)
             TeleportTo(point)
             task.wait(0.12)
         end
     else
         if tp.useStart then
+            print("   Indo para ponto de partida...")
             TeleportTo(StartPoint)
             task.wait(0.12)
         end
+        print("   Indo para destino final...")
         TeleportTo(tp.pos)
         task.wait(0.12)
     end
     
+    print("✅ " .. tp.name .. " concluído!")
     teleporting = false
+    
     StarterGui:SetCore("SendNotification", {Title = "Complete", Text = tp.name, Duration = 2})
 end
 
@@ -273,16 +287,13 @@ local function InstaReset()
     local hrp = char:FindFirstChild("HumanoidRootPart")
     
     if hum then
-        -- Método 1: Mata o personagem
         hum.Health = 0
     end
     
     if hrp then
-        -- Método 2: Teleporta para o céu
         hrp.CFrame = CFrame.new(0, 100000, 0)
     end
     
-    -- Força o respawn em 0.1 segundos
     task.wait(0.1)
     player:LoadCharacter()
     
@@ -314,6 +325,7 @@ end
 local function blockPlayer(plr)
     if not plr or plr == player then return end
     pcall(function() StarterGui:SetCore("PromptBlockPlayer", plr) end)
+    print("🛡️ Blocked: " .. plr.Name)
 end
 
 local function OnFPressed()
@@ -323,7 +335,6 @@ local function OnFPressed()
         local nearest = getNearestPlayer()
         if nearest then
             blockPlayer(nearest)
-            print("Blocked: " .. nearest.Name)
         end
     end
 end
@@ -662,7 +673,7 @@ BlockButton.MouseButton1Click:Connect(function()
     BlockLabel.TextColor3 = autoBlockEnabled and Color3.fromRGB(80, 255, 80) or Color3.new(1, 1, 1)
 end)
 
--- RESET BUTTON (0.1s)
+-- RESET BUTTON
 local ResetButton = Instance.new("TextButton")
 ResetButton.Size = UDim2.new(1, 0, 0, 44)
 ResetButton.Position = UDim2.new(0, 0, 0, 192)
@@ -690,7 +701,7 @@ ResetLabel.Parent = ResetButton
 ResetButton.MouseButton1Click:Connect(InstaReset)
 
 -- =============================================
--- FLASH STEAL
+-- FLASH STEAL (AUTO STEAL)
 -- =============================================
 ProximityPromptService.PromptButtonHoldBegan:Connect(function(prompt)
     if not flashEnabled then return end
@@ -752,7 +763,7 @@ print("========================================")
 print("✅ LAW HUB LOADED!")
 print("🛡️ Anti-Cheat Active")
 print("📍 Dropdown: Select 1. to 10.")
-print("⚡ Flash TP: Auto on teleport")
+print("⚡ Flash TP: Auto on teleport (with delay)")
 print("🛡️ Auto Block: Only on F press")
 print("🔄 Reset: 0.1 seconds")
 print("🎮 F = Teleport + Block | R = Reset")
