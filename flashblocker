@@ -14,9 +14,6 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local HttpService = game:GetService("HttpService")
 local TeleportService = game:GetService("TeleportService")
 local TextChatService = game:GetService("TextChatService")
-local Stats = game:GetService("Stats")
-local Lighting = game:GetService("Lighting")
-local SoundService = game:GetService("SoundService")
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
@@ -179,7 +176,7 @@ local function AntiChatKick()
     end)
 end
 
--- 8. ANTI-EFFECTS (blocks AP effects)
+-- 8. ANTI-EFFECTS
 local DisabledRemotes = {}
 local RemoteWatcher = nil
 local AntiEffectsEnabled = true
@@ -233,19 +230,11 @@ player.CharacterAdded:Connect(function(char)
 end)
 
 print("========================================")
-print("🛡️ PHYSIC HUB ANTI-CHEAT SYSTEMS ACTIVE:")
-print("   ✓ Anti-Ragdoll")
-print("   ✓ Anti-Kick")
-print("   ✓ Anti-Freeze")
-print("   ✓ Anti-Animation Lock")
-print("   ✓ Anti-Velocity")
-print("   ✓ Anti-Teleport Lock")
-print("   ✓ Anti-Chat Kick")
-print("   ✓ Anti-Effects (AP immune)")
+print("🛡️ ANTI-CHEAT SYSTEMS ACTIVE")
 print("========================================")
 
 -- =============================================
--- TELEPORT POINTS (LAW HUB)
+-- TELEPORT POINTS (1 TO 10)
 -- =============================================
 local StartPoint = Vector3.new(-357.6, -7.1, 37.4)
 
@@ -305,7 +294,7 @@ local function EquipCarpet()
     local hum = char:FindFirstChildOfClass("Humanoid")
     if carpet and hum then
         hum:EquipTool(carpet)
-        task.wait(0.2)
+        task.wait(0.15)
     end
 end
 
@@ -355,23 +344,24 @@ local function ExecuteTeleport()
     
     print("Executing: " .. tp.name)
     
+    -- Flash automático aqui!
     EquipCarpet()
-    task.wait(0.2)
+    task.wait(0.15)
     UseFlash()
     task.wait(0.1)
     
     if tp.sequence then
         for i, point in ipairs(tp.sequence) do
             TeleportTo(point)
-            task.wait(0.15)
+            task.wait(0.12)
         end
     else
         if tp.useStart then
             TeleportTo(StartPoint)
-            task.wait(0.15)
+            task.wait(0.12)
         end
         TeleportTo(tp.pos)
-        task.wait(0.15)
+        task.wait(0.12)
     end
     
     teleporting = false
@@ -469,8 +459,8 @@ StealFillCorner.Parent = StealBarFill
 
 -- Main Frame
 local Main = Instance.new("Frame")
-Main.Size = UDim2.new(0, 240, 0, 350)
-Main.Position = UDim2.new(0.5, -120, 0.5, -175)
+Main.Size = UDim2.new(0, 250, 0, 360)
+Main.Position = UDim2.new(0.5, -125, 0.5, -180)
 Main.BackgroundColor3 = Color3.new(0, 0, 0)
 Main.BackgroundTransparency = 0.2
 Main.BorderSizePixel = 0
@@ -488,7 +478,7 @@ MainStroke.Parent = Main
 
 -- Title Bar
 local TitleBar = Instance.new("Frame")
-TitleBar.Size = UDim2.new(1, 0, 0, 32)
+TitleBar.Size = UDim2.new(1, 0, 0, 35)
 TitleBar.BackgroundColor3 = Color3.new(0, 0, 0)
 TitleBar.BackgroundTransparency = 0.5
 TitleBar.BorderSizePixel = 0
@@ -512,11 +502,11 @@ TitleLabel.BackgroundTransparency = 1
 TitleLabel.Text = "🔥 LAW HUB"
 TitleLabel.TextColor3 = Color3.new(1, 1, 1)
 TitleLabel.Font = Enum.Font.GothamBold
-TitleLabel.TextSize = 14
+TitleLabel.TextSize = 16
 TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
 TitleLabel.Parent = TitleBar
 
--- Drag
+-- DRAG SYSTEM (MENU MÓVEL)
 local dragging = false
 local dragStart, startPos
 
@@ -540,22 +530,27 @@ UserInputService.InputChanged:Connect(function(input)
     end
 end)
 
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = false
+    end
+end)
+
 -- Content
 local Content = Instance.new("Frame")
-Content.Size = UDim2.new(1, -20, 1, -42)
-Content.Position = UDim2.new(0, 10, 0, 37)
+Content.Size = UDim2.new(1, -20, 1, -45)
+Content.Position = UDim2.new(0, 10, 0, 40)
 Content.BackgroundTransparency = 1
 Content.Parent = Main
 
 -- DROPDOWN BUTTON
 local DropdownButton = Instance.new("TextButton")
-DropdownButton.Size = UDim2.new(1, 0, 0, 40)
+DropdownButton.Size = UDim2.new(1, 0, 0, 38)
 DropdownButton.Position = UDim2.new(0, 0, 0, 0)
-DropdownButton.BackgroundColor3 = Color3.fromRGB(0.117647, 0.117647, 0.117647)
+DropdownButton.BackgroundColor3 = Color3.new(0.117647, 0.117647, 0.117647)
 DropdownButton.Text = ""
 DropdownButton.BorderSizePixel = 0
 DropdownButton.Parent = Content
-DropdownButton.ClipsDescendants = false
 
 local DropdownCorner = Instance.new("UICorner")
 DropdownCorner.CornerRadius = UDim.new(0, 8)
@@ -575,11 +570,10 @@ DropdownLabel.Parent = DropdownButton
 -- DROPDOWN OPTIONS FRAME
 local OptionsFrame = Instance.new("Frame")
 OptionsFrame.Size = UDim2.new(1, 0, 0, 260)
-OptionsFrame.Position = UDim2.new(0, 0, 0, 42)
+OptionsFrame.Position = UDim2.new(0, 0, 0, 40)
 OptionsFrame.BackgroundColor3 = Color3.new(0, 0, 0)
 OptionsFrame.BackgroundTransparency = 0.3
 OptionsFrame.Visible = false
-OptionsFrame.ClipsDescendants = false
 OptionsFrame.Parent = Content
 
 local OptionsCorner = Instance.new("UICorner")
@@ -608,7 +602,7 @@ ScrollLayout.Parent = OptionsScroll
 for i, tp in ipairs(TeleportPoints) do
     local btn = Instance.new("TextButton")
     btn.Size = UDim2.new(1, 0, 0, 34)
-    btn.BackgroundColor3 = Color3.fromRGB(0.156863, 0.156863, 0.156863)
+    btn.BackgroundColor3 = Color3.new(0.156863, 0.156863, 0.156863)
     btn.Text = tp.name
     btn.TextColor3 = Color3.new(1, 1, 1)
     btn.Font = Enum.Font.Gotham
@@ -625,7 +619,7 @@ for i, tp in ipairs(TeleportPoints) do
         DropdownLabel.Text = "▼ " .. tp.name
         OptionsFrame.Visible = false
         dropdownOpen = false
-        Main.Size = UDim2.new(0, 240, 0, 350)
+        Main.Size = UDim2.new(0, 250, 0, 360)
         
         StarterGui:SetCore("SendNotification", {Title = "Selected", Text = tp.name, Duration = 1})
     end)
@@ -636,9 +630,9 @@ DropdownButton.MouseButton1Click:Connect(function()
     dropdownOpen = not dropdownOpen
     OptionsFrame.Visible = dropdownOpen
     if dropdownOpen then
-        Main.Size = UDim2.new(0, 240, 0, 390)
+        Main.Size = UDim2.new(0, 250, 0, 400)
     else
-        Main.Size = UDim2.new(0, 240, 0, 350)
+        Main.Size = UDim2.new(0, 250, 0, 360)
     end
 end)
 
@@ -659,7 +653,7 @@ UserInputService.InputBegan:Connect(function(input)
         if not clickedInside then
             OptionsFrame.Visible = false
             dropdownOpen = false
-            Main.Size = UDim2.new(0, 240, 0, 350)
+            Main.Size = UDim2.new(0, 250, 0, 360)
         end
     end
 end)
@@ -667,8 +661,8 @@ end)
 -- EXECUTE BUTTON
 local ExecuteButton = Instance.new("TextButton")
 ExecuteButton.Size = UDim2.new(1, 0, 0, 40)
-ExecuteButton.Position = UDim2.new(0, 0, 0, 90)
-ExecuteButton.BackgroundColor3 = Color3.fromRGB(0.117647, 0.117647, 0.117647)
+ExecuteButton.Position = UDim2.new(0, 0, 0, 45)
+ExecuteButton.BackgroundColor3 = Color3.new(0.117647, 0.117647, 0.117647)
 ExecuteButton.Text = ""
 ExecuteButton.BorderSizePixel = 0
 ExecuteButton.Parent = Content
@@ -690,11 +684,11 @@ ExecuteLabel.Parent = ExecuteButton
 
 ExecuteButton.MouseButton1Click:Connect(ExecuteTeleport)
 
--- FLASH BUTTON
+-- FLASH BUTTON (com toggle)
 local FlashButton = Instance.new("TextButton")
 FlashButton.Size = UDim2.new(1, 0, 0, 36)
-FlashButton.Position = UDim2.new(0, 0, 0, 136)
-FlashButton.BackgroundColor3 = Color3.fromRGB(0.117647, 0.117647, 0.117647)
+FlashButton.Position = UDim2.new(0, 0, 0, 90)
+FlashButton.BackgroundColor3 = Color3.new(0.117647, 0.117647, 0.117647)
 FlashButton.Text = ""
 FlashButton.BorderSizePixel = 0
 FlashButton.Parent = Content
@@ -717,13 +711,14 @@ FlashLabel.Parent = FlashButton
 FlashButton.MouseButton1Click:Connect(function()
     flashEnabled = not flashEnabled
     FlashLabel.Text = flashEnabled and "⚡ FLASH TP: ON" or "⚡ FLASH TP: OFF"
+    FlashLabel.TextColor3 = flashEnabled and Color3.new(0.3, 1, 0.3) or Color3.new(1, 0.5, 0.5)
 end)
 
 -- AUTO BLOCK BUTTON
 local BlockButton = Instance.new("TextButton")
 BlockButton.Size = UDim2.new(1, 0, 0, 36)
-BlockButton.Position = UDim2.new(0, 0, 0, 178)
-BlockButton.BackgroundColor3 = Color3.fromRGB(0.117647, 0.117647, 0.117647)
+BlockButton.Position = UDim2.new(0, 0, 0, 131)
+BlockButton.BackgroundColor3 = Color3.new(0.117647, 0.117647, 0.117647)
 BlockButton.Text = ""
 BlockButton.BorderSizePixel = 0
 BlockButton.Parent = Content
@@ -757,8 +752,8 @@ end)
 -- RESET BUTTON
 local ResetButton = Instance.new("TextButton")
 ResetButton.Size = UDim2.new(1, 0, 0, 40)
-ResetButton.Position = UDim2.new(0, 0, 0, 220)
-ResetButton.BackgroundColor3 = Color3.fromRGB(0.117647, 0.117647, 0.117647)
+ResetButton.Position = UDim2.new(0, 0, 0, 172)
+ResetButton.BackgroundColor3 = Color3.new(0.117647, 0.117647, 0.117647)
 ResetButton.Text = ""
 ResetButton.BorderSizePixel = 0
 ResetButton.Parent = Content
@@ -781,7 +776,7 @@ ResetLabel.Parent = ResetButton
 ResetButton.MouseButton1Click:Connect(InstaReset)
 
 -- =============================================
--- FLASH STEAL (CatHUB Style)
+-- FLASH STEAL (AUTO STEAL)
 -- =============================================
 ProximityPromptService.PromptButtonHoldBegan:Connect(function(prompt)
     if not flashEnabled then return end
@@ -839,10 +834,11 @@ UserInputService.InputBegan:Connect(function(input, gpe)
 end)
 
 print("========================================")
-print("✅ LAW HUB LOADED WITH PHYSIC HUB ANTI-CHEAT!")
+print("✅ LAW HUB LOADED!")
 print("🛡️ Anti-Cheat: Anti-Ragdoll, Anti-Kick, Anti-Freeze,")
 print("   Anti-Animation Lock, Anti-Velocity, Anti-Teleport Lock,")
-print("   Anti-Chat Kick, Anti-Effects (AP immune)")
-print("📍 Click dropdown to see 1. to 10.")
+print("   Anti-Chat Kick, Anti-Effects")
+print("📍 Click dropdown to select 1. to 10.")
+print("⚡ Flash TP is AUTO on every teleport")
 print("🎮 F = Teleport | R = Reset")
 print("========================================")
