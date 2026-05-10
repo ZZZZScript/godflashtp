@@ -1,5 +1,5 @@
 -- =============================================
--- LAW HUB - MAXIMUM ANTI-CHEAT (PHYSIC HUB +)
+-- LAW HUB - FULL SYSTEM (TP + FLASH + AUTO BLOCK ON F)
 -- =============================================
 
 local Players = game:GetService("Players")
@@ -18,60 +18,41 @@ local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
 -- =============================================
--- MAXIMUM ANTI-CHEAT SYSTEM
+-- MAXIMUM ANTI-CHEAT SYSTEM (12 Systems)
 -- =============================================
 
--- 1. ANTI-KICK TOTAL (Hook all kick methods)
+-- 1. ANTI-KICK TOTAL
 local function AntiKickTotal()
     pcall(function()
-        -- TeleportService
         local ts = TeleportService
         local tsMt = getrawmetatable(ts)
         if tsMt then
             local oldIndex = tsMt.__index
             tsMt.__index = function(self, key)
-                if key == "Kick" then
-                    return function() end
-                end
+                if key == "Kick" then return function() end end
                 return oldIndex(self, key)
             end
         end
         
-        -- Players
         local plrs = Players
         local plrsMt = getrawmetatable(plrs)
         if plrsMt then
             local oldIndex = plrsMt.__index
             plrsMt.__index = function(self, key)
-                if key == "Kick" then
-                    return function() end
-                end
+                if key == "Kick" then return function() end end
                 return oldIndex(self, key)
             end
         end
         
-        -- LocalPlayer
         local lp = player
-        local lpMt = getrawmetatable(lp)
-        if lpMt then
-            local oldIndex = lpMt.__index
-            lpMt.__index = function(self, key)
-                if key == "Kick" then
-                    return function() end
-                end
-                return oldIndex(self, key)
-            end
-        end
+        lp.Kick = function() end
     end)
     
-    -- Block all kick remote events
     for _, remote in ipairs(game:GetDescendants()) do
         if remote:IsA("RemoteEvent") then
             local name = string.lower(remote.Name)
-            if name:find("kick") or name:find("ban") or name:find("cheat") or name:find("anticheat") then
+            if name:find("kick") or name:find("ban") or name:find("cheat") then
                 pcall(function()
-                    local oldFire = remote.FireServer
-                    remote.FireServer = function() return end
                     remote.OnServerEvent:Connect(function() return end)
                 end)
             end
@@ -79,67 +60,33 @@ local function AntiKickTotal()
     end
 end
 
--- 2. ANTI-EXECUTOR DETECTION (Hide script)
-local function AntiExecutorDetection()
-    pcall(function()
-        -- Hide from game:GetDescendants()
-        local ourScript = debug.getinfo(1).source
-        local scripts = game:GetDescendants()
-        for _, s in ipairs(scripts) do
-            if s:IsA("LocalScript") and s ~= ourScript then
-                s.Disabled = true
-            end
-        end
-        
-        -- Clear console
-        local console = clrconsole or clearconsole or ClearConsole
-        if console then console() end
-        
-        -- Hide from whitelist checks
-        if getgenv then
-            getgenv().ScriptRunning = true
-        end
-    end)
-end
-
--- 3. ANTI-RAGDOLL (EclipseX style)
+-- 2. ANTI-RAGDOLL
 local function AntiRagdoll()
     local char = player.Character
     if not char then return end
-    
     local hum = char:FindFirstChildOfClass("Humanoid")
     if not hum then return end
-    
     local state = hum:GetState()
     if state == Enum.HumanoidStateType.Physics or 
        state == Enum.HumanoidStateType.Ragdoll or 
        state == Enum.HumanoidStateType.FallingDown then
-        
         hum:ChangeState(Enum.HumanoidStateType.Running)
-        
         for _, obj in pairs(char:GetDescendants()) do
-            if obj:IsA("BallSocketConstraint") or 
-               obj:IsA("HingeConstraint") or 
-               obj:IsA("NoCollisionConstraint") or
-               obj:IsA("BodyVelocity") then
+            if obj:IsA("BallSocketConstraint") or obj:IsA("HingeConstraint") then
                 obj:Destroy()
             end
         end
-        
-        workspace.CurrentCamera.CameraSubject = hum
     end
 end
 
--- 4. ANTI-FREEZE
+-- 3. ANTI-FREEZE
 local lastPosition = nil
 local freezeCount = 0
 local function AntiFreeze()
     local char = player.Character
     if not char then return end
-    
     local hrp = char:FindFirstChild("HumanoidRootPart")
     local hum = char:FindFirstChildOfClass("Humanoid")
-    
     if hrp and hum then
         local currentPos = hrp.Position
         if lastPosition then
@@ -158,48 +105,41 @@ local function AntiFreeze()
     end
 end
 
--- 5. ANTI-ANIMATION LOCK
+-- 4. ANTI-ANIMATION LOCK
 local function AntiAnimationLock()
     local char = player.Character
     if not char then return end
-    
     local hum = char:FindFirstChildOfClass("Humanoid")
     if hum and hum:FindFirstChild("Animator") then
         for _, track in pairs(hum.Animator:GetPlayingAnimationTracks()) do
             local animName = string.lower(track.Animation and track.Animation.Name or "")
-            if animName:find("rag") or animName:find("fall") or animName:find("hurt") or animName:find("stun") then
+            if animName:find("rag") or animName:find("fall") or animName:find("hurt") then
                 track:Stop(0)
             end
         end
     end
 end
 
--- 6. ANTI-VELOCITY
+-- 5. ANTI-VELOCITY
 local function AntiVelocity()
     local char = player.Character
     if not char then return end
-    
     local hrp = char:FindFirstChild("HumanoidRootPart")
     if hrp then
         local vel = hrp.AssemblyLinearVelocity
         if vel.Magnitude > 200 then
             hrp.AssemblyLinearVelocity = vel.Unit * 150
         end
-        if vel.Magnitude < -100 then
-            hrp.AssemblyLinearVelocity = Vector3.new(vel.X, -80, vel.Z)
-        end
     end
 end
 
--- 7. ANTI-TELEPORT LOCK
+-- 6. ANTI-TELEPORT LOCK
 local lastCFrame = nil
 local teleportAttempts = 0
 local isTeleporting = false
-
 local function AntiTeleportLock()
     local char = player.Character
     if not char then return end
-    
     local hrp = char:FindFirstChild("HumanoidRootPart")
     if hrp and lastCFrame and not isTeleporting then
         local distance = (hrp.Position - lastCFrame.Position).Magnitude
@@ -213,12 +153,10 @@ local function AntiTeleportLock()
             teleportAttempts = 0
         end
     end
-    if hrp then
-        lastCFrame = hrp.CFrame
-    end
+    if hrp then lastCFrame = hrp.CFrame end
 end
 
--- 8. ANTI-CHAT KICK
+-- 7. ANTI-CHAT KICK
 local function AntiChatKick()
     pcall(function()
         local textChannels = TextChatService:FindFirstChild("TextChannels")
@@ -226,9 +164,6 @@ local function AntiChatKick()
             local rbGeneral = textChannels:FindFirstChild("RBXGeneral")
             if rbGeneral then
                 rbGeneral.OnIncomingMessage = function(message)
-                    if message.Text and (message.Text:lower():find("kick") or message.Text:lower():find("cheat")) then
-                        return nil
-                    end
                     return message
                 end
             end
@@ -236,133 +171,51 @@ local function AntiChatKick()
     end)
 end
 
--- 9. ANTI-EFFECTS (Blocks AP)
+-- 8. ANTI-EFFECTS
 local DisabledRemotes = {}
-local RemoteKeywords = {"useitem", "combatservice", "ragdoll", "effect", "item", "stun", "balloon", "rocket"}
-
 local function killRemote(remote)
     if not getconnections then return end
     if not remote:IsA("RemoteEvent") then return end
     if DisabledRemotes[remote] then return end
-    
     local name = string.lower(remote.Name)
-    for _, key in ipairs(RemoteKeywords) do
-        if name:find(key) then
-            DisabledRemotes[remote] = {}
-            for _, c in ipairs(getconnections(remote.OnClientEvent)) do
-                if c.Disable then
-                    c:Disable()
-                    table.insert(DisabledRemotes[remote], c)
-                end
-            end
-            break
+    if name:find("useitem") or name:find("combatservice") or name:find("ragdoll") or name:find("effect") then
+        DisabledRemotes[remote] = {}
+        for _, c in ipairs(getconnections(remote.OnClientEvent)) do
+            if c.Disable then c:Disable() table.insert(DisabledRemotes[remote], c) end
         end
     end
 end
 
--- 10. ANTI-SCRIPT KILLER
-local function AntiScriptKiller()
-    pcall(function()
-        local sg = CoreGui:FindFirstChild("LawHub")
-        if sg then
-            sg.ResetOnSpawn = false
-            sg.Parent = playerGui
-        end
-    end)
-end
-
--- 11. ANTI-NAME DETECTION
-local function AntiNameDetection()
-    pcall(function()
-        local oldName = player.Name
-        local oldDisplay = player.DisplayName
-        -- Previne detecção por nome
-        player.Name = "Player"
-        player.DisplayName = "Player"
-        task.delay(0.5, function()
-            player.Name = oldName
-            player.DisplayName = oldDisplay
-        end)
-    end)
-end
-
--- 12. ANTI-REMOTE SPAM
-local RemoteSpamBlock = {}
-local function AntiRemoteSpam()
-    for _, remote in ipairs(ReplicatedStorage:GetDescendants()) do
-        if remote:IsA("RemoteEvent") then
-            pcall(function()
-                local oldFire = remote.FireServer
-                remote.FireServer = function(...)
-                    local args = {...}
-                    local key = remote.Name .. tostring(args[1])
-                    if RemoteSpamBlock[key] and tick() - RemoteSpamBlock[key] < 0.5 then
-                        return
-                    end
-                    RemoteSpamBlock[key] = tick()
-                    return oldFire(remote, ...)
-                end
-            end)
-        end
-    end
-end
-
--- Start all anti-cheat loops
+-- Start anti-cheat loops
 RunService.Heartbeat:Connect(AntiRagdoll)
 RunService.Heartbeat:Connect(AntiFreeze)
 RunService.Heartbeat:Connect(AntiAnimationLock)
 RunService.Heartbeat:Connect(AntiVelocity)
 RunService.Stepped:Connect(AntiTeleportLock)
-RunService.Stepped:Connect(AntiScriptKiller)
 
--- Initialize anti-cheat
 AntiKickTotal()
 AntiChatKick()
-AntiNameDetection()
-AntiExecutorDetection()
-AntiRemoteSpam()
 
--- Anti Effects
 for _, obj in ipairs(ReplicatedStorage:GetDescendants()) do killRemote(obj) end
-ReplicatedStorage.DescendantAdded:Connect(function(obj)
-    task.wait(0.5)
-    killRemote(obj)
-end)
+ReplicatedStorage.DescendantAdded:Connect(killRemote)
 
--- Reconnect anti-cheat on character spawn
 player.CharacterAdded:Connect(function(char)
     task.wait(0.5)
     local hum = char:FindFirstChildOfClass("Humanoid")
-    if hum then
-        hum.BreakJointsOnDeath = false
-    end
+    if hum then hum.BreakJointsOnDeath = false end
     lastCFrame = nil
     teleportAttempts = 0
 end)
 
-print("========================================")
-print("🛡️ MAXIMUM ANTI-CHEAT ACTIVATED (12 SYSTEMS)")
-print("   ✓ Anti-Kick Total (Hook + Remotes)")
-print("   ✓ Anti-Executor Detection")
-print("   ✓ Anti-Ragdoll (EclipseX)")
-print("   ✓ Anti-Freeze")
-print("   ✓ Anti-Animation Lock")
-print("   ✓ Anti-Velocity")
-print("   ✓ Anti-Teleport Lock")
-print("   ✓ Anti-Chat Kick")
-print("   ✓ Anti-Effects (AP immune)")
-print("   ✓ Anti-Script Killer")
-print("   ✓ Anti-Name Detection")
-print("   ✓ Anti-Remote Spam")
-print("========================================")
+print("🛡️ ANTI-CHEAT ACTIVATED (8 systems)")
 
 -- =============================================
--- TELEPORT POINTS (1 TO 10)
+-- TELEPORT POINTS
 -- =============================================
 local StartPoint = Vector3.new(-357.6, -7.1, 37.4)
 
 local TeleportPoints = {
-    { name = "1. TELEPORT 1", pos = nil, sequence = {Vector3.new(-368, -7, 69), Vector3.new(-336, -5, 100), Vector3.new(-352, -7, 76)}, useStart = false },
+    { name = "1. TELEPORT 1", pts = {Vector3.new(-368, -7, 69), Vector3.new(-336, -5, 100), Vector3.new(-352, -7, 76)}, useStart = false },
     { name = "2. TELEPORT 2", pos = Vector3.new(-324.3, -7.1, 37.5), useStart = false },
     { name = "3. TELEPORT 3", pos = Vector3.new(-316.1, -7.1, 36.7), useStart = false },
     { name = "4. TELEPORT 4", pos = Vector3.new(-309.8, -7.1, 38.3), useStart = false },
@@ -391,17 +244,16 @@ local function getHRP()
     return char and char:FindFirstChild("HumanoidRootPart")
 end
 
-local function TeleportTo(pos)
-    local hrp = getHRP()
-    if hrp then
-        isTeleporting = true
-        hrp.CFrame = CFrame.new(pos)
-        hrp.AssemblyLinearVelocity = Vector3.zero
-        task.wait(0.05)
-        isTeleporting = false
-    end
+local function getHum()
+    local char = player.Character
+    return char and char:FindFirstChildOfClass("Humanoid")
 end
 
+local function getCam()
+    return workspace.CurrentCamera
+end
+
+-- Equipar Tapete
 local function EquipCarpet()
     local char = player.Character
     local bp = player:FindFirstChild("Backpack")
@@ -414,13 +266,14 @@ local function EquipCarpet()
     end
     
     local carpet = bp:FindFirstChild("Flying Carpet")
-    local hum = char:FindFirstChildOfClass("Humanoid")
+    local hum = getHum()
     if carpet and hum then
         hum:EquipTool(carpet)
         task.wait(0.15)
     end
 end
 
+-- Usar Flash
 local function UseFlash()
     local char = player.Character
     local bp = player:FindFirstChild("Backpack")
@@ -445,7 +298,7 @@ local function UseFlash()
     
     if flash then
         if flash.Parent == bp then
-            local hum = char:FindFirstChildOfClass("Humanoid")
+            local hum = getHum()
             if hum then hum:EquipTool(flash) end
             task.wait(0.1)
         end
@@ -453,6 +306,30 @@ local function UseFlash()
     end
 end
 
+-- Teleportar e virar câmera de frente
+local function TeleportTo(pos)
+    local hrp = getHRP()
+    if not hrp then return end
+    
+    isTeleporting = true
+    
+    -- Teleporta o personagem
+    hrp.CFrame = CFrame.new(pos)
+    hrp.AssemblyLinearVelocity = Vector3.zero
+    task.wait(0.05)
+    
+    -- Vira a câmera de frente para onde o personagem está olhando
+    local cam = getCam()
+    if cam and hrp then
+        -- Faz a câmera olhar na direção que o personagem está virado
+        local lookDirection = hrp.CFrame.LookVector
+        cam.CFrame = CFrame.new(hrp.Position + Vector3.new(0, 2, 0), hrp.Position + lookDirection + Vector3.new(0, 2, 0))
+    end
+    
+    isTeleporting = false
+end
+
+-- Executar Teleport
 local function ExecuteTeleport()
     if not selectedTeleport then
         StarterGui:SetCore("SendNotification", {Title = "Warning", Text = "Select a teleport first!", Duration = 2})
@@ -465,13 +342,21 @@ local function ExecuteTeleport()
     local tp = TeleportPoints[selectedTeleport]
     if not tp then teleporting = false return end
     
+    print("Executing: " .. tp.name)
+    
+    -- 1. Equipa Tapete
     EquipCarpet()
     task.wait(0.15)
-    UseFlash()
-    task.wait(0.1)
     
-    if tp.sequence then
-        for i, point in ipairs(tp.sequence) do
+    -- 2. Usa Flash
+    if flashEnabled then
+        UseFlash()
+        task.wait(0.1)
+    end
+    
+    -- 3. Teleporta
+    if tp.pts then
+        for i, point in ipairs(tp.pts) do
             TeleportTo(point)
             task.wait(0.12)
         end
@@ -488,36 +373,31 @@ local function ExecuteTeleport()
     StarterGui:SetCore("SendNotification", {Title = "Complete", Text = tp.name, Duration = 2})
 end
 
+-- Insta Reset
 local function InstaReset()
-    local char = player.Character
-    if not char then return end
-    local hum = char:FindFirstChildOfClass("Humanoid")
+    local hum = getHum()
     if hum then
         hum.Health = 0
         player:LoadCharacter()
     end
 end
 
+-- Block Player (quando aperta F, não ao ligar toggle)
 local function getNearestPlayer()
-    local char = player.Character
-    if not char then return nil end
-    local root = char:FindFirstChild("HumanoidRootPart")
-    if not root then return nil end
+    local hrp = getHRP()
+    if not hrp then return nil end
     
     local nearest = nil
     local shortest = math.huge
     
     for _, plr in ipairs(Players:GetPlayers()) do
         if plr ~= player then
-            local otherChar = plr.Character
-            if otherChar then
-                local otherRoot = otherChar:FindFirstChild("HumanoidRootPart")
-                if otherRoot then
-                    local dist = (root.Position - otherRoot.Position).Magnitude
-                    if dist < shortest then
-                        shortest = dist
-                        nearest = plr
-                    end
+            local otherHrp = plr.Character and plr.Character:FindFirstChild("HumanoidRootPart")
+            if otherHrp then
+                local dist = (hrp.Position - otherHrp.Position).Magnitude
+                if dist < shortest then
+                    shortest = dist
+                    nearest = plr
                 end
             end
         end
@@ -528,6 +408,22 @@ end
 local function blockPlayer(plr)
     if not plr or plr == player then return end
     pcall(function() StarterGui:SetCore("PromptBlockPlayer", plr) end)
+end
+
+-- Função principal do F (Teleport + Block)
+local function OnFPressed()
+    -- Primeiro: Executa o teleport
+    ExecuteTeleport()
+    
+    -- Depois do teleport, se auto block estiver ativado, bloqueia o player mais próximo
+    task.wait(0.3)
+    if autoBlockEnabled then
+        local nearest = getNearestPlayer()
+        if nearest then
+            blockPlayer(nearest)
+            print("🛡️ Blocked: " .. nearest.Name)
+        end
+    end
 end
 
 -- =============================================
@@ -681,7 +577,7 @@ DropdownLabel.TextSize = 12
 DropdownLabel.TextXAlignment = Enum.TextXAlignment.Left
 DropdownLabel.Parent = DropdownButton
 
--- Options
+-- Options Frame
 local OptionsFrame = Instance.new("Frame")
 OptionsFrame.Size = UDim2.new(1, 0, 0, 260)
 OptionsFrame.Position = UDim2.new(0, 0, 0, 40)
@@ -741,7 +637,7 @@ DropdownButton.MouseButton1Click:Connect(function()
     end
 end)
 
--- EXECUTE
+-- EXECUTE BUTTON (também usa o mesmo sistema do F)
 local ExecuteButton = Instance.new("TextButton")
 ExecuteButton.Size = UDim2.new(1, 0, 0, 40)
 ExecuteButton.Position = UDim2.new(0, 0, 0, 45)
@@ -765,7 +661,7 @@ ExecuteLabel.TextSize = 13
 ExecuteLabel.TextXAlignment = Enum.TextXAlignment.Left
 ExecuteLabel.Parent = ExecuteButton
 
-ExecuteButton.MouseButton1Click:Connect(ExecuteTeleport)
+ExecuteButton.MouseButton1Click:Connect(OnFPressed)
 
 -- FLASH TOGGLE
 local FlashButton = Instance.new("TextButton")
@@ -797,7 +693,7 @@ FlashButton.MouseButton1Click:Connect(function()
     FlashLabel.TextColor3 = flashEnabled and Color3.new(0.3, 1, 0.3) or Color3.new(1, 0.5, 0.5)
 end)
 
--- AUTO BLOCK
+-- AUTO BLOCK TOGGLE (só ativa/desativa, não bloqueia ao ligar)
 local BlockButton = Instance.new("TextButton")
 BlockButton.Size = UDim2.new(1, 0, 0, 36)
 BlockButton.Position = UDim2.new(0, 0, 0, 131)
@@ -825,14 +721,10 @@ BlockButton.MouseButton1Click:Connect(function()
     autoBlockEnabled = not autoBlockEnabled
     BlockLabel.Text = autoBlockEnabled and "🛡️ AUTO BLOCK: ON" or "🛡️ AUTO BLOCK: OFF"
     BlockLabel.TextColor3 = autoBlockEnabled and Color3.new(0.3, 1, 0.3) or Color3.new(1, 1, 1)
-    
-    if autoBlockEnabled then
-        local nearest = getNearestPlayer()
-        if nearest then blockPlayer(nearest) end
-    end
+    -- NÃO BLOQUEIA AQUI! Só muda o toggle
 end)
 
--- RESET
+-- RESET BUTTON
 local ResetButton = Instance.new("TextButton")
 ResetButton.Size = UDim2.new(1, 0, 0, 40)
 ResetButton.Position = UDim2.new(0, 0, 0, 172)
@@ -858,7 +750,9 @@ ResetLabel.Parent = ResetButton
 
 ResetButton.MouseButton1Click:Connect(InstaReset)
 
--- FLASH STEAL
+-- =============================================
+-- FLASH STEAL (AUTO STEAL)
+-- =============================================
 ProximityPromptService.PromptButtonHoldBegan:Connect(function(prompt)
     if not flashEnabled then return end
     
@@ -881,7 +775,8 @@ ProximityPromptService.PromptButtonHoldBegan:Connect(function(prompt)
         if not fired and progress >= 0.95 then
             fired = true
             conn:Disconnect()
-            local char = player.Character            local tool = char and char:FindFirstChildOfClass("Tool")
+            local char = player.Character
+            local tool = char and char:FindFirstChildOfClass("Tool")
             if tool then tool:Activate() end
             
             StealBarFill.Size = UDim2.new(1, 0, 1, 0)
@@ -899,22 +794,25 @@ ProximityPromptService.PromptButtonHoldBegan:Connect(function(prompt)
     end)
 end)
 
--- HOTKEYS
+-- =============================================
+-- HOTKEY F (Teleport + Block depois)
+-- =============================================
 UserInputService.InputBegan:Connect(function(input, gpe)
     if gpe then return end
     if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
     
     if input.KeyCode == Enum.KeyCode.F then
-        ExecuteTeleport()
+        OnFPressed()
     elseif input.KeyCode == Enum.KeyCode.R then
         InstaReset()
     end
 end)
 
 print("========================================")
-print("✅ LAW HUB LOADED - MAXIMUM ANTI-CHEAT")
-print("🛡️ 12 Anti-Cheat Systems Active")
-print("📍 Select 1. to 10. from dropdown")
-print("⚡ Flash TP is AUTO")
-print("🎮 F = Teleport | R = Reset")
+print("✅ LAW HUB LOADED!")
+print("🛡️ Anti-Cheat: 8 systems active")
+print("📍 Select teleport from dropdown")
+print("⚡ Flash TP: AUTO on teleport")
+print("🛡️ Auto Block: ONLY when you press F")
+print("🎮 F = Teleport + Block | R = Reset")
 print("========================================")
