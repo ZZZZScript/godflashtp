@@ -118,18 +118,18 @@ print("ANTI-CHEAT ACTIVATED")
 -- TELEPORT COORDINATES
 -- =============================================
 
--- Start point for Teleport 7-10
+-- Start point for Teleport 6-10
 local StartPoint = Vector3.new(-357.6, -7.1, 37.4)
 
--- TELEPORT 1 TO 6
+-- TELEPORT 1 TO 5 (direto, camera FRENTE)
 local Teleport1Pos = Vector3.new(-335.1, -7.1, 39.7)
 local Teleport2Pos = Vector3.new(-324.3, -7.1, 37.5)
 local Teleport3Pos = Vector3.new(-316.1, -7.1, 36.7)
 local Teleport4Pos = Vector3.new(-309.8, -7.1, 38.3)
 local Teleport5Pos = Vector3.new(-302.3, -7.1, 41.5)
-local Teleport6Pos = Vector3.new(-331.6, -7.1, -23.3)
 
--- TELEPORT 7 TO 10
+-- TELEPORT 6 TO 10 (StartPoint + destino, camera TRAS)
+local Teleport6Pos = Vector3.new(-331.6, -7.1, -23.3)
 local Teleport7Pos = Vector3.new(-324.1, -7.1, -23.2)
 local Teleport8Pos = Vector3.new(-317.8, -7.1, -23.6)
 local Teleport9Pos = Vector3.new(-311.1, -7.1, -23.5)
@@ -205,12 +205,12 @@ local function UseFlash()
             task.wait(0.1)
         end
         pcall(function() flash:Activate() end)
-        task.wait(0.2)
+        task.wait(0.15)
     end
 end
 
--- Teleport with camera BACKWARDS
-local function TeleportTo(pos)
+-- Teleport with camera control
+local function TeleportTo(pos, lookBack)
     local hrp = getHRP()
     if not hrp then return false end
     
@@ -218,10 +218,14 @@ local function TeleportTo(pos)
     hrp.AssemblyLinearVelocity = Vector3.zero
     task.wait(0.05)
     
-    -- Camera for BACKWARDS
     local cam = workspace.CurrentCamera
     if cam and hrp then
-        local lookDir = -hrp.CFrame.LookVector
+        local lookDir
+        if lookBack then
+            lookDir = -hrp.CFrame.LookVector
+        else
+            lookDir = hrp.CFrame.LookVector
+        end
         cam.CFrame = CFrame.new(hrp.Position + Vector3.new(0, 2, 0), hrp.Position + lookDir + Vector3.new(0, 2, 0))
     end
     
@@ -244,37 +248,39 @@ local function ExecuteTeleport()
         UseFlash()
     end
     
-    -- TELEPORT 1 TO 6
+    -- TELEPORT 1 TO 5 (direto, camera FRENTE)
     if selectedTeleport == 1 then
-        TeleportTo(Teleport1Pos)
+        TeleportTo(Teleport1Pos, false)
     elseif selectedTeleport == 2 then
-        TeleportTo(Teleport2Pos)
+        TeleportTo(Teleport2Pos, false)
     elseif selectedTeleport == 3 then
-        TeleportTo(Teleport3Pos)
+        TeleportTo(Teleport3Pos, false)
     elseif selectedTeleport == 4 then
-        TeleportTo(Teleport4Pos)
+        TeleportTo(Teleport4Pos, false)
     elseif selectedTeleport == 5 then
-        TeleportTo(Teleport5Pos)
-    elseif selectedTeleport == 6 then
-        TeleportTo(Teleport6Pos)
+        TeleportTo(Teleport5Pos, false)
         
-    -- TELEPORT 7 TO 10
+    -- TELEPORT 6 TO 10 (StartPoint + destino, camera TRAS)
+    elseif selectedTeleport == 6 then
+        TeleportTo(StartPoint, true)
+        task.wait(0.15)
+        TeleportTo(Teleport6Pos, true)
     elseif selectedTeleport == 7 then
-        TeleportTo(StartPoint)
+        TeleportTo(StartPoint, true)
         task.wait(0.15)
-        TeleportTo(Teleport7Pos)
+        TeleportTo(Teleport7Pos, true)
     elseif selectedTeleport == 8 then
-        TeleportTo(StartPoint)
+        TeleportTo(StartPoint, true)
         task.wait(0.15)
-        TeleportTo(Teleport8Pos)
+        TeleportTo(Teleport8Pos, true)
     elseif selectedTeleport == 9 then
-        TeleportTo(StartPoint)
+        TeleportTo(StartPoint, true)
         task.wait(0.15)
-        TeleportTo(Teleport9Pos)
+        TeleportTo(Teleport9Pos, true)
     elseif selectedTeleport == 10 then
-        TeleportTo(StartPoint)
+        TeleportTo(StartPoint, true)
         task.wait(0.15)
-        TeleportTo(Teleport10Pos)
+        TeleportTo(Teleport10Pos, true)
     end
     
     teleporting = false
@@ -282,27 +288,25 @@ local function ExecuteTeleport()
 end
 
 -- =============================================
--- INSTANT RESET
+-- INSTANT RESET (0.1s)
 -- =============================================
-local lastReset = 0
-local COOLDOWN = 0.2
-
 local function InstaReset()
     local char = player.Character
-    if not char then return end
+    if not char then 
+        player:LoadCharacter()
+        return
+    end
+    
     local hum = char:FindFirstChild("Humanoid")
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    
     if hum then
         hum.Health = 0
         hum:BreakJoints()
     end
-end
-
-local function handleReset()
-    local now = tick()
-    if now - lastReset >= COOLDOWN then
-        lastReset = now
-        InstaReset()
-    end
+    
+    task.wait(0.1)
+    player:LoadCharacter()
 end
 
 local function getNearestPlayer()
@@ -407,7 +411,7 @@ MainStroke.Color = Color3.new(1, 1, 1)
 MainStroke.Thickness = 1.5
 MainStroke.Parent = Main
 
--- Title Bar (MOVABLE)
+-- Title Bar
 local TitleBar = Instance.new("Frame")
 TitleBar.Size = UDim2.new(1, 0, 0, 35)
 TitleBar.BackgroundColor3 = Color3.new(0, 0, 0)
@@ -676,7 +680,7 @@ BlockButton.MouseButton1Click:Connect(function()
     BlockLabel.Text = autoBlockEnabled and "PREBLOCK: ON" or "PREBLOCK: OFF"
 end)
 
--- RESET BUTTON (R)
+-- RESET BUTTON (R) - 0.1s
 local ResetButton = Instance.new("TextButton")
 ResetButton.Size = UDim2.new(1, 0, 0, 40)
 ResetButton.Position = UDim2.new(0, 0, 0, 172)
@@ -694,15 +698,15 @@ local ResetLabel = Instance.new("TextLabel")
 ResetLabel.Size = UDim2.new(1, -20, 1, 0)
 ResetLabel.Position = UDim2.new(0, 12, 0, 0)
 ResetLabel.BackgroundTransparency = 1
-ResetLabel.Text = "INSTANT RESET (R)"
+ResetLabel.Text = "INSTANT RESET (R) 0.1s"
 ResetLabel.TextColor3 = Color3.new(1, 1, 1)
 ResetLabel.Font = Enum.Font.GothamBold
 ResetLabel.TextSize = 13
 ResetLabel.TextXAlignment = Enum.TextXAlignment.Left
 ResetLabel.Parent = ResetButton
 
-ResetButton.MouseButton1Click:Connect(handleReset)
-ResetButton.TouchTap:Connect(handleReset)
+ResetButton.MouseButton1Click:Connect(InstaReset)
+ResetButton.TouchTap:Connect(InstaReset)
 
 -- =============================================
 -- FLASH STEAL
@@ -759,15 +763,14 @@ UserInputService.InputBegan:Connect(function(input, gpe)
     if input.KeyCode == Enum.KeyCode.F then
         OnFPressed()
     elseif input.KeyCode == Enum.KeyCode.R then
-        handleReset()
+        InstaReset()
     end
 end)
 
 print("========================================")
 print("OLD HUB LOADED!")
-print("TELEPORT 1-6: Direct")
-print("TELEPORT 7-10: StartPoint + Teleport")
+print("TELEPORT 1-5: Direct / Camera FRONT")
+print("TELEPORT 6-10: StartPoint + Teleport / Camera BACK")
 print("F = Execute Teleport")
-print("R = Instant Reset")
-print("Menu is DRAGGABLE")
+print("R = Instant Reset (0.1s)")
 print("========================================")
