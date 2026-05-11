@@ -1,5 +1,5 @@
 -- =============================================
--- OLD HUB - FINAL VERSION
+-- OLD HUB - WITH LAW HUB INSTA RESET
 -- =============================================
 
 local Players = game:GetService("Players")
@@ -8,7 +8,6 @@ local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local ProximityPromptService = game:GetService("ProximityPromptService")
 local StarterGui = game:GetService("StarterGui")
-local CoreGui = game:GetService("CoreGui")
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
@@ -101,45 +100,12 @@ local function UseFlash()
     end
 end
 
--- CAMERA FRENTE (1 AO 5)
-local function lookFront()
-    local hrp = getHRP()
-    local cam = workspace.CurrentCamera
-    if hrp and cam then
-        local lookDir = hrp.CFrame.LookVector
-        cam.CFrame = CFrame.new(hrp.Position + Vector3.new(0, 2, 0), hrp.Position + lookDir + Vector3.new(0, 2, 0))
-    end
-end
-
--- CAMERA ESQUERDA (6 AO 10) - GIRADO 90 GRAUS
-local function lookLeft()
-    local hrp = getHRP()
-    local cam = workspace.CurrentCamera
-    if hrp and cam then
-        -- Gira o personagem 90 graus para a esquerda
-        local newCFrame = hrp.CFrame * CFrame.Angles(0, math.rad(-90), 0)
-        local lookDir = newCFrame.LookVector
-        cam.CFrame = CFrame.new(hrp.Position + Vector3.new(0, 2, 0), hrp.Position + lookDir + Vector3.new(0, 2, 0))
-    end
-end
-
-local function TeleportTo(pos, useLeftCamera)
+local function TeleportTo(pos)
     local hrp = getHRP()
     if not hrp then return false end
     
     hrp.CFrame = CFrame.new(pos)
     hrp.AssemblyLinearVelocity = Vector3.zero
-    task.wait(0.05)
-    
-    -- FORCA CAMERA 15 VEZES
-    for i = 1, 15 do
-        if useLeftCamera then
-            lookLeft()
-        else
-            lookFront()
-        end
-        task.wait(0.1)
-    end
     
     return true
 end
@@ -161,25 +127,25 @@ local function ExecuteTeleport()
     end
     
     if selectedTeleport == 1 then
-        TeleportTo(Teleport1Pos, false)
+        TeleportTo(Teleport1Pos)
     elseif selectedTeleport == 2 then
-        TeleportTo(Teleport2Pos, false)
+        TeleportTo(Teleport2Pos)
     elseif selectedTeleport == 3 then
-        TeleportTo(Teleport3Pos, false)
+        TeleportTo(Teleport3Pos)
     elseif selectedTeleport == 4 then
-        TeleportTo(Teleport4Pos, false)
+        TeleportTo(Teleport4Pos)
     elseif selectedTeleport == 5 then
-        TeleportTo(Teleport5Pos, false)
+        TeleportTo(Teleport5Pos)
     elseif selectedTeleport == 6 then
-        TeleportTo(Teleport6Pos, true)
+        TeleportTo(Teleport6Pos)
     elseif selectedTeleport == 7 then
-        TeleportTo(Teleport7Pos, true)
+        TeleportTo(Teleport7Pos)
     elseif selectedTeleport == 8 then
-        TeleportTo(Teleport8Pos, true)
+        TeleportTo(Teleport8Pos)
     elseif selectedTeleport == 9 then
-        TeleportTo(Teleport9Pos, true)
+        TeleportTo(Teleport9Pos)
     elseif selectedTeleport == 10 then
-        TeleportTo(Teleport10Pos, true)
+        TeleportTo(Teleport10Pos)
     end
     
     teleporting = false
@@ -187,17 +153,27 @@ local function ExecuteTeleport()
 end
 
 -- =============================================
--- RESET 0.001s
+-- INSTA RESET (LAW HUB STYLE)
 -- =============================================
-local function InstaReset()
+local lastReset = 0
+local COOLDOWN = 0.2
+
+local function instaReset()
     local char = player.Character
-    if char then
-        local hum = char:FindFirstChildOfClass("Humanoid")
-        if hum then
-            hum.Health = 0
-        end
+    if not char then return end
+    local hum = char:FindFirstChild("Humanoid")
+    if hum then
+        hum.Health = 0
+        hum:BreakJoints()
     end
-    player:LoadCharacter()
+end
+
+local function handleReset()
+    local now = tick()
+    if now - lastReset >= COOLDOWN then
+        lastReset = now
+        instaReset()
+    end
 end
 
 -- =============================================
@@ -287,8 +263,8 @@ StealBarFill.Parent = StealBarInner
 
 -- Main Frame
 local Main = Instance.new("Frame")
-Main.Size = UDim2.new(0, 260, 0, 260)
-Main.Position = UDim2.new(0.5, -130, 0.5, -130)
+Main.Size = UDim2.new(0, 250, 0, 250)
+Main.Position = UDim2.new(0.5, -125, 0.5, -125)
 Main.BackgroundColor3 = Color3.new(0, 0, 0)
 Main.BackgroundTransparency = 0.2
 Main.BorderSizePixel = 0
@@ -304,9 +280,9 @@ MainStroke.Color = Color3.new(1, 1, 1)
 MainStroke.Thickness = 1.5
 MainStroke.Parent = Main
 
--- TITLE BAR (DRAG)
+-- Title Bar (DRAG)
 local TitleBar = Instance.new("Frame")
-TitleBar.Size = UDim2.new(1, 0, 0, 32)
+TitleBar.Size = UDim2.new(1, 0, 0, 30)
 TitleBar.BackgroundColor3 = Color3.new(0, 0, 0)
 TitleBar.BackgroundTransparency = 0.5
 TitleBar.BorderSizePixel = 0
@@ -317,15 +293,13 @@ TitleBarCorner.CornerRadius = UDim.new(0, 12)
 TitleBarCorner.Parent = TitleBar
 
 local TitleLabel = Instance.new("TextLabel")
-TitleLabel.Size = UDim2.new(1, -20, 1, 0)
-TitleLabel.Position = UDim2.new(0, 10, 0, 0)
+TitleLabel.Size = UDim2.new(1, 0, 1, 0)
 TitleLabel.BackgroundTransparency = 1
 TitleLabel.Text = "OLD HUB"
 TitleLabel.TextColor3 = Color3.new(1, 1, 1)
 TitleLabel.Font = Enum.Font.GothamBold
 TitleLabel.TextSize = 14
-TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
-TitleLabel.TextYAlignment = Enum.TextYAlignment.Center
+TitleLabel.TextXAlignment = Enum.TextXAlignment.Center
 TitleLabel.Parent = TitleBar
 
 -- DRAG
@@ -355,14 +329,14 @@ end)
 
 -- Content
 local Content = Instance.new("Frame")
-Content.Size = UDim2.new(1, -16, 1, -38)
-Content.Position = UDim2.new(0, 8, 0, 38)
+Content.Size = UDim2.new(1, -16, 1, -36)
+Content.Position = UDim2.new(0, 8, 0, 36)
 Content.BackgroundTransparency = 1
 Content.Parent = Main
 
 -- DROPDOWN
 local DropdownButton = Instance.new("TextButton")
-DropdownButton.Size = UDim2.new(1, 0, 0, 36)
+DropdownButton.Size = UDim2.new(1, 0, 0, 35)
 DropdownButton.Position = UDim2.new(0, 0, 0, 0)
 DropdownButton.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
 DropdownButton.Text = ""
@@ -386,8 +360,8 @@ DropdownLabel.Parent = DropdownButton
 
 -- OPTIONS
 local OptionsFrame = Instance.new("Frame")
-OptionsFrame.Size = UDim2.new(1, 0, 0, 240)
-OptionsFrame.Position = UDim2.new(0, 0, 0, 38)
+OptionsFrame.Size = UDim2.new(1, 0, 0, 220)
+OptionsFrame.Position = UDim2.new(0, 0, 0, 37)
 OptionsFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 28)
 OptionsFrame.BackgroundTransparency = 0.1
 OptionsFrame.Visible = false
@@ -415,12 +389,12 @@ local teleportNames = {"1. TELEPORT 1", "2. TELEPORT 2", "3. TELEPORT 3", "4. TE
 
 for i = 1, 10 do
     local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(1, 0, 0, 32)
+    btn.Size = UDim2.new(1, 0, 0, 30)
     btn.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
     btn.Text = teleportNames[i]
     btn.TextColor3 = Color3.new(1, 1, 1)
     btn.Font = Enum.Font.Gotham
-    btn.TextSize = 12
+    btn.TextSize = 11
     btn.BorderSizePixel = 0
     btn.Parent = OptionsScroll
     
@@ -433,20 +407,20 @@ for i = 1, 10 do
         DropdownLabel.Text = teleportNames[i]
         OptionsFrame.Visible = false
         dropdownOpen = false
-        Main.Size = UDim2.new(0, 260, 0, 260)
+        Main.Size = UDim2.new(0, 250, 0, 250)
     end)
 end
 
 DropdownButton.MouseButton1Click:Connect(function()
     dropdownOpen = not dropdownOpen
     OptionsFrame.Visible = dropdownOpen
-    Main.Size = dropdownOpen and UDim2.new(0, 260, 0, 340) or UDim2.new(0, 260, 0, 260)
+    Main.Size = dropdownOpen and UDim2.new(0, 250, 0, 310) or UDim2.new(0, 250, 0, 250)
 end)
 
 -- EXECUTE
 local ExecuteButton = Instance.new("TextButton")
-ExecuteButton.Size = UDim2.new(1, 0, 0, 36)
-ExecuteButton.Position = UDim2.new(0, 0, 0, 44)
+ExecuteButton.Size = UDim2.new(1, 0, 0, 35)
+ExecuteButton.Position = UDim2.new(0, 0, 0, 43)
 ExecuteButton.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
 ExecuteButton.Text = ""
 ExecuteButton.BorderSizePixel = 0
@@ -472,7 +446,7 @@ ExecuteButton.MouseButton1Click:Connect(ExecuteTeleport)
 -- FLASH
 local FlashButton = Instance.new("TextButton")
 FlashButton.Size = UDim2.new(1, 0, 0, 30)
-FlashButton.Position = UDim2.new(0, 0, 0, 86)
+FlashButton.Position = UDim2.new(0, 0, 0, 84)
 FlashButton.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
 FlashButton.Text = ""
 FlashButton.BorderSizePixel = 0
@@ -501,7 +475,7 @@ end)
 -- PREBLOCK
 local PreBlockButton = Instance.new("TextButton")
 PreBlockButton.Size = UDim2.new(1, 0, 0, 30)
-PreBlockButton.Position = UDim2.new(0, 0, 0, 122)
+PreBlockButton.Position = UDim2.new(0, 0, 0, 120)
 PreBlockButton.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
 PreBlockButton.Text = ""
 PreBlockButton.BorderSizePixel = 0
@@ -524,10 +498,12 @@ PreBlockLabel.Parent = PreBlockButton
 
 PreBlockButton.MouseButton1Click:Connect(DoPreBlock)
 
--- RESET
+-- =============================================
+-- INSTA RESET BUTTON (LAW HUB STYLE)
+-- =============================================
 local ResetButton = Instance.new("TextButton")
-ResetButton.Size = UDim2.new(1, 0, 0, 36)
-ResetButton.Position = UDim2.new(0, 0, 0, 158)
+ResetButton.Size = UDim2.new(1, 0, 0, 35)
+ResetButton.Position = UDim2.new(0, 0, 0, 156)
 ResetButton.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
 ResetButton.Text = ""
 ResetButton.BorderSizePixel = 0
@@ -548,7 +524,8 @@ ResetLabel.TextSize = 13
 ResetLabel.TextXAlignment = Enum.TextXAlignment.Left
 ResetLabel.Parent = ResetButton
 
-ResetButton.MouseButton1Click:Connect(InstaReset)
+ResetButton.MouseButton1Click:Connect(handleReset)
+ResetButton.TouchTap:Connect(handleReset)
 
 -- =============================================
 -- FLASH STEAL
@@ -595,7 +572,9 @@ ProximityPromptService.PromptButtonHoldBegan:Connect(function(prompt)
     end)
 end)
 
+-- =============================================
 -- HOTKEYS
+-- =============================================
 UserInputService.InputBegan:Connect(function(input, gpe)
     if gpe then return end
     if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
@@ -603,13 +582,11 @@ UserInputService.InputBegan:Connect(function(input, gpe)
     if input.KeyCode == Enum.KeyCode.F then
         ExecuteTeleport()
     elseif input.KeyCode == Enum.KeyCode.R then
-        InstaReset()
+        handleReset()
     end
 end)
 
 print("========================================")
 print("OLD HUB LOADED!")
-print("TELEPORT 1-5: Camera FRONT")
-print("TELEPORT 6-10: Camera LEFT (90° rotation)")
-print("F = Teleport | R = Reset (0.001s)")
+print("F = Teleport | R = Instant Reset (LAW HUB style)")
 print("========================================")
