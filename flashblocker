@@ -112,7 +112,7 @@ player.CharacterAdded:Connect(function(char)
     if hum then hum.BreakJointsOnDeath = false end
 end)
 
-print("🛡️ ANTI-CHEAT ACTIVATED")
+print("ANTI-CHEAT ACTIVATED")
 
 -- =============================================
 -- TELEPORT COORDINATES
@@ -209,17 +209,16 @@ local function UseFlash()
     end
 end
 
--- Teleport with camera BACKWARDS (lado contrário)
+-- Teleport with camera BACKWARDS
 local function TeleportTo(pos)
     local hrp = getHRP()
     if not hrp then return false end
     
-    -- Teleporta direto
     hrp.CFrame = CFrame.new(pos)
     hrp.AssemblyLinearVelocity = Vector3.zero
     task.wait(0.05)
     
-    -- Camera para TRÁS (lado contrário)
+    -- Camera for BACKWARDS
     local cam = workspace.CurrentCamera
     if cam and hrp then
         local lookDir = -hrp.CFrame.LookVector
@@ -245,7 +244,7 @@ local function ExecuteTeleport()
         UseFlash()
     end
     
-    -- TELEPORT 1 TO 6 (direto, camera TRÁS)
+    -- TELEPORT 1 TO 6
     if selectedTeleport == 1 then
         TeleportTo(Teleport1Pos)
     elseif selectedTeleport == 2 then
@@ -259,7 +258,7 @@ local function ExecuteTeleport()
     elseif selectedTeleport == 6 then
         TeleportTo(Teleport6Pos)
         
-    -- TELEPORT 7 TO 10 (StartPoint + destino, camera TRÁS)
+    -- TELEPORT 7 TO 10
     elseif selectedTeleport == 7 then
         TeleportTo(StartPoint)
         task.wait(0.15)
@@ -285,23 +284,25 @@ end
 -- =============================================
 -- INSTANT RESET
 -- =============================================
+local lastReset = 0
+local COOLDOWN = 0.2
+
 local function InstaReset()
     local char = player.Character
-    if not char then 
-        player:LoadCharacter()
-        return
-    end
-    
-    local hum = char:FindFirstChildOfClass("Humanoid")
-    
+    if not char then return end
+    local hum = char:FindFirstChild("Humanoid")
     if hum then
         hum.Health = 0
+        hum:BreakJoints()
     end
-    
-    task.wait(0.05)
-    player:LoadCharacter()
-    
-    print("🔄 INSTANT RESET EXECUTED!")
+end
+
+local function handleReset()
+    local now = tick()
+    if now - lastReset >= COOLDOWN then
+        lastReset = now
+        InstaReset()
+    end
 end
 
 local function getNearestPlayer()
@@ -428,12 +429,12 @@ TitleLabel.TextSize = 16
 TitleLabel.TextXAlignment = Enum.TextXAlignment.Center
 TitleLabel.Parent = TitleBar
 
--- DRAG SYSTEM (MENU MOVEL)
+-- DRAG SYSTEM
 local dragging = false
 local dragStart, startPos
 
 TitleBar.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
         dragging = true
         dragStart = input.Position
         startPos = Main.Position
@@ -447,8 +448,15 @@ UserInputService.InputChanged:Connect(function(input)
     end
 end)
 
+UserInputService.TouchMoved:Connect(function(input)
+    if dragging then
+        local delta = input.Position - dragStart
+        Main.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end)
+
 UserInputService.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
         dragging = false
     end
 end)
@@ -479,7 +487,7 @@ local DropdownLabel = Instance.new("TextLabel")
 DropdownLabel.Size = UDim2.new(1, -20, 1, 0)
 DropdownLabel.Position = UDim2.new(0, 12, 0, 0)
 DropdownLabel.BackgroundTransparency = 1
-DropdownLabel.Text = "▼ SELECT TELEPORT"
+DropdownLabel.Text = "SELECT TELEPORT"
 DropdownLabel.TextColor3 = Color3.new(1, 1, 1)
 DropdownLabel.Font = Enum.Font.GothamBold
 DropdownLabel.TextSize = 12
@@ -541,7 +549,7 @@ for i = 1, 10 do
     
     btn.MouseButton1Click:Connect(function()
         selectedTeleport = i
-        DropdownLabel.Text = "▼ " .. teleportNames[i]
+        DropdownLabel.Text = "SELECT TELEPORT: " .. teleportNames[i]
         OptionsFrame.Visible = false
         dropdownOpen = false
         Main.Size = UDim2.new(0, 260, 0, 280)
@@ -581,7 +589,7 @@ UserInputService.InputBegan:Connect(function(input)
     end
 end)
 
--- EXECUTE BUTTON
+-- EXECUTE BUTTON (F)
 local ExecuteButton = Instance.new("TextButton")
 ExecuteButton.Size = UDim2.new(1, 0, 0, 40)
 ExecuteButton.Position = UDim2.new(0, 0, 0, 46)
@@ -599,8 +607,8 @@ local ExecuteLabel = Instance.new("TextLabel")
 ExecuteLabel.Size = UDim2.new(1, -20, 1, 0)
 ExecuteLabel.Position = UDim2.new(0, 12, 0, 0)
 ExecuteLabel.BackgroundTransparency = 1
-ExecuteLabel.Text = "🚀 EXECUTE"
-ExecuteLabel.TextColor3 = Color3.fromRGB(80, 255, 80)
+ExecuteLabel.Text = "EXECUTE (F)"
+ExecuteLabel.TextColor3 = Color3.new(1, 1, 1)
 ExecuteLabel.Font = Enum.Font.GothamBold
 ExecuteLabel.TextSize = 13
 ExecuteLabel.TextXAlignment = Enum.TextXAlignment.Left
@@ -626,7 +634,7 @@ local FlashLabel = Instance.new("TextLabel")
 FlashLabel.Size = UDim2.new(1, -20, 1, 0)
 FlashLabel.Position = UDim2.new(0, 12, 0, 0)
 FlashLabel.BackgroundTransparency = 1
-FlashLabel.Text = "⚡ FLASH: ON"
+FlashLabel.Text = "FLASH: ON"
 FlashLabel.TextColor3 = Color3.new(1, 1, 1)
 FlashLabel.Font = Enum.Font.GothamBold
 FlashLabel.TextSize = 12
@@ -635,11 +643,10 @@ FlashLabel.Parent = FlashButton
 
 FlashButton.MouseButton1Click:Connect(function()
     flashEnabled = not flashEnabled
-    FlashLabel.Text = flashEnabled and "⚡ FLASH: ON" or "⚡ FLASH: OFF"
-    FlashLabel.TextColor3 = flashEnabled and Color3.fromRGB(80, 255, 80) or Color3.fromRGB(255, 100, 100)
+    FlashLabel.Text = flashEnabled and "FLASH: ON" or "FLASH: OFF"
 end)
 
--- AUTO BLOCK TOGGLE
+-- PREBLOCK TOGGLE
 local BlockButton = Instance.new("TextButton")
 BlockButton.Size = UDim2.new(1, 0, 0, 34)
 BlockButton.Position = UDim2.new(0, 0, 0, 132)
@@ -657,7 +664,7 @@ local BlockLabel = Instance.new("TextLabel")
 BlockLabel.Size = UDim2.new(1, -20, 1, 0)
 BlockLabel.Position = UDim2.new(0, 12, 0, 0)
 BlockLabel.BackgroundTransparency = 1
-BlockLabel.Text = "🛡️ BLOCK: OFF"
+BlockLabel.Text = "PREBLOCK: OFF"
 BlockLabel.TextColor3 = Color3.new(1, 1, 1)
 BlockLabel.Font = Enum.Font.GothamBold
 BlockLabel.TextSize = 12
@@ -666,11 +673,10 @@ BlockLabel.Parent = BlockButton
 
 BlockButton.MouseButton1Click:Connect(function()
     autoBlockEnabled = not autoBlockEnabled
-    BlockLabel.Text = autoBlockEnabled and "🛡️ BLOCK: ON" or "🛡️ BLOCK: OFF"
-    BlockLabel.TextColor3 = autoBlockEnabled and Color3.fromRGB(80, 255, 80) or Color3.new(1, 1, 1)
+    BlockLabel.Text = autoBlockEnabled and "PREBLOCK: ON" or "PREBLOCK: OFF"
 end)
 
--- RESET BUTTON
+-- RESET BUTTON (R)
 local ResetButton = Instance.new("TextButton")
 ResetButton.Size = UDim2.new(1, 0, 0, 40)
 ResetButton.Position = UDim2.new(0, 0, 0, 172)
@@ -688,14 +694,15 @@ local ResetLabel = Instance.new("TextLabel")
 ResetLabel.Size = UDim2.new(1, -20, 1, 0)
 ResetLabel.Position = UDim2.new(0, 12, 0, 0)
 ResetLabel.BackgroundTransparency = 1
-ResetLabel.Text = "🔄 INSTANT RESET"
-ResetLabel.TextColor3 = Color3.fromRGB(255, 150, 50)
+ResetLabel.Text = "INSTANT RESET (R)"
+ResetLabel.TextColor3 = Color3.new(1, 1, 1)
 ResetLabel.Font = Enum.Font.GothamBold
 ResetLabel.TextSize = 13
 ResetLabel.TextXAlignment = Enum.TextXAlignment.Left
 ResetLabel.Parent = ResetButton
 
-ResetButton.MouseButton1Click:Connect(InstaReset)
+ResetButton.MouseButton1Click:Connect(handleReset)
+ResetButton.TouchTap:Connect(handleReset)
 
 -- =============================================
 -- FLASH STEAL
@@ -752,13 +759,15 @@ UserInputService.InputBegan:Connect(function(input, gpe)
     if input.KeyCode == Enum.KeyCode.F then
         OnFPressed()
     elseif input.KeyCode == Enum.KeyCode.R then
-        InstaReset()
+        handleReset()
     end
 end)
 
 print("========================================")
-print("✅ OLD HUB LOADED!")
-print("📍 TELEPORT 1-6: Direct teleport (Camera BACKWARDS)")
-print("📍 TELEPORT 7-10: StartPoint + Teleport (Camera BACKWARDS)")
-print("🎮 F = Teleport | R = Instant Reset")
+print("OLD HUB LOADED!")
+print("TELEPORT 1-6: Direct")
+print("TELEPORT 7-10: StartPoint + Teleport")
+print("F = Execute Teleport")
+print("R = Instant Reset")
+print("Menu is DRAGGABLE")
 print("========================================")
