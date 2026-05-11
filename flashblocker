@@ -1,5 +1,5 @@
 -- =============================================
--- LAW HUB - COMPLETE SYSTEM
+-- OLD HUB - COMPLETE SYSTEM
 -- =============================================
 
 local Players = game:GetService("Players")
@@ -115,13 +115,10 @@ end)
 print("🛡️ ANTI-CHEAT ACTIVATED")
 
 -- =============================================
--- TELEPORT COORDINATES (UPDATED)
+-- TELEPORT COORDINATES (1 TO 10)
 -- =============================================
 
--- TELEPORT 1 (NEW COORDINATES)
 local Teleport1Pos = Vector3.new(-335.1, -7.1, 39.7)
-
--- TELEPORT 2 TO 10
 local Teleport2Pos = Vector3.new(-324.3, -7.1, 37.5)
 local Teleport3Pos = Vector3.new(-316.1, -7.1, 36.7)
 local Teleport4Pos = Vector3.new(-309.8, -7.1, 38.3)
@@ -266,6 +263,9 @@ local function ExecuteTeleport()
     StarterGui:SetCore("SendNotification", {Title = "Complete", Text = "TELEPORT " .. selectedTeleport, Duration = 2})
 end
 
+-- =============================================
+-- INSTANT RESET (NO OUT OF MAP, JUST RESET)
+-- =============================================
 local function InstaReset()
     local char = player.Character
     if not char then 
@@ -276,11 +276,16 @@ local function InstaReset()
     local hum = char:FindFirstChildOfClass("Humanoid")
     local hrp = char:FindFirstChild("HumanoidRootPart")
     
-    if hum then hum.Health = 0 end
-    if hrp then hrp.CFrame = CFrame.new(0, 100000, 0) end
+    -- Kill character instantly
+    if hum then
+        hum.Health = 0
+    end
     
-    task.wait(0.1)
+    -- Force respawn
+    task.wait(0.05)
     player:LoadCharacter()
+    
+    print("🔄 INSTANT RESET EXECUTED!")
 end
 
 local function getNearestPlayer()
@@ -315,17 +320,21 @@ local function OnFPressed()
     task.wait(0.3)
     if autoBlockEnabled then
         local nearest = getNearestPlayer()
-        if nearest then blockPlayer(nearest) end
+        if nearest then
+            blockPlayer(nearest)
+        end
     end
 end
 
 -- =============================================
--- GUI
+-- GUI (NO FIRE, MOVABLE)
 -- =============================================
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "LawHub"
+ScreenGui.Name = "OldHub"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.Parent = playerGui
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+ScreenGui.DisplayOrder = 999
 
 -- Progress Bar
 local StealBarBG = Instance.new("Frame")
@@ -339,6 +348,11 @@ StealBarBG.Parent = ScreenGui
 local StealBarBGCorner = Instance.new("UICorner")
 StealBarBGCorner.CornerRadius = UDim.new(0, 6)
 StealBarBGCorner.Parent = StealBarBG
+
+local StealBarStroke = Instance.new("UIStroke")
+StealBarStroke.Color = Color3.fromRGB(180, 180, 180)
+StealBarStroke.Thickness = 1.5
+StealBarStroke.Parent = StealBarBG
 
 local StealBarInner = Instance.new("Frame")
 StealBarInner.Size = UDim2.new(1, -8, 1, -6)
@@ -376,7 +390,7 @@ MainStroke.Color = Color3.new(1, 1, 1)
 MainStroke.Thickness = 1.5
 MainStroke.Parent = Main
 
--- Title Bar
+-- Title Bar (MOVABLE)
 local TitleBar = Instance.new("Frame")
 TitleBar.Size = UDim2.new(1, 0, 0, 35)
 TitleBar.BackgroundColor3 = Color3.new(0, 0, 0)
@@ -391,14 +405,14 @@ TitleBarCorner.Parent = TitleBar
 local TitleLabel = Instance.new("TextLabel")
 TitleLabel.Size = UDim2.new(1, 0, 1, 0)
 TitleLabel.BackgroundTransparency = 1
-TitleLabel.Text = "🔥 LAW HUB"
+TitleLabel.Text = "🔥 OLD HUB"
 TitleLabel.TextColor3 = Color3.new(1, 1, 1)
 TitleLabel.Font = Enum.Font.GothamBold
 TitleLabel.TextSize = 16
 TitleLabel.TextXAlignment = Enum.TextXAlignment.Center
 TitleLabel.Parent = TitleBar
 
--- DRAG
+-- DRAG SYSTEM (MENU MOVEL)
 local dragging = false
 local dragStart, startPos
 
@@ -417,14 +431,21 @@ UserInputService.InputChanged:Connect(function(input)
     end
 end)
 
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = false
+    end
+end)
+
 -- Content
 local Content = Instance.new("Frame")
 Content.Size = UDim2.new(1, -16, 1, -45)
 Content.Position = UDim2.new(0, 8, 0, 40)
 Content.BackgroundTransparency = 1
 Content.Parent = Main
+Content.ZIndex = 10
 
--- DROPDOWN
+-- DROPDOWN BUTTON
 local DropdownButton = Instance.new("TextButton")
 DropdownButton.Size = UDim2.new(1, 0, 0, 38)
 DropdownButton.Position = UDim2.new(0, 0, 0, 0)
@@ -432,6 +453,7 @@ DropdownButton.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
 DropdownButton.Text = ""
 DropdownButton.BorderSizePixel = 0
 DropdownButton.Parent = Content
+DropdownButton.ZIndex = 20
 
 local DropdownCorner = Instance.new("UICorner")
 DropdownCorner.CornerRadius = UDim.new(0, 8)
@@ -447,19 +469,27 @@ DropdownLabel.Font = Enum.Font.GothamBold
 DropdownLabel.TextSize = 12
 DropdownLabel.TextXAlignment = Enum.TextXAlignment.Left
 DropdownLabel.Parent = DropdownButton
+DropdownLabel.ZIndex = 20
 
--- Options
+-- DROPDOWN OPTIONS (FRONT)
 local OptionsFrame = Instance.new("Frame")
 OptionsFrame.Size = UDim2.new(1, 0, 0, 260)
 OptionsFrame.Position = UDim2.new(0, 0, 0, 40)
 OptionsFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 28)
 OptionsFrame.BackgroundTransparency = 0.1
 OptionsFrame.Visible = false
+OptionsFrame.BorderSizePixel = 0
 OptionsFrame.Parent = Content
+OptionsFrame.ZIndex = 25
 
 local OptionsCorner = Instance.new("UICorner")
 OptionsCorner.CornerRadius = UDim.new(0, 8)
 OptionsCorner.Parent = OptionsFrame
+
+local OptionsStroke = Instance.new("UIStroke")
+OptionsStroke.Color = Color3.new(1, 1, 1)
+OptionsStroke.Thickness = 1
+OptionsStroke.Parent = OptionsFrame
 
 local OptionsScroll = Instance.new("ScrollingFrame")
 OptionsScroll.Size = UDim2.new(1, -4, 1, -4)
@@ -469,11 +499,13 @@ OptionsScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
 OptionsScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
 OptionsScroll.ScrollBarThickness = 4
 OptionsScroll.Parent = OptionsFrame
+OptionsScroll.ZIndex = 25
 
 local ScrollLayout = Instance.new("UIListLayout")
 ScrollLayout.Padding = UDim.new(0, 2)
 ScrollLayout.Parent = OptionsScroll
 
+-- Teleport options (1 to 10)
 local teleportNames = {"1. TELEPORT 1", "2. TELEPORT 2", "3. TELEPORT 3", "4. TELEPORT 4", "5. TELEPORT 5", "6. TELEPORT 6", "7. TELEPORT 7", "8. TELEPORT 8", "9. TELEPORT 9", "10. TELEPORT 10"}
 
 for i = 1, 10 do
@@ -486,6 +518,7 @@ for i = 1, 10 do
     btn.TextSize = 12
     btn.BorderSizePixel = 0
     btn.Parent = OptionsScroll
+    btn.ZIndex = 25
     
     local btnCorner = Instance.new("UICorner")
     btnCorner.CornerRadius = UDim.new(0, 5)
@@ -500,13 +533,40 @@ for i = 1, 10 do
     end)
 end
 
+-- Toggle dropdown
 DropdownButton.MouseButton1Click:Connect(function()
     dropdownOpen = not dropdownOpen
     OptionsFrame.Visible = dropdownOpen
-    Main.Size = UDim2.new(0, 260, dropdownOpen and 360 or 280)
+    if dropdownOpen then
+        Main.Size = UDim2.new(0, 260, 0, 360)
+    else
+        Main.Size = UDim2.new(0, 260, 0, 280)
+    end
 end)
 
--- EXECUTE
+-- Close when clicking outside
+UserInputService.InputBegan:Connect(function(input)
+    if dropdownOpen and input.UserInputType == Enum.UserInputType.MouseButton1 then
+        local mousePos = UserInputService:GetMouseLocation()
+        local btnPos = DropdownButton.AbsolutePosition
+        local btnSize = DropdownButton.AbsoluteSize
+        local optionsPos = OptionsFrame.AbsolutePosition
+        local optionsSize = OptionsFrame.AbsoluteSize
+        
+        local inside = (mousePos.X >= btnPos.X and mousePos.X <= btnPos.X + btnSize.X and
+                        mousePos.Y >= btnPos.Y and mousePos.Y <= btnPos.Y + btnSize.Y) or
+                       (mousePos.X >= optionsPos.X and mousePos.X <= optionsPos.X + optionsSize.X and
+                        mousePos.Y >= optionsPos.Y and mousePos.Y <= optionsPos.Y + optionsSize.Y)
+        
+        if not inside then
+            OptionsFrame.Visible = false
+            dropdownOpen = false
+            Main.Size = UDim2.new(0, 260, 0, 280)
+        end
+    end
+end)
+
+-- EXECUTE BUTTON
 local ExecuteButton = Instance.new("TextButton")
 ExecuteButton.Size = UDim2.new(1, 0, 0, 40)
 ExecuteButton.Position = UDim2.new(0, 0, 0, 46)
@@ -514,6 +574,7 @@ ExecuteButton.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
 ExecuteButton.Text = ""
 ExecuteButton.BorderSizePixel = 0
 ExecuteButton.Parent = Content
+ExecuteButton.ZIndex = 15
 
 local ExecuteCorner = Instance.new("UICorner")
 ExecuteCorner.CornerRadius = UDim.new(0, 8)
@@ -532,7 +593,7 @@ ExecuteLabel.Parent = ExecuteButton
 
 ExecuteButton.MouseButton1Click:Connect(OnFPressed)
 
--- FLASH
+-- FLASH TOGGLE
 local FlashButton = Instance.new("TextButton")
 FlashButton.Size = UDim2.new(1, 0, 0, 34)
 FlashButton.Position = UDim2.new(0, 0, 0, 92)
@@ -540,6 +601,7 @@ FlashButton.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
 FlashButton.Text = ""
 FlashButton.BorderSizePixel = 0
 FlashButton.Parent = Content
+FlashButton.ZIndex = 15
 
 local FlashCorner = Instance.new("UICorner")
 FlashCorner.CornerRadius = UDim.new(0, 8)
@@ -562,7 +624,7 @@ FlashButton.MouseButton1Click:Connect(function()
     FlashLabel.TextColor3 = flashEnabled and Color3.fromRGB(80, 255, 80) or Color3.fromRGB(255, 100, 100)
 end)
 
--- AUTO BLOCK
+-- AUTO BLOCK TOGGLE
 local BlockButton = Instance.new("TextButton")
 BlockButton.Size = UDim2.new(1, 0, 0, 34)
 BlockButton.Position = UDim2.new(0, 0, 0, 132)
@@ -570,6 +632,7 @@ BlockButton.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
 BlockButton.Text = ""
 BlockButton.BorderSizePixel = 0
 BlockButton.Parent = Content
+BlockButton.ZIndex = 15
 
 local BlockCorner = Instance.new("UICorner")
 BlockCorner.CornerRadius = UDim.new(0, 8)
@@ -592,7 +655,7 @@ BlockButton.MouseButton1Click:Connect(function()
     BlockLabel.TextColor3 = autoBlockEnabled and Color3.fromRGB(80, 255, 80) or Color3.new(1, 1, 1)
 end)
 
--- RESET
+-- RESET BUTTON (INSTANT)
 local ResetButton = Instance.new("TextButton")
 ResetButton.Size = UDim2.new(1, 0, 0, 40)
 ResetButton.Position = UDim2.new(0, 0, 0, 172)
@@ -600,6 +663,7 @@ ResetButton.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
 ResetButton.Text = ""
 ResetButton.BorderSizePixel = 0
 ResetButton.Parent = Content
+ResetButton.ZIndex = 15
 
 local ResetCorner = Instance.new("UICorner")
 ResetCorner.CornerRadius = UDim.new(0, 8)
@@ -609,7 +673,7 @@ local ResetLabel = Instance.new("TextLabel")
 ResetLabel.Size = UDim2.new(1, -20, 1, 0)
 ResetLabel.Position = UDim2.new(0, 12, 0, 0)
 ResetLabel.BackgroundTransparency = 1
-ResetLabel.Text = "🔄 RESET"
+ResetLabel.Text = "🔄 INSTANT RESET"
 ResetLabel.TextColor3 = Color3.fromRGB(255, 150, 50)
 ResetLabel.Font = Enum.Font.GothamBold
 ResetLabel.TextSize = 13
@@ -619,7 +683,7 @@ ResetLabel.Parent = ResetButton
 ResetButton.MouseButton1Click:Connect(InstaReset)
 
 -- =============================================
--- FLASH STEAL
+-- FLASH STEAL (AUTO STEAL)
 -- =============================================
 ProximityPromptService.PromptButtonHoldBegan:Connect(function(prompt)
     if not flashEnabled then return end
@@ -663,7 +727,9 @@ ProximityPromptService.PromptButtonHoldBegan:Connect(function(prompt)
     end)
 end)
 
+-- =============================================
 -- HOTKEYS
+-- =============================================
 UserInputService.InputBegan:Connect(function(input, gpe)
     if gpe then return end
     if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
@@ -676,8 +742,8 @@ UserInputService.InputBegan:Connect(function(input, gpe)
 end)
 
 print("========================================")
-print("✅ LAW HUB LOADED!")
+print("✅ OLD HUB LOADED!")
 print("📍 TELEPORT 1: (-335.1, -7.1, 39.7)")
 print("📍 TELEPORT 2-10: coordinates")
-print("🎮 F = Teleport | R = Reset")
+print("🎮 F = Teleport | R = Instant Reset")
 print("========================================")
