@@ -1,9 +1,10 @@
 -- =============================================
--- COORDINATE FINDER
+-- COORDINATE FINDER (CORRIGIDO)
 -- =============================================
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")  -- <-- ADICIONADO!
 local player = Players.LocalPlayer
 
 -- Criar GUI
@@ -125,7 +126,7 @@ CopyBtn.MouseButton1Click:Connect(function()
     end
 end)
 
--- Atualizar a cada frame
+-- Atualizar a cada frame (RENDERSTEP)
 RunService.RenderStepped:Connect(UpdateCoords)
 
 -- DRAG
@@ -154,4 +155,4 @@ UserInputService.InputEnded:Connect(function(input)
 end)
 
 print("✅ COORDINATE FINDER LOADED!")
-print("📋 Copy any position with the button!")
+print("📋 Ande até a posição desejada e clique em COPY")
