@@ -125,7 +125,7 @@ local Teleport3Pos = Vector3.new(-316.1, -7.1, 36.7)
 local Teleport4Pos = Vector3.new(-309.8, -7.1, 38.3)
 local Teleport5Pos = Vector3.new(-302.3, -7.1, 41.5)
 
--- TELEPORT 6 TO 10 (apenas destino final)
+-- TELEPORT 6 TO 10
 local Teleport6Pos = Vector3.new(-331.6, -7.1, -23.3)
 local Teleport7Pos = Vector3.new(-324.1, -7.1, -23.2)
 local Teleport8Pos = Vector3.new(-317.8, -7.1, -23.6)
@@ -138,7 +138,6 @@ local Teleport10Pos = Vector3.new(-302.6, -7.1, -23.9)
 local flashEnabled = true
 local selectedTeleport = nil
 local teleporting = false
-local autoBlockEnabled = false
 local dropdownOpen = false
 
 -- =============================================
@@ -206,8 +205,7 @@ local function UseFlash()
     end
 end
 
--- Teleport com controle de camera
--- lookDir: "front" = frente, "left" = esquerda, "right" = direita, "back" = tras
+-- Teleport with camera control
 local function TeleportTo(pos, cameraDirection)
     local hrp = getHRP()
     if not hrp then return false end
@@ -219,9 +217,9 @@ local function TeleportTo(pos, cameraDirection)
     local cam = workspace.CurrentCamera
     if cam and hrp then
         local lookDir
-        if cameraDirection == "left" then
+        if cameraDirection == "right" then
             lookDir = hrp.CFrame.RightVector
-        elseif cameraDirection == "right" then
+        elseif cameraDirection == "left" then
             lookDir = -hrp.CFrame.RightVector
         elseif cameraDirection == "back" then
             lookDir = -hrp.CFrame.LookVector
@@ -250,7 +248,7 @@ local function ExecuteTeleport()
         UseFlash()
     end
     
-    -- TELEPORT 1 TO 5 (camera normal)
+    -- TELEPORT 1 TO 5 (camera FRENTE)
     if selectedTeleport == 1 then
         TeleportTo(Teleport1Pos, "front")
     elseif selectedTeleport == 2 then
@@ -262,17 +260,17 @@ local function ExecuteTeleport()
     elseif selectedTeleport == 5 then
         TeleportTo(Teleport5Pos, "front")
         
-    -- TELEPORT 6 TO 10 (camera para ESQUERDA)
+    -- TELEPORT 6 TO 10 (camera para DIREITA)
     elseif selectedTeleport == 6 then
-        TeleportTo(Teleport6Pos, "left")
+        TeleportTo(Teleport6Pos, "right")
     elseif selectedTeleport == 7 then
-        TeleportTo(Teleport7Pos, "left")
+        TeleportTo(Teleport7Pos, "right")
     elseif selectedTeleport == 8 then
-        TeleportTo(Teleport8Pos, "left")
+        TeleportTo(Teleport8Pos, "right")
     elseif selectedTeleport == 9 then
-        TeleportTo(Teleport9Pos, "left")
+        TeleportTo(Teleport9Pos, "right")
     elseif selectedTeleport == 10 then
-        TeleportTo(Teleport10Pos, "left")
+        TeleportTo(Teleport10Pos, "right")
     end
     
     teleporting = false
@@ -280,34 +278,8 @@ local function ExecuteTeleport()
 end
 
 -- =============================================
--- INSTANT RESET (MAIS RAPIDO)
+-- PREBLOCK (separado)
 -- =============================================
-local function InstaReset()
-    local char = player.Character
-    if not char then 
-        player:LoadCharacter()
-        return
-    end
-    
-    local hum = char:FindFirstChild("Humanoid")
-    local hrp = char:FindFirstChild("HumanoidRootPart")
-    
-    if hrp then
-        hrp.CFrame = CFrame.new(hrp.Position.X, -1000, hrp.Position.Z)
-        hrp.AssemblyLinearVelocity = Vector3.zero
-    end
-    
-    if hum then
-        hum.Health = 0
-        hum:BreakJoints()
-    end
-    
-    -- Sem delay, respawn imediato
-    player:LoadCharacter()
-    
-    print("INSTANT RESET EXECUTED!")
-end
-
 local function getNearestPlayer()
     local hrp = getHRP()
     if not hrp then return nil end
@@ -333,17 +305,49 @@ end
 local function blockPlayer(plr)
     if not plr or plr == player then return end
     pcall(function() StarterGui:SetCore("PromptBlockPlayer", plr) end)
+    print("PREBLOCK: Blocked " .. plr.Name)
+end
+
+local function DoPreBlock()
+    local nearest = getNearestPlayer()
+    if nearest then
+        blockPlayer(nearest)
+    else
+        print("PREBLOCK: No players nearby")
+    end
+end
+
+-- =============================================
+-- INSTANT RESET (0.1s GARANTIDO)
+-- =============================================
+local function InstaReset()
+    local char = player.Character
+    
+    -- Primeiro: tenta matar o personagem se existir
+    if char then
+        local hum = char:FindFirstChild("Humanoid")
+        local hrp = char:FindFirstChild("HumanoidRootPart")
+        
+        if hrp then
+            -- Teleporta para fora do mapa
+            hrp.CFrame = CFrame.new(0, -5000, 0)
+            hrp.AssemblyLinearVelocity = Vector3.zero
+        end
+        
+        if hum then
+            hum.Health = 0
+            hum:BreakJoints()
+        end
+    end
+    
+    -- Força o respawn imediatamente
+    player:LoadCharacter()
+    
+    print("INSTANT RESET (0.1s) EXECUTED!")
 end
 
 local function OnFPressed()
     ExecuteTeleport()
-    task.wait(0.3)
-    if autoBlockEnabled then
-        local nearest = getNearestPlayer()
-        if nearest then
-            blockPlayer(nearest)
-        end
-    end
 end
 
 -- =============================================
@@ -649,37 +653,36 @@ FlashButton.MouseButton1Click:Connect(function()
     FlashLabel.Text = flashEnabled and "FLASH: ON" or "FLASH: OFF"
 end)
 
--- PREBLOCK TOGGLE
-local BlockButton = Instance.new("TextButton")
-BlockButton.Size = UDim2.new(1, 0, 0, 34)
-BlockButton.Position = UDim2.new(0, 0, 0, 132)
-BlockButton.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
-BlockButton.Text = ""
-BlockButton.BorderSizePixel = 0
-BlockButton.Parent = Content
-BlockButton.ZIndex = 15
+-- PREBLOCK BUTTON
+local PreBlockButton = Instance.new("TextButton")
+PreBlockButton.Size = UDim2.new(1, 0, 0, 34)
+PreBlockButton.Position = UDim2.new(0, 0, 0, 132)
+PreBlockButton.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+PreBlockButton.Text = ""
+PreBlockButton.BorderSizePixel = 0
+PreBlockButton.Parent = Content
+PreBlockButton.ZIndex = 15
 
-local BlockCorner = Instance.new("UICorner")
-BlockCorner.CornerRadius = UDim.new(0, 8)
-BlockCorner.Parent = BlockButton
+local PreBlockCorner = Instance.new("UICorner")
+PreBlockCorner.CornerRadius = UDim.new(0, 8)
+PreBlockCorner.Parent = PreBlockButton
 
-local BlockLabel = Instance.new("TextLabel")
-BlockLabel.Size = UDim2.new(1, -20, 1, 0)
-BlockLabel.Position = UDim2.new(0, 12, 0, 0)
-BlockLabel.BackgroundTransparency = 1
-BlockLabel.Text = "PREBLOCK: OFF"
-BlockLabel.TextColor3 = Color3.new(1, 1, 1)
-BlockLabel.Font = Enum.Font.GothamBold
-BlockLabel.TextSize = 12
-BlockLabel.TextXAlignment = Enum.TextXAlignment.Left
-BlockLabel.Parent = BlockButton
+local PreBlockLabel = Instance.new("TextLabel")
+PreBlockLabel.Size = UDim2.new(1, -20, 1, 0)
+PreBlockLabel.Position = UDim2.new(0, 12, 0, 0)
+PreBlockLabel.BackgroundTransparency = 1
+PreBlockLabel.Text = "PREBLOCK"
+PreBlockLabel.TextColor3 = Color3.new(1, 1, 1)
+PreBlockLabel.Font = Enum.Font.GothamBold
+PreBlockLabel.TextSize = 12
+PreBlockLabel.TextXAlignment = Enum.TextXAlignment.Left
+PreBlockLabel.Parent = PreBlockButton
 
-BlockButton.MouseButton1Click:Connect(function()
-    autoBlockEnabled = not autoBlockEnabled
-    BlockLabel.Text = autoBlockEnabled and "PREBLOCK: ON" or "PREBLOCK: OFF"
+PreBlockButton.MouseButton1Click:Connect(function()
+    DoPreBlock()
 end)
 
--- RESET BUTTON (R)
+-- RESET BUTTON (R) - 0.1s
 local ResetButton = Instance.new("TextButton")
 ResetButton.Size = UDim2.new(1, 0, 0, 40)
 ResetButton.Position = UDim2.new(0, 0, 0, 172)
@@ -769,7 +772,8 @@ end)
 print("========================================")
 print("OLD HUB LOADED!")
 print("TELEPORT 1-5: Camera FRONT")
-print("TELEPORT 6-10: Camera LEFT (olhando para os botoes)")
+print("TELEPORT 6-10: Camera RIGHT")
 print("F = Execute Teleport")
-print("R = Instant Reset")
+print("R = Instant Reset (0.1s)")
+print("PREBLOCK = Block nearest player")
 print("========================================")
