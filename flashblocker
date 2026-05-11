@@ -1,5 +1,5 @@
 -- =============================================
--- OLD HUB - COMPLETE SYSTEM
+-- OLD HUB - COMPLETE SYSTEM (ALL CAMERA BACKWARDS)
 -- =============================================
 
 local Players = game:GetService("Players")
@@ -121,14 +121,14 @@ print("ANTI-CHEAT ACTIVATED")
 -- Start point for Teleport 6-10
 local StartPoint = Vector3.new(-357.6, -7.1, 37.4)
 
--- TELEPORT 1 TO 5 (direto, camera FRENTE)
+-- TELEPORT 1 TO 5
 local Teleport1Pos = Vector3.new(-335.1, -7.1, 39.7)
 local Teleport2Pos = Vector3.new(-324.3, -7.1, 37.5)
 local Teleport3Pos = Vector3.new(-316.1, -7.1, 36.7)
 local Teleport4Pos = Vector3.new(-309.8, -7.1, 38.3)
 local Teleport5Pos = Vector3.new(-302.3, -7.1, 41.5)
 
--- TELEPORT 6 TO 10 (StartPoint + destino, camera TRAS)
+-- TELEPORT 6 TO 10
 local Teleport6Pos = Vector3.new(-331.6, -7.1, -23.3)
 local Teleport7Pos = Vector3.new(-324.1, -7.1, -23.2)
 local Teleport8Pos = Vector3.new(-317.8, -7.1, -23.6)
@@ -209,7 +209,7 @@ local function UseFlash()
     end
 end
 
--- Teleport with camera control
+-- Teleport with camera BACKWARDS (lado contrário) for ALL teleports
 local function TeleportTo(pos, lookBack)
     local hrp = getHRP()
     if not hrp then return false end
@@ -248,19 +248,19 @@ local function ExecuteTeleport()
         UseFlash()
     end
     
-    -- TELEPORT 1 TO 5 (direto, camera FRENTE)
+    -- TELEPORT 1 TO 5 (Camera BACKWARDS)
     if selectedTeleport == 1 then
-        TeleportTo(Teleport1Pos, false)
+        TeleportTo(Teleport1Pos, true)
     elseif selectedTeleport == 2 then
-        TeleportTo(Teleport2Pos, false)
+        TeleportTo(Teleport2Pos, true)
     elseif selectedTeleport == 3 then
-        TeleportTo(Teleport3Pos, false)
+        TeleportTo(Teleport3Pos, true)
     elseif selectedTeleport == 4 then
-        TeleportTo(Teleport4Pos, false)
+        TeleportTo(Teleport4Pos, true)
     elseif selectedTeleport == 5 then
-        TeleportTo(Teleport5Pos, false)
+        TeleportTo(Teleport5Pos, true)
         
-    -- TELEPORT 6 TO 10 (StartPoint + destino, camera TRAS)
+    -- TELEPORT 6 TO 10 (StartPoint + destino, Camera BACKWARDS)
     elseif selectedTeleport == 6 then
         TeleportTo(StartPoint, true)
         task.wait(0.15)
@@ -288,7 +288,7 @@ local function ExecuteTeleport()
 end
 
 -- =============================================
--- INSTANT RESET (0.1s)
+-- INSTANT RESET (Teleport under map - Y = -1000)
 -- =============================================
 local function InstaReset()
     local char = player.Character
@@ -297,16 +297,25 @@ local function InstaReset()
         return
     end
     
-    local hum = char:FindFirstChild("Humanoid")
     local hrp = char:FindFirstChild("HumanoidRootPart")
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    
+    if hrp then
+        -- Teleporta para baixo do mapa (Y = -1000) para morrer instantaneamente
+        hrp.CFrame = CFrame.new(hrp.Position.X, -1000, hrp.Position.Z)
+        hrp.AssemblyLinearVelocity = Vector3.zero
+    end
     
     if hum then
         hum.Health = 0
         hum:BreakJoints()
     end
     
-    task.wait(0.1)
+    -- Força o respawn
+    task.wait(0.05)
     player:LoadCharacter()
+    
+    print("INSTANT RESET (UNDER MAP) EXECUTED!")
 end
 
 local function getNearestPlayer()
@@ -680,7 +689,7 @@ BlockButton.MouseButton1Click:Connect(function()
     BlockLabel.Text = autoBlockEnabled and "PREBLOCK: ON" or "PREBLOCK: OFF"
 end)
 
--- RESET BUTTON (R) - 0.1s
+-- RESET BUTTON (R) - Teleport under map
 local ResetButton = Instance.new("TextButton")
 ResetButton.Size = UDim2.new(1, 0, 0, 40)
 ResetButton.Position = UDim2.new(0, 0, 0, 172)
@@ -698,7 +707,7 @@ local ResetLabel = Instance.new("TextLabel")
 ResetLabel.Size = UDim2.new(1, -20, 1, 0)
 ResetLabel.Position = UDim2.new(0, 12, 0, 0)
 ResetLabel.BackgroundTransparency = 1
-ResetLabel.Text = "INSTANT RESET (R) 0.1s"
+ResetLabel.Text = "INSTANT RESET (R)"
 ResetLabel.TextColor3 = Color3.new(1, 1, 1)
 ResetLabel.Font = Enum.Font.GothamBold
 ResetLabel.TextSize = 13
@@ -769,8 +778,8 @@ end)
 
 print("========================================")
 print("OLD HUB LOADED!")
-print("TELEPORT 1-5: Direct / Camera FRONT")
-print("TELEPORT 6-10: StartPoint + Teleport / Camera BACK")
+print("TELEPORT 1-5: Direct / Camera BACKWARDS")
+print("TELEPORT 6-10: StartPoint + Teleport / Camera BACKWARDS")
 print("F = Execute Teleport")
-print("R = Instant Reset (0.1s)")
+print("R = Instant Reset (Under Map)")
 print("========================================")
