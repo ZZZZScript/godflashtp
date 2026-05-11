@@ -1,5 +1,5 @@
 -- =============================================
--- OLD HUB - COMPLETE SYSTEM (ALL CAMERA BACKWARDS)
+-- OLD HUB - COMPLETE SYSTEM
 -- =============================================
 
 local Players = game:GetService("Players")
@@ -118,9 +118,6 @@ print("ANTI-CHEAT ACTIVATED")
 -- TELEPORT COORDINATES
 -- =============================================
 
--- Start point for Teleport 6-10
-local StartPoint = Vector3.new(-357.6, -7.1, 37.4)
-
 -- TELEPORT 1 TO 5
 local Teleport1Pos = Vector3.new(-335.1, -7.1, 39.7)
 local Teleport2Pos = Vector3.new(-324.3, -7.1, 37.5)
@@ -128,7 +125,7 @@ local Teleport3Pos = Vector3.new(-316.1, -7.1, 36.7)
 local Teleport4Pos = Vector3.new(-309.8, -7.1, 38.3)
 local Teleport5Pos = Vector3.new(-302.3, -7.1, 41.5)
 
--- TELEPORT 6 TO 10
+-- TELEPORT 6 TO 10 (apenas destino final)
 local Teleport6Pos = Vector3.new(-331.6, -7.1, -23.3)
 local Teleport7Pos = Vector3.new(-324.1, -7.1, -23.2)
 local Teleport8Pos = Vector3.new(-317.8, -7.1, -23.6)
@@ -209,8 +206,9 @@ local function UseFlash()
     end
 end
 
--- Teleport with camera BACKWARDS (lado contrário) for ALL teleports
-local function TeleportTo(pos, lookBack)
+-- Teleport com controle de camera
+-- lookDir: "front" = frente, "left" = esquerda, "right" = direita, "back" = tras
+local function TeleportTo(pos, cameraDirection)
     local hrp = getHRP()
     if not hrp then return false end
     
@@ -221,7 +219,11 @@ local function TeleportTo(pos, lookBack)
     local cam = workspace.CurrentCamera
     if cam and hrp then
         local lookDir
-        if lookBack then
+        if cameraDirection == "left" then
+            lookDir = hrp.CFrame.RightVector
+        elseif cameraDirection == "right" then
+            lookDir = -hrp.CFrame.RightVector
+        elseif cameraDirection == "back" then
             lookDir = -hrp.CFrame.LookVector
         else
             lookDir = hrp.CFrame.LookVector
@@ -248,39 +250,29 @@ local function ExecuteTeleport()
         UseFlash()
     end
     
-    -- TELEPORT 1 TO 5 (Camera BACKWARDS)
+    -- TELEPORT 1 TO 5 (camera normal)
     if selectedTeleport == 1 then
-        TeleportTo(Teleport1Pos, true)
+        TeleportTo(Teleport1Pos, "front")
     elseif selectedTeleport == 2 then
-        TeleportTo(Teleport2Pos, true)
+        TeleportTo(Teleport2Pos, "front")
     elseif selectedTeleport == 3 then
-        TeleportTo(Teleport3Pos, true)
+        TeleportTo(Teleport3Pos, "front")
     elseif selectedTeleport == 4 then
-        TeleportTo(Teleport4Pos, true)
+        TeleportTo(Teleport4Pos, "front")
     elseif selectedTeleport == 5 then
-        TeleportTo(Teleport5Pos, true)
+        TeleportTo(Teleport5Pos, "front")
         
-    -- TELEPORT 6 TO 10 (StartPoint + destino, Camera BACKWARDS)
+    -- TELEPORT 6 TO 10 (camera para ESQUERDA)
     elseif selectedTeleport == 6 then
-        TeleportTo(StartPoint, true)
-        task.wait(0.15)
-        TeleportTo(Teleport6Pos, true)
+        TeleportTo(Teleport6Pos, "left")
     elseif selectedTeleport == 7 then
-        TeleportTo(StartPoint, true)
-        task.wait(0.15)
-        TeleportTo(Teleport7Pos, true)
+        TeleportTo(Teleport7Pos, "left")
     elseif selectedTeleport == 8 then
-        TeleportTo(StartPoint, true)
-        task.wait(0.15)
-        TeleportTo(Teleport8Pos, true)
+        TeleportTo(Teleport8Pos, "left")
     elseif selectedTeleport == 9 then
-        TeleportTo(StartPoint, true)
-        task.wait(0.15)
-        TeleportTo(Teleport9Pos, true)
+        TeleportTo(Teleport9Pos, "left")
     elseif selectedTeleport == 10 then
-        TeleportTo(StartPoint, true)
-        task.wait(0.15)
-        TeleportTo(Teleport10Pos, true)
+        TeleportTo(Teleport10Pos, "left")
     end
     
     teleporting = false
@@ -288,7 +280,7 @@ local function ExecuteTeleport()
 end
 
 -- =============================================
--- INSTANT RESET (Teleport under map - Y = -1000)
+-- INSTANT RESET (MAIS RAPIDO)
 -- =============================================
 local function InstaReset()
     local char = player.Character
@@ -297,11 +289,10 @@ local function InstaReset()
         return
     end
     
+    local hum = char:FindFirstChild("Humanoid")
     local hrp = char:FindFirstChild("HumanoidRootPart")
-    local hum = char:FindFirstChildOfClass("Humanoid")
     
     if hrp then
-        -- Teleporta para baixo do mapa (Y = -1000) para morrer instantaneamente
         hrp.CFrame = CFrame.new(hrp.Position.X, -1000, hrp.Position.Z)
         hrp.AssemblyLinearVelocity = Vector3.zero
     end
@@ -311,11 +302,10 @@ local function InstaReset()
         hum:BreakJoints()
     end
     
-    -- Força o respawn
-    task.wait(0.05)
+    -- Sem delay, respawn imediato
     player:LoadCharacter()
     
-    print("INSTANT RESET (UNDER MAP) EXECUTED!")
+    print("INSTANT RESET EXECUTED!")
 end
 
 local function getNearestPlayer()
@@ -689,7 +679,7 @@ BlockButton.MouseButton1Click:Connect(function()
     BlockLabel.Text = autoBlockEnabled and "PREBLOCK: ON" or "PREBLOCK: OFF"
 end)
 
--- RESET BUTTON (R) - Teleport under map
+-- RESET BUTTON (R)
 local ResetButton = Instance.new("TextButton")
 ResetButton.Size = UDim2.new(1, 0, 0, 40)
 ResetButton.Position = UDim2.new(0, 0, 0, 172)
@@ -778,8 +768,8 @@ end)
 
 print("========================================")
 print("OLD HUB LOADED!")
-print("TELEPORT 1-5: Direct / Camera BACKWARDS")
-print("TELEPORT 6-10: StartPoint + Teleport / Camera BACKWARDS")
+print("TELEPORT 1-5: Camera FRONT")
+print("TELEPORT 6-10: Camera LEFT (olhando para os botoes)")
 print("F = Execute Teleport")
-print("R = Instant Reset (Under Map)")
+print("R = Instant Reset")
 print("========================================")
