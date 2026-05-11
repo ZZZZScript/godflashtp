@@ -1,158 +1,45 @@
 -- =============================================
--- COORDINATE FINDER (CORRIGIDO)
+-- COORDINATE FINDER SIMPLES
 -- =============================================
 
-local Players = game:GetService("Players")
-local UserInputService = game:GetService("UserInputService")
-local RunService = game:GetService("RunService")  -- <-- ADICIONADO!
-local player = Players.LocalPlayer
+local player = game.Players.LocalPlayer
 
--- Criar GUI
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "CoordFinder"
-ScreenGui.ResetOnSpawn = false
-ScreenGui.Parent = player:WaitForChild("PlayerGui")
+-- Criar GUI simples
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "CoordsGUI"
+screenGui.Parent = player:WaitForChild("PlayerGui")
 
--- Frame
-local Frame = Instance.new("Frame")
-Frame.Size = UDim2.new(0, 250, 0, 120)
-Frame.Position = UDim2.new(0.5, -125, 0.8, 0)
-Frame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-Frame.BackgroundTransparency = 0.3
-Frame.BorderSizePixel = 0
-Frame.Parent = ScreenGui
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 200, 0, 100)
+frame.Position = UDim2.new(0.5, -100, 0.8, 0)
+frame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+frame.BackgroundTransparency = 0.2
+frame.BorderSizePixel = 0
+frame.Parent = screenGui
 
-local Corner = Instance.new("UICorner")
-Corner.CornerRadius = UDim.new(0, 10)
-Corner.Parent = Frame
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 8)
+corner.Parent = frame
 
-local Stroke = Instance.new("UIStroke")
-Stroke.Color = Color3.new(1, 1, 1)
-Stroke.Thickness = 1.5
-Stroke.Parent = Frame
-
--- Título
-local Title = Instance.new("TextLabel")
-Title.Size = UDim2.new(1, 0, 0, 30)
-Title.Position = UDim2.new(0, 0, 0, 0)
-Title.BackgroundTransparency = 1
-Title.Text = "📍 COORDINATE FINDER"
-Title.TextColor3 = Color3.new(1, 1, 1)
-Title.Font = Enum.Font.GothamBold
-Title.TextSize = 14
-Title.Parent = Frame
-
--- Labels
-local xLabel = Instance.new("TextLabel")
-xLabel.Size = UDim2.new(0.33, -5, 0, 25)
-xLabel.Position = UDim2.new(0, 5, 0, 35)
-xLabel.BackgroundTransparency = 1
-xLabel.Text = "X: ---"
-xLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
-xLabel.Font = Enum.Font.GothamBold
-xLabel.TextSize = 14
-xLabel.Parent = Frame
-
-local yLabel = Instance.new("TextLabel")
-yLabel.Size = UDim2.new(0.33, -5, 0, 25)
-yLabel.Position = UDim2.new(0.33, 0, 0, 35)
-yLabel.BackgroundTransparency = 1
-yLabel.Text = "Y: ---"
-yLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
-yLabel.Font = Enum.Font.GothamBold
-yLabel.TextSize = 14
-yLabel.Parent = Frame
-
-local zLabel = Instance.new("TextLabel")
-zLabel.Size = UDim2.new(0.33, -5, 0, 25)
-zLabel.Position = UDim2.new(0.66, 0, 0, 35)
-zLabel.BackgroundTransparency = 1
-zLabel.Text = "Z: ---"
-zLabel.TextColor3 = Color3.fromRGB(100, 100, 255)
-zLabel.Font = Enum.Font.GothamBold
-zLabel.TextSize = 14
-zLabel.Parent = Frame
-
--- Vector3 label
-local vecLabel = Instance.new("TextLabel")
-vecLabel.Size = UDim2.new(1, -10, 0, 25)
-vecLabel.Position = UDim2.new(0, 5, 0, 62)
-vecLabel.BackgroundTransparency = 1
-vecLabel.Text = "Vector3.new(---)"
-vecLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-vecLabel.Font = Enum.Font.Gotham
-vecLabel.TextSize = 11
-vecLabel.Parent = Frame
-
--- Botão Copiar
-local CopyBtn = Instance.new("TextButton")
-CopyBtn.Size = UDim2.new(1, -10, 0, 25)
-CopyBtn.Position = UDim2.new(0, 5, 0, 90)
-CopyBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
-CopyBtn.Text = "📋 COPY POSITION"
-CopyBtn.TextColor3 = Color3.new(1, 1, 1)
-CopyBtn.Font = Enum.Font.GothamBold
-CopyBtn.TextSize = 12
-CopyBtn.Parent = Frame
-
-local BtnCorner = Instance.new("UICorner")
-BtnCorner.CornerRadius = UDim.new(0, 5)
-BtnCorner.Parent = CopyBtn
+local textLabel = Instance.new("TextLabel")
+textLabel.Size = UDim2.new(1, 0, 1, 0)
+textLabel.BackgroundTransparency = 1
+textLabel.Text = "X: 0\nY: 0\nZ: 0"
+textLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+textLabel.Font = Enum.Font.GothamBold
+textLabel.TextSize = 14
+textLabel.TextXAlignment = Enum.TextXAlignment.Center
+textLabel.TextYAlignment = Enum.TextYAlignment.Center
+textLabel.Parent = frame
 
 -- Atualizar coordenadas
-local function UpdateCoords()
+while true do
+    task.wait(0.05)
     local char = player.Character
     if char and char:FindFirstChild("HumanoidRootPart") then
         local pos = char.HumanoidRootPart.Position
-        local x = math.floor(pos.X * 10) / 10
-        local y = math.floor(pos.Y * 10) / 10
-        local z = math.floor(pos.Z * 10) / 10
-        
-        xLabel.Text = "X: " .. x
-        yLabel.Text = "Y: " .. y
-        zLabel.Text = "Z: " .. z
-        vecLabel.Text = "Vector3.new(" .. x .. ", " .. y .. ", " .. z .. ")"
+        textLabel.Text = string.format("X: %.1f\nY: %.1f\nZ: %.1f", pos.X, pos.Y, pos.Z)
+    else
+        textLabel.Text = "X: ---\nY: ---\nZ: ---"
     end
 end
-
--- Copiar
-CopyBtn.MouseButton1Click:Connect(function()
-    local text = vecLabel.Text
-    if text and text ~= "Vector3.new(---)" then
-        setclipboard(text)
-        CopyBtn.Text = "✅ COPIED!"
-        task.wait(1)
-        CopyBtn.Text = "📋 COPY POSITION"
-    end
-end)
-
--- Atualizar a cada frame (RENDERSTEP)
-RunService.RenderStepped:Connect(UpdateCoords)
-
--- DRAG
-local dragging = false
-local dragStart, startPos
-
-Frame.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        dragging = true
-        dragStart = input.Position
-        startPos = Frame.Position
-    end
-end)
-
-UserInputService.InputChanged:Connect(function(input)
-    if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-        local delta = input.Position - dragStart
-        Frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-    end
-end)
-
-UserInputService.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        dragging = false
-    end
-end)
-
-print("✅ COORDINATE FINDER LOADED!")
-print("📋 Ande até a posição desejada e clique em COPY")
