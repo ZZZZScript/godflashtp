@@ -118,18 +118,18 @@ print("🛡️ ANTI-CHEAT ACTIVATED")
 -- TELEPORT COORDINATES
 -- =============================================
 
--- Start point for Teleport 6-10
+-- Start point for Teleport 7-10
 local StartPoint = Vector3.new(-357.6, -7.1, 37.4)
 
--- TELEPORT 1 TO 5
+-- TELEPORT 1 TO 6
 local Teleport1Pos = Vector3.new(-335.1, -7.1, 39.7)
 local Teleport2Pos = Vector3.new(-324.3, -7.1, 37.5)
 local Teleport3Pos = Vector3.new(-316.1, -7.1, 36.7)
 local Teleport4Pos = Vector3.new(-309.8, -7.1, 38.3)
 local Teleport5Pos = Vector3.new(-302.3, -7.1, 41.5)
-
--- TELEPORT 6 TO 10
 local Teleport6Pos = Vector3.new(-331.6, -7.1, -23.3)
+
+-- TELEPORT 7 TO 10
 local Teleport7Pos = Vector3.new(-324.1, -7.1, -23.2)
 local Teleport8Pos = Vector3.new(-317.8, -7.1, -23.6)
 local Teleport9Pos = Vector3.new(-311.1, -7.1, -23.5)
@@ -209,26 +209,20 @@ local function UseFlash()
     end
 end
 
--- Teleport with camera direction control
-local function TeleportTo(pos, lookBack)
+-- Teleport with camera BACKWARDS (lado contrário)
+local function TeleportTo(pos)
     local hrp = getHRP()
     if not hrp then return false end
     
+    -- Teleporta direto
     hrp.CFrame = CFrame.new(pos)
     hrp.AssemblyLinearVelocity = Vector3.zero
     task.wait(0.05)
     
-    -- Control camera direction
+    -- Camera para TRÁS (lado contrário)
     local cam = workspace.CurrentCamera
     if cam and hrp then
-        local lookDir
-        if lookBack then
-            -- Look BACKWARDS (opposite direction)
-            lookDir = -hrp.CFrame.LookVector
-        else
-            -- Look FORWARDS (same direction)
-            lookDir = hrp.CFrame.LookVector
-        end
+        local lookDir = -hrp.CFrame.LookVector
         cam.CFrame = CFrame.new(hrp.Position + Vector3.new(0, 2, 0), hrp.Position + lookDir + Vector3.new(0, 2, 0))
     end
     
@@ -251,39 +245,37 @@ local function ExecuteTeleport()
         UseFlash()
     end
     
-    -- TELEPORT 1 TO 5 (camera FORWARDS)
+    -- TELEPORT 1 TO 6 (direto, camera TRÁS)
     if selectedTeleport == 1 then
-        TeleportTo(Teleport1Pos, false) -- look forwards
+        TeleportTo(Teleport1Pos)
     elseif selectedTeleport == 2 then
-        TeleportTo(Teleport2Pos, false)
+        TeleportTo(Teleport2Pos)
     elseif selectedTeleport == 3 then
-        TeleportTo(Teleport3Pos, false)
+        TeleportTo(Teleport3Pos)
     elseif selectedTeleport == 4 then
-        TeleportTo(Teleport4Pos, false)
+        TeleportTo(Teleport4Pos)
     elseif selectedTeleport == 5 then
-        TeleportTo(Teleport5Pos, false)
-        
-    -- TELEPORT 6 TO 10 (go to StartPoint first, then destination, camera BACKWARDS)
+        TeleportTo(Teleport5Pos)
     elseif selectedTeleport == 6 then
-        TeleportTo(StartPoint, true) -- first go to start point (camera backwards)
-        task.wait(0.15)
-        TeleportTo(Teleport6Pos, true) -- then destination (camera backwards)
+        TeleportTo(Teleport6Pos)
+        
+    -- TELEPORT 7 TO 10 (StartPoint + destino, camera TRÁS)
     elseif selectedTeleport == 7 then
-        TeleportTo(StartPoint, true)
+        TeleportTo(StartPoint)
         task.wait(0.15)
-        TeleportTo(Teleport7Pos, true)
+        TeleportTo(Teleport7Pos)
     elseif selectedTeleport == 8 then
-        TeleportTo(StartPoint, true)
+        TeleportTo(StartPoint)
         task.wait(0.15)
-        TeleportTo(Teleport8Pos, true)
+        TeleportTo(Teleport8Pos)
     elseif selectedTeleport == 9 then
-        TeleportTo(StartPoint, true)
+        TeleportTo(StartPoint)
         task.wait(0.15)
-        TeleportTo(Teleport9Pos, true)
+        TeleportTo(Teleport9Pos)
     elseif selectedTeleport == 10 then
-        TeleportTo(StartPoint, true)
+        TeleportTo(StartPoint)
         task.wait(0.15)
-        TeleportTo(Teleport10Pos, true)
+        TeleportTo(Teleport10Pos)
     end
     
     teleporting = false
@@ -291,7 +283,7 @@ local function ExecuteTeleport()
 end
 
 -- =============================================
--- INSTANT RESET (0.1 SECOND)
+-- INSTANT RESET
 -- =============================================
 local function InstaReset()
     local char = player.Character
@@ -301,18 +293,15 @@ local function InstaReset()
     end
     
     local hum = char:FindFirstChildOfClass("Humanoid")
-    local hrp = char:FindFirstChild("HumanoidRootPart")
     
-    -- Kill character
     if hum then
         hum.Health = 0
     end
     
-    -- Force respawn after 0.1 seconds
-    task.wait(0.1)
+    task.wait(0.05)
     player:LoadCharacter()
     
-    print("🔄 INSTANT RESET (0.1s) EXECUTED!")
+    print("🔄 INSTANT RESET EXECUTED!")
 end
 
 local function getNearestPlayer()
@@ -439,7 +428,7 @@ TitleLabel.TextSize = 16
 TitleLabel.TextXAlignment = Enum.TextXAlignment.Center
 TitleLabel.Parent = TitleBar
 
--- DRAG SYSTEM
+-- DRAG SYSTEM (MENU MOVEL)
 local dragging = false
 local dragStart, startPos
 
@@ -681,7 +670,7 @@ BlockButton.MouseButton1Click:Connect(function()
     BlockLabel.TextColor3 = autoBlockEnabled and Color3.fromRGB(80, 255, 80) or Color3.new(1, 1, 1)
 end)
 
--- RESET BUTTON (0.1s)
+-- RESET BUTTON
 local ResetButton = Instance.new("TextButton")
 ResetButton.Size = UDim2.new(1, 0, 0, 40)
 ResetButton.Position = UDim2.new(0, 0, 0, 172)
@@ -699,7 +688,7 @@ local ResetLabel = Instance.new("TextLabel")
 ResetLabel.Size = UDim2.new(1, -20, 1, 0)
 ResetLabel.Position = UDim2.new(0, 12, 0, 0)
 ResetLabel.BackgroundTransparency = 1
-ResetLabel.Text = "🔄 RESET (0.1s)"
+ResetLabel.Text = "🔄 INSTANT RESET"
 ResetLabel.TextColor3 = Color3.fromRGB(255, 150, 50)
 ResetLabel.Font = Enum.Font.GothamBold
 ResetLabel.TextSize = 13
@@ -769,7 +758,7 @@ end)
 
 print("========================================")
 print("✅ OLD HUB LOADED!")
-print("📍 TELEPORT 1-5: Camera FORWARDS")
-print("📍 TELEPORT 6-10: StartPoint + Camera BACKWARDS")
-print("🎮 F = Teleport | R = Reset (0.1s)")
+print("📍 TELEPORT 1-6: Direct teleport (Camera BACKWARDS)")
+print("📍 TELEPORT 7-10: StartPoint + Teleport (Camera BACKWARDS)")
+print("🎮 F = Teleport | R = Instant Reset")
 print("========================================")
