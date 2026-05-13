@@ -1,1 +1,184 @@
-local p=game.Players.LocalPlayer local g=Instance.new("ScreenGui") g.Parent=p:WaitForChild("PlayerGui") local f=Instance.new("Frame") f.Size=UDim2.new(0,200,0,150) f.Position=UDim2.new(0.5,-100,0.5,-75) f.BackgroundColor3=Color3.new(0,0,0) f.BackgroundTransparency=0.3 f.Parent=g local t=Instance.new("TextLabel") t.Size=UDim2.new(1,0,0,30) t.Text="CAMERA" t.TextColor3=Color3.new(1,1,1) t.Font=Enum.Font.GothamBold t.TextSize=14 t.Parent=f local function cam(d) local c=p.Character if not c then return end local h=c:FindFirstChild("HumanoidRootPart") if not h then return end local cam=workspace.CurrentCamera if not cam then return end local l if d=="f" then l=h.CFrame.LookVector elseif d=="b" then l=-h.CFrame.LookVector elseif d=="l" then l=-h.CFrame.RightVector elseif d=="r" then l=h.CFrame.RightVector end cam.CFrame=CFrame.new(h.Position+Vector3.new(0,2,0),h.Position+l+Vector3.new(0,2,0)) end local b1=Instance.new("TextButton") b1.Size=UDim2.new(0.45,0,0,30) b1.Position=UDim2.new(0.05,0,0,40) b1.Text="FRENTE" b1.Parent=f b1.MouseButton1Click:Connect(function() cam("f") end) local b2=Instance.new("TextButton") b2.Size=UDim2.new(0.45,0,0,30) b2.Position=UDim2.new(0.5,0,0,40) b2.Text="TRAS" b2.Parent=f b2.MouseButton1Click:Connect(function() cam("b") end) local b3=Instance.new("TextButton") b3.Size=UDim2.new(0.45,0,0,30) b3.Position=UDim2.new(0.05,0,0,75) b3.Text="ESQUERDA" b3.Parent=f b3.MouseButton1Click:Connect(function() cam("l") end) local b4=Instance.new("TextButton") b4.Size=UDim2.new(0.45,0,0,30) b4.Position=UDim2.new(0.5,0,0,75) b4.Text="DIREITA" b4.Parent=f b4.MouseButton1Click:Connect(function() cam("r") end) print("CAMERA CONTROL OK")
+-- =============================================
+-- CHARACTER DIRECTION CONTROL
+-- =============================================
+
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "CharDirection"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.Parent = playerGui
+
+local Frame = Instance.new("Frame")
+Frame.Size = UDim2.new(0, 250, 0, 160)
+Frame.Position = UDim2.new(0.5, -125, 0.8, 0)
+Frame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+Frame.BackgroundTransparency = 0.3
+Frame.Parent = ScreenGui
+Instance.new("UICorner", Frame).CornerRadius = UDim.new(0, 10)
+Instance.new("UIStroke", Frame).Color = Color3.new(1,1,1)
+
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, 0, 0, 30)
+Title.Text = "🎮 CHARACTER DIRECTION"
+Title.TextColor3 = Color3.new(1, 1, 1)
+Title.Font = Enum.Font.GothamBold
+Title.TextSize = 14
+Title.Parent = Frame
+
+-- Label da direção atual
+local DirLabel = Instance.new("TextLabel")
+DirLabel.Size = UDim2.new(1, -10, 0, 30)
+DirLabel.Position = UDim2.new(0, 5, 0, 35)
+DirLabel.Text = "Looking: ---"
+DirLabel.TextColor3 = Color3.fromRGB(255, 200, 100)
+DirLabel.Font = Enum.Font.GothamBold
+DirLabel.TextSize = 13
+DirLabel.TextXAlignment = Enum.TextXAlignment.Left
+DirLabel.Parent = Frame
+
+-- Botões
+local FrontBtn = Instance.new("TextButton")
+FrontBtn.Size = UDim2.new(0.22, 0, 0, 35)
+FrontBtn.Position = UDim2.new(0.02, 0, 0, 75)
+FrontBtn.BackgroundColor3 = Color3.fromRGB(50, 70, 90)
+FrontBtn.Text = "↑ FRENTE"
+FrontBtn.TextColor3 = Color3.new(1,1,1)
+FrontBtn.Font = Enum.Font.GothamBold
+FrontBtn.TextSize = 11
+FrontBtn.Parent = Frame
+Instance.new("UICorner", FrontBtn).CornerRadius = UDim.new(0, 6)
+
+local BackBtn = Instance.new("TextButton")
+BackBtn.Size = UDim2.new(0.22, 0, 0, 35)
+BackBtn.Position = UDim2.new(0.26, 0, 0, 75)
+BackBtn.BackgroundColor3 = Color3.fromRGB(50, 70, 90)
+BackBtn.Text = "↓ TRÁS"
+BackBtn.TextColor3 = Color3.new(1,1,1)
+BackBtn.Font = Enum.Font.GothamBold
+BackBtn.TextSize = 11
+BackBtn.Parent = Frame
+Instance.new("UICorner", BackBtn).CornerRadius = UDim.new(0, 6)
+
+local LeftBtn = Instance.new("TextButton")
+LeftBtn.Size = UDim2.new(0.22, 0, 0, 35)
+LeftBtn.Position = UDim2.new(0.50, 0, 0, 75)
+LeftBtn.BackgroundColor3 = Color3.fromRGB(50, 70, 90)
+LeftBtn.Text = "← ESQUERDA"
+LeftBtn.TextColor3 = Color3.new(1,1,1)
+LeftBtn.Font = Enum.Font.GothamBold
+LeftBtn.TextSize = 11
+LeftBtn.Parent = Frame
+Instance.new("UICorner", LeftBtn).CornerRadius = UDim.new(0, 6)
+
+local RightBtn = Instance.new("TextButton")
+RightBtn.Size = UDim2.new(0.22, 0, 0, 35)
+RightBtn.Position = UDim2.new(0.74, 0, 0, 75)
+RightBtn.BackgroundColor3 = Color3.fromRGB(50, 70, 90)
+RightBtn.Text = "→ DIREITA"
+RightBtn.TextColor3 = Color3.new(1,1,1)
+RightBtn.Font = Enum.Font.GothamBold
+RightBtn.TextSize = 11
+RightBtn.Parent = Frame
+Instance.new("UICorner", RightBtn).CornerRadius = UDim.new(0, 6)
+
+-- Botão Reset
+local ResetBtn = Instance.new("TextButton")
+ResetBtn.Size = UDim2.new(0.9, 0, 0, 30)
+ResetBtn.Position = UDim2.new(0.05, 0, 0, 120)
+ResetBtn.BackgroundColor3 = Color3.fromRGB(80, 60, 60)
+ResetBtn.Text = "🔄 RESET DIRECTION"
+ResetBtn.TextColor3 = Color3.new(1,1,1)
+ResetBtn.Font = Enum.Font.GothamBold
+ResetBtn.TextSize = 12
+ResetBtn.Parent = Frame
+Instance.new("UICorner", ResetBtn).CornerRadius = UDim.new(0, 6)
+
+-- FUNÇÕES
+local function getHRP()
+    local char = player.Character
+    return char and char:FindFirstChild("HumanoidRootPart")
+end
+
+local function getCharacterDirection()
+    local hrp = getHRP()
+    if not hrp then return "---"
+    local look = hrp.CFrame.LookVector
+    if math.abs(look.X) > math.abs(look.Z) then
+        if look.X > 0 then return "DIREITA"
+        else return "ESQUERDA" end
+    else
+        if look.Z > 0 then return "FRENTE"
+        else return "TRÁS" end
+    end
+end
+
+local function RotateCharacter(angle)
+    local hrp = getHRP()
+    if not hrp then return end
+    local oldPos = hrp.Position
+    local newCFrame = CFrame.new(oldPos) * CFrame.Angles(0, math.rad(angle), 0)
+    hrp.CFrame = newCFrame
+    hrp.AssemblyLinearVelocity = Vector3.zero
+end
+
+local function SetCharacterDirection(direction)
+    local hrp = getHRP()
+    if not hrp then return end
+    local currentRot = hrp.CFrame - hrp.Position
+    local currentAngle = math.atan2(currentRot.LookVector.X, currentRot.LookVector.Z)
+    
+    local targetAngle
+    if direction == "front" then
+        targetAngle = 0
+    elseif direction == "back" then
+        targetAngle = math.pi
+    elseif direction == "left" then
+        targetAngle = math.pi / 2
+    elseif direction == "right" then
+        targetAngle = -math.pi / 2
+    end
+    
+    local newAngle = targetAngle - currentAngle
+    hrp.CFrame = hrp.CFrame * CFrame.Angles(0, newAngle, 0)
+    hrp.AssemblyLinearVelocity = Vector3.zero
+end
+
+-- Atualizar display
+local function UpdateDisplay()
+    DirLabel.Text = "Looking: " .. getCharacterDirection()
+end
+
+-- Conectar botões
+FrontBtn.MouseButton1Click:Connect(function() SetCharacterDirection("front") end)
+BackBtn.MouseButton1Click:Connect(function() SetCharacterDirection("back") end)
+LeftBtn.MouseButton1Click:Connect(function() SetCharacterDirection("left") end)
+RightBtn.MouseButton1Click:Connect(function() SetCharacterDirection("right") end)
+ResetBtn.MouseButton1Click:Connect(function() RotateCharacter(0) end)
+
+-- Atualizar a cada frame
+game:GetService("RunService").RenderStepped:Connect(UpdateDisplay)
+
+-- DRAG
+local dragging = false
+local dragStart, startPos
+Frame.InputBegan:Connect(function(i)
+    if i.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        dragStart = i.Position
+        startPos = Frame.Position
+    end
+end)
+UserInputService.InputChanged:Connect(function(i)
+    if dragging and i.UserInputType == Enum.UserInputType.MouseMovement then
+        local delta = i.Position - dragStart
+        Frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end)
+UserInputService.InputEnded:Connect(function() dragging = false end)
+
+print("✅ CHARACTER DIRECTION LOADED!")
+print("Clique nos botões para girar o PERSONAGEM")
