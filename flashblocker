@@ -1,1 +1,362 @@
-local p=game.Players.LocalPlayer local g=Instance.new("ScreenGui") g.Name="OldHub" g.ResetOnSpawn=false g.Parent=p:WaitForChild("PlayerGui") local t1=Vector3.new(-335.1,-7.1,39.7) local t2=Vector3.new(-324.3,-7.1,37.5) local t3=Vector3.new(-316.1,-7.1,36.7) local t4=Vector3.new(-309.8,-7.1,38.3) local t5=Vector3.new(-302.3,-7.1,41.5) local t6=Vector3.new(-331.6,-7.1,-23.3) local t7=Vector3.new(-324.1,-7.1,-23.2) local t8=Vector3.new(-317.8,-7.1,-23.6) local t9=Vector3.new(-311.1,-7.1,-23.5) local t10=Vector3.new(-302.6,-7.1,-23.9) local flash=true local sel=nil local auto=false local tele=false local function hrp()local c=p.Character return c and c:FindFirstChild("HumanoidRootPart")end local function equip()local c=p.Character local b=p:FindFirstChild("Backpack")if not c or not b then return end for _,t in pairs(c:GetChildren())do if t:IsA("Tool")then t.Parent=b end end local ca=b:FindFirstChild("Flying Carpet")local h=c:FindFirstChild("Humanoid")if ca and h then h:EquipTool(ca)end task.wait(0.1)end local function usef()if not flash then return end local c=p.Character local b=p:FindFirstChild("Backpack")if not c then return end local f=nil for _,t in pairs(c:GetChildren())do if t:IsA("Tool")and(t.Name:lower():find("flash")or t.Name:lower():find("flashlight"))then f=t break end end if not f and b then for _,t in pairs(b:GetChildren())do if t:IsA("Tool")and(t.Name:lower():find("flash")or t.Name:lower():find("flashlight"))then f=t break end end end if f then if f.Parent==b then local h=c:FindFirstChild("Humanoid")if h then h:EquipTool(f)end end pcall(function()f:Activate()end)task.wait(0.2)end end local function girar(a)local h=hrp()if not h then return end local pos=h.Position h.CFrame=CFrame.new(pos)*CFrame.Angles(0,math.rad(a),0)h.AssemblyLinearVelocity=Vector3.zero end local function cam(back)local h=hrp()local c=workspace.CurrentCamera if h and c then local d=back and -h.CFrame.LookVector or h.CFrame.LookVector c.CFrame=CFrame.new(h.Position+Vector3.new(0,2,0),h.Position+d+Vector3.new(0,2,0))end end local function tp(pos,back)local h=hrp()if not h then return end h.CFrame=CFrame.new(pos)h.AssemblyLinearVelocity=Vector3.zero task.wait(0.05)cam(back)for i=1,10 do task.wait(0.1)cam(back)end end local function block()local h=hrp()if not h then return end local near,dist=nil,math.huge for _,pl in pairs(Players:GetPlayers())do if pl~=p then local o=pl.Character and pl.Character:FindFirstChild("HumanoidRootPart")if o then local d=(h.Position-o.Position).Magnitude if d<dist then dist=d near=pl end end end end if near then pcall(function()game:GetService("StarterGui"):SetCore("PromptBlockPlayer",near)end)end end local function exec()if not sel then return end if tele then return end tele=true equip()task.wait(0.1)if flash then usef()end local back=sel>=6 if sel==1 then tp(t1,back)elseif sel==2 then tp(t2,back)elseif sel==3 then tp(t3,back)elseif sel==4 then tp(t4,back)elseif sel==5 then tp(t5,back)elseif sel==6 then tp(t6,back)elseif sel==7 then tp(t7,back)elseif sel==8 then tp(t8,back)elseif sel==9 then tp(t9,back)elseif sel==10 then tp(t10,back)end if sel>=6 then girar(180)else girar(0)end if auto then task.wait(0.3)block()end tele=false end local function reset()local c=p.Character if c then local h=c:FindFirstChild("Humanoid")if h then h.Health=0 end end task.wait(1)p:LoadCharacter()end local m=Instance.new("Frame")m.Size=UDim2.new(0,220,0,210)m.Position=UDim2.new(0.5,-110,0.5,-105)m.BackgroundColor3=Color3.new(0,0,0)m.BackgroundTransparency=0.2m.Parent=g Instance.new("UICorner",m).CornerRadius=UDim.new(0,12)local t=Instance.new("Frame")t.Size=UDim2.new(1,0,0,32)t.BackgroundColor3=Color3.new(0,0,0)t.BackgroundTransparency=0.5t.Parent=m Instance.new("UICorner",t).CornerRadius=UDim.new(0,12)local tl=Instance.new("TextLabel")tl.Size=UDim2.new(1,0,1,0)tl.Text="OLD HUB"tl.TextColor3=Color3.new(1,1,1)tl.Font=Enum.Font.GothamBoldtl.TextSize=14tl.Parent=t local drag=false local ds,sp t.InputBegan:Connect(function(i)if i.UserInputType==Enum.UserInputType.MouseButton1 then drag=true ds=i.Position sp=m.Position end end)game:GetService("UserInputService").InputChanged:Connect(function(i)if drag and i.UserInputType==Enum.UserInputType.MouseMovement then local d=i.Position-ds m.Position=UDim2.new(sp.X.Scale,sp.X.Offset+d.X,sp.Y.Scale,sp.Y.Offset+d.Y)end end)game:GetService("UserInputService").InputEnded:Connect(function()drag=false end) local c=Instance.new("Frame")c.Size=UDim2.new(1,-20,1,-42)c.Position=UDim2.new(0,10,0,37)c.BackgroundTransparency=1c.Parent=m local db=Instance.new("TextButton")db.Size=UDim2.new(1,0,0,36)db.BackgroundColor3=Color3.fromRGB(30,30,40)db.Text=""db.Parent=c Instance.new("UICorner",db).CornerRadius=UDim.new(0,8) local dl=Instance.new("TextLabel")dl.Size=UDim2.new(1,-12,1,0)dl.Position=UDim2.new(0,12,0,0)dl.Text="▼ TELEPORT"dl.TextColor3=Color3.new(1,1,1)dl.Font=Enum.Font.GothamBolddl.TextSize=12dl.Parent=db local op=Instance.new("Frame")op.Size=UDim2.new(1,0,0,180)op.Position=UDim2.new(0,0,0,38)op.BackgroundColor3=Color3.fromRGB(20,20,28)op.Visible=falseop.Parent=c Instance.new("UICorner",op).CornerRadius=UDim.new(0,8)local sc=Instance.new("ScrollingFrame")sc.Size=UDim2.new(1,-4,1,-4)sc.Position=UDim2.new(0,2,0,2)sc.BackgroundTransparency=1sc.CanvasSize=UDim2.new(0,0,0,0)sc.AutomaticCanvasSize=Enum.AutomaticSize.Ysc.Parent=op local lay=Instance.new("UIListLayout")lay.Padding=UDim.new(0,2)lay.Parent=sc for i=1,10 do local b=Instance.new("TextButton")b.Size=UDim2.new(1,0,0,32)b.BackgroundColor3=Color3.fromRGB(35,35,45)b.Text=i..". TELEPORT "..ib.TextColor3=Color3.new(1,1,1)b.Font=Enum.Font.Gothamb.TextSize=11b.Parent=sc Instance.new("UICorner",b).CornerRadius=UDim.new(0,4)b.MouseButton1Click:Connect(function()sel=i dl.Text="▼ "..i..". TELEPORT "..i op.Visible=false m.Size=UDim2.new(0,220,0,210)end)end db.MouseButton1Click:Connect(function()op.Visible=not op.Visible m.Size=op.Visible and UDim2.new(0,220,0,250)or UDim2.new(0,220,0,210)end) local eb=Instance.new("TextButton")eb.Size=UDim2.new(1,0,0,38)eb.Position=UDim2.new(0,0,0,44)eb.BackgroundColor3=Color3.fromRGB(30,30,40)eb.Text=""eb.Parent=c Instance.new("UICorner",eb).CornerRadius=UDim.new(0,8) local el=Instance.new("TextLabel")el.Size=UDim2.new(1,-12,1,0)el.Position=UDim2.new(0,12,0,0)el.Text="EXECUTE TP"el.TextColor3=Color3.fromRGB(80,255,80)el.Font=Enum.Font.GothamBoldel.TextSize=12el.Parent=eb eb.MouseButton1Click:Connect(exec) local fb=Instance.new("TextButton")fb.Size=UDim2.new(1,0,0,32)fb.Position=UDim2.new(0,0,0,88)fb.BackgroundColor3=Color3.fromRGB(30,30,40)fb.Text=""fb.Parent=c Instance.new("UICorner",fb).CornerRadius=UDim.new(0,8) local fl=Instance.new("TextLabel")fl.Size=UDim2.new(1,-12,1,0)fl.Position=UDim2.new(0,12,0,0)fl.Text="⚡ FLASH: ON"fl.TextColor3=Color3.new(1,1,1)fl.Font=Enum.Font.GothamBoldfl.TextSize=12fl.Parent=fb fb.MouseButton1Click:Connect(function()flash=not flash fl.Text=flash and "⚡ FLASH: ON" or "⚡ FLASH: OFF" fl.TextColor3=flash and Color3.fromRGB(80,255,80)or Color3.fromRGB(255,100,100)end) local bb=Instance.new("TextButton")bb.Size=UDim2.new(1,0,0,32)bb.Position=UDim2.new(0,0,0,126)bb.BackgroundColor3=Color3.fromRGB(30,30,40)bb.Text=""bb.Parent=c Instance.new("UICorner",bb).CornerRadius=UDim.new(0,8) local bl=Instance.new("TextLabel")bl.Size=UDim2.new(1,-12,1,0)bl.Position=UDim2.new(0,12,0,0)bl.Text="🛡️ AUTO BLOCK: OFF"bl.TextColor3=Color3.new(1,1,1)bl.Font=Enum.Font.GothamBoldbl.TextSize=12bl.Parent=bb bb.MouseButton1Click:Connect(function()auto=not auto bl.Text=auto and "🛡️ AUTO BLOCK: ON" or "🛡️ AUTO BLOCK: OFF" bl.TextColor3=auto and Color3.fromRGB(80,255,80)or Color3.new(1,1,1)end) local rb=Instance.new("TextButton")rb.Size=UDim2.new(1,0,0,38)rb.Position=UDim2.new(0,0,0,164)rb.BackgroundColor3=Color3.fromRGB(30,30,40)rb.Text=""rb.Parent=c Instance.new("UICorner",rb).CornerRadius=UDim.new(0,8) local rl=Instance.new("TextLabel")rl.Size=UDim2.new(1,-12,1,0)rl.Position=UDim2.new(0,12,0,0)rl.Text="🔄 INSTANT RESET"rl.TextColor3=Color3.new(1,1,1)rl.Font=Enum.Font.GothamBoldrl.TextSize=12rl.Parent=rb rb.MouseButton1Click:Connect(reset) local sb=Instance.new("Frame")sb.Size=UDim2.new(0,220,0,16)sb.Position=UDim2.new(0.5,-110,1,-24)sb.BackgroundColor3=Color3.fromRGB(0,0,0)sb.BackgroundTransparency=0sb.Parent=g Instance.new("UICorner",sb).CornerRadius=UDim.new(0,6)local sf=Instance.new("Frame")sf.Size=UDim2.new(0,0,1,0)sf.BackgroundColor3=Color3.fromRGB(255,255,255)sf.Parent=sb local sv=1 local mv=false local tb=false local at={} local function upsv(v)sv=v sf.Size=UDim2.new(v,0,1,0)end game:GetService("RunService").Heartbeat:Connect(function()if not mv then local p2=p:GetNetworkPing()*1000 local b2=0.95 upsv(tb and b2+0.01 or b2)end end) game:GetService("ProximityPromptService").PromptButtonHoldBegan:Connect(function(pr)if not flash then return end if at[pr]then return end at[pr]=true local st=os.clock()local fr=false sf.BackgroundTransparency=0 sb.BackgroundTransparency=0 local cn cn=game:GetService("RunService").PreRender:Connect(function()if not pr or not pr.Parent then cn:Disconnect()at[pr]=nil game:GetService("TweenService"):Create(sf,TweenInfo.new(0.3),{Size=UDim2.new(0,0,1,0)}):Play()return end local prog=math.clamp((os.clock()-st)/pr.HoldDuration,0,1)sf.Size=UDim2.new(prog,0,1,0)if not fr and prog>=sv then fr=true cn:Disconnect()at[pr]=nil tb=not tb local t2=p.Character and p.Character:FindFirstChildOfClass("Tool")if t2 then t2:Activate()end sf.Size=UDim2.new(1,0,1,0)task.delay(0.2,function()game:GetService("TweenService"):Create(sf,TweenInfo.new(0.4),{Size=UDim2.new(0,0,1,0)}):Play()end)end end) pr.PromptButtonHoldEnded:Connect(function()if not fr then cn:Disconnect()at[pr]=nil game:GetService("TweenService"):Create(sf,TweenInfo.new(0.3),{Size=UDim2.new(0,0,1,0)}):Play()end end)end) game:GetService("UserInputService").InputBegan:Connect(function(i)if i.UserInputType==Enum.UserInputType.Keyboard then if i.KeyCode==Enum.KeyCode.F then exec()elseif i.KeyCode==Enum.KeyCode.R then reset()end end end) print("OLD HUB - F=Teleport R=Reset")
+-- OLD HUB - CAT HUB STYLE (OTIMIZADO)
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local ProximityPromptService = game:GetService("ProximityPromptService")
+local StarterGui = game:GetService("StarterGui")
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+local Teleports = {
+    [1] = Vector3.new(-335.1, -7.1, 39.7),
+    [2] = Vector3.new(-324.3, -7.1, 37.5),
+    [3] = Vector3.new(-316.1, -7.1, 36.7),
+    [4] = Vector3.new(-309.8, -7.1, 38.3),
+    [5] = Vector3.new(-302.3, -7.1, 41.5),
+    [6] = Vector3.new(-331.6, -7.1, -23.3),
+    [7] = Vector3.new(-324.1, -7.1, -23.2),
+    [8] = Vector3.new(-317.8, -7.1, -23.6),
+    [9] = Vector3.new(-311.1, -7.1, -23.5),
+    [10] = Vector3.new(-302.6, -7.1, -23.9),
+}
+
+local flashOn = true
+local selected = 1
+local autoBlock = false
+local dropOpen = false
+
+local function getHRP()
+    local c = player.Character
+    return c and c:FindFirstChild("HumanoidRootPart")
+end
+
+local function EquipCarpet()
+    local c = player.Character
+    local b = player:FindFirstChild("Backpack")
+    if not c or not b then return
+    for _, t in pairs(c:GetChildren()) do if t:IsA("Tool") then t.Parent = b end end
+    local carpet = b:FindFirstChild("Flying Carpet")
+    local h = c:FindFirstChildOfClass("Humanoid")
+    if carpet and h then h:EquipTool(carpet) end
+    task.wait(0.1)
+end
+
+local function UseFlash()
+    if not flashOn then return end
+    local c = player.Character
+    if not c then return
+    local flash = nil
+    for _, t in pairs(c:GetChildren()) do
+        if t:IsA("Tool") and (t.Name:lower():find("flash") or t.Name:lower():find("flashlight")) then flash = t break end
+    end
+    if not flash then
+        local b = player:FindFirstChild("Backpack")
+        if b then for _, t in pairs(b:GetChildren()) do
+            if t:IsA("Tool") and (t.Name:lower():find("flash") or t.Name:lower():find("flashlight")) then flash = t break end
+        end end
+    end
+    if flash then
+        if flash.Parent ~= c then
+            local h = c:FindFirstChildOfClass("Humanoid")
+            if h then h:EquipTool(flash) end
+            task.wait(0.1)
+        end
+        pcall(function() flash:Activate() end)
+        task.wait(0.2)
+    end
+end
+
+local function BlockNearest()
+    local h = getHRP()
+    if not h then return end
+    local nearest, minDist = nil, math.huge
+    for _, pl in pairs(Players:GetPlayers()) do
+        if pl ~= player then
+            local oh = pl.Character and pl.Character:FindFirstChild("HumanoidRootPart")
+            if oh then
+                local d = (h.Position - oh.Position).Magnitude
+                if d < minDist then minDist, nearest = d, pl end
+            end
+        end
+    end
+    if nearest then pcall(function() StarterGui:SetCore("PromptBlockPlayer", nearest) end) end
+end
+
+local function DoTeleport()
+    EquipCarpet()
+    task.wait(0.1)
+    if flashOn then UseFlash() end
+    local hrp = getHRP()
+    if hrp then
+        hrp.CFrame = CFrame.new(Teleports[selected])
+        hrp.AssemblyLinearVelocity = Vector3.zero
+        if selected >= 6 then
+            local pos = hrp.Position
+            hrp.CFrame = CFrame.new(pos) * CFrame.Angles(0, math.rad(180), 0)
+        end
+    end
+    if autoBlock then task.wait(0.3) BlockNearest() end
+    StarterGui:SetCore("SendNotification", {Title = "Done", Text = "TELEPORT " .. selected, Duration = 2})
+end
+
+local function Reset()
+    local c = player.Character
+    if c then
+        local h = c:FindFirstChildOfClass("Humanoid")
+        if h then h.Health = 0 end
+    end
+    task.wait(1)
+    player:LoadCharacter()
+end
+
+-- GUI
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "OldHub"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.Parent = playerGui
+
+-- Steal Bar
+local StealBarBG = Instance.new("Frame")
+StealBarBG.Size = UDim2.new(0, 220, 0, 16)
+StealBarBG.Position = UDim2.new(0.5, -110, 1, -24)
+StealBarBG.BackgroundColor3 = Color3.fromRGB(0,0,0)
+StealBarBG.BackgroundTransparency = 0
+StealBarBG.Parent = ScreenGui
+Instance.new("UICorner", StealBarBG).CornerRadius = UDim.new(0,6)
+
+local StealBarFill = Instance.new("Frame")
+StealBarFill.Size = UDim2.new(0,0,1,0)
+StealBarFill.BackgroundColor3 = Color3.fromRGB(255,255,255)
+StealBarFill.Parent = StealBarBG
+
+-- Main Frame
+local Main = Instance.new("Frame")
+Main.Size = UDim2.new(0, 220, 0, 210)
+Main.Position = UDim2.new(0.5, -110, 0.5, -105)
+Main.BackgroundColor3 = Color3.fromRGB(0,0,0)
+Main.BackgroundTransparency = 0.2
+Main.Parent = ScreenGui
+Instance.new("UICorner", Main).CornerRadius = UDim.new(0,12)
+
+-- Title Bar (Drag)
+local TitleBar = Instance.new("Frame")
+TitleBar.Size = UDim2.new(1,0,0,32)
+TitleBar.BackgroundColor3 = Color3.fromRGB(0,0,0)
+TitleBar.BackgroundTransparency = 0.5
+TitleBar.Parent = Main
+Instance.new("UICorner", TitleBar).CornerRadius = UDim.new(0,12)
+
+local TitleLabel = Instance.new("TextLabel")
+TitleLabel.Size = UDim2.new(1,0,1,0)
+TitleLabel.Text = "OLD HUB"
+TitleLabel.TextColor3 = Color3.fromRGB(255,255,255)
+TitleLabel.Font = Enum.Font.GothamBold
+TitleLabel.TextSize = 14
+TitleLabel.Parent = TitleBar
+
+-- Drag
+local dragging, dragStart, startPos = false
+TitleBar.InputBegan:Connect(function(i)
+    if i.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        dragStart = i.Position
+        startPos = Main.Position
+    end
+end)
+UserInputService.InputChanged:Connect(function(i)
+    if dragging and i.UserInputType == Enum.UserInputType.MouseMovement then
+        local d = i.Position - dragStart
+        Main.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + d.X, startPos.Y.Scale, startPos.Y.Offset + d.Y)
+    end
+end)
+UserInputService.InputEnded:Connect(function() dragging = false end)
+
+-- Content
+local Content = Instance.new("Frame")
+Content.Size = UDim2.new(1, -20, 1, -42)
+Content.Position = UDim2.new(0, 10, 0, 37)
+Content.BackgroundTransparency = 1
+Content.Parent = Main
+
+-- Dropdown
+local DropBtn = Instance.new("TextButton")
+DropBtn.Size = UDim2.new(1,0,0,36)
+DropBtn.BackgroundColor3 = Color3.fromRGB(30,30,40)
+DropBtn.Text = ""
+DropBtn.Parent = Content
+Instance.new("UICorner", DropBtn).CornerRadius = UDim.new(0,8)
+
+local DropLabel = Instance.new("TextLabel")
+DropLabel.Size = UDim2.new(1,-12,1,0)
+DropLabel.Position = UDim2.new(0,12,0,0)
+DropLabel.Text = "▼ TELEPORT " .. selected
+DropLabel.TextColor3 = Color3.fromRGB(255,255,255)
+DropLabel.Font = Enum.Font.GothamBold
+DropLabel.TextSize = 12
+DropLabel.Parent = DropBtn
+
+-- Options
+local Options = Instance.new("Frame")
+Options.Size = UDim2.new(1,0,0,180)
+Options.Position = UDim2.new(0,0,0,38)
+Options.BackgroundColor3 = Color3.fromRGB(20,20,28)
+Options.Visible = false
+Options.Parent = Content
+Instance.new("UICorner", Options).CornerRadius = UDim.new(0,8)
+
+local Scroll = Instance.new("ScrollingFrame")
+Scroll.Size = UDim2.new(1,-4,1,-4)
+Scroll.Position = UDim2.new(0,2,0,2)
+Scroll.BackgroundTransparency = 1
+Scroll.CanvasSize = UDim2.new(0,0,0,0)
+Scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+Scroll.Parent = Options
+
+local Layout = Instance.new("UIListLayout")
+Layout.Padding = UDim.new(0,2)
+Layout.Parent = Scroll
+
+for i = 1,10 do
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1,0,0,32)
+    btn.BackgroundColor3 = Color3.fromRGB(35,35,45)
+    btn.Text = i .. ". TELEPORT " .. i
+    btn.TextColor3 = Color3.fromRGB(255,255,255)
+    btn.Font = Enum.Font.Gotham
+    btn.TextSize = 11
+    btn.Parent = Scroll
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0,4)
+    btn.MouseButton1Click:Connect(function()
+        selected = i
+        DropLabel.Text = "▼ TELEPORT " .. i
+        Options.Visible = false
+        Main.Size = UDim2.new(0,220,0,210)
+    end)
+end
+
+DropBtn.MouseButton1Click:Connect(function()
+    Options.Visible = not Options.Visible
+    Main.Size = Options.Visible and UDim2.new(0,220,0,250) or UDim2.new(0,220,0,210)
+end)
+
+-- Execute
+local ExecBtn = Instance.new("TextButton")
+ExecBtn.Size = UDim2.new(1,0,0,40)
+ExecBtn.Position = UDim2.new(0,0,0,44)
+ExecBtn.BackgroundColor3 = Color3.fromRGB(30,30,40)
+ExecBtn.Text = ""
+ExecBtn.Parent = Content
+Instance.new("UICorner", ExecBtn).CornerRadius = UDim.new(0,8)
+
+local ExecLabel = Instance.new("TextLabel")
+ExecLabel.Size = UDim2.new(1,-12,1,0)
+ExecLabel.Position = UDim2.new(0,12,0,0)
+ExecLabel.Text = "EXECUTE TP (F)"
+ExecLabel.TextColor3 = Color3.fromRGB(80,255,80)
+ExecLabel.Font = Enum.Font.GothamBold
+ExecLabel.TextSize = 12
+ExecLabel.Parent = ExecBtn
+ExecBtn.MouseButton1Click:Connect(DoTeleport)
+
+-- Flash
+local FlashBtn = Instance.new("TextButton")
+FlashBtn.Size = UDim2.new(1,0,0,32)
+FlashBtn.Position = UDim2.new(0,0,0,90)
+FlashBtn.BackgroundColor3 = Color3.fromRGB(30,30,40)
+FlashBtn.Text = ""
+FlashBtn.Parent = Content
+Instance.new("UICorner", FlashBtn).CornerRadius = UDim.new(0,8)
+
+local FlashLabel = Instance.new("TextLabel")
+FlashLabel.Size = UDim2.new(1,-12,1,0)
+FlashLabel.Position = UDim2.new(0,12,0,0)
+FlashLabel.Text = "⚡ FLASH: ON"
+FlashLabel.TextColor3 = Color3.fromRGB(255,255,255)
+FlashLabel.Font = Enum.Font.GothamBold
+FlashLabel.TextSize = 12
+FlashLabel.Parent = FlashBtn
+FlashBtn.MouseButton1Click:Connect(function()
+    flashOn = not flashOn
+    FlashLabel.Text = flashOn and "⚡ FLASH: ON" or "⚡ FLASH: OFF"
+    FlashLabel.TextColor3 = flashOn and Color3.fromRGB(80,255,80) or Color3.fromRGB(255,100,100)
+end)
+
+-- Auto Block
+local BlockBtn = Instance.new("TextButton")
+BlockBtn.Size = UDim2.new(1,0,0,32)
+BlockBtn.Position = UDim2.new(0,0,0,128)
+BlockBtn.BackgroundColor3 = Color3.fromRGB(30,30,40)
+BlockBtn.Text = ""
+BlockBtn.Parent = Content
+Instance.new("UICorner", BlockBtn).CornerRadius = UDim.new(0,8)
+
+local BlockLabel = Instance.new("TextLabel")
+BlockLabel.Size = UDim2.new(1,-12,1,0)
+BlockLabel.Position = UDim2.new(0,12,0,0)
+BlockLabel.Text = "🛡️ AUTO BLOCK: OFF"
+BlockLabel.TextColor3 = Color3.fromRGB(255,255,255)
+BlockLabel.Font = Enum.Font.GothamBold
+BlockLabel.TextSize = 12
+BlockLabel.Parent = BlockBtn
+BlockBtn.MouseButton1Click:Connect(function()
+    autoBlock = not autoBlock
+    BlockLabel.Text = autoBlock and "🛡️ AUTO BLOCK: ON" or "🛡️ AUTO BLOCK: OFF"
+    BlockLabel.TextColor3 = autoBlock and Color3.fromRGB(80,255,80) or Color3.fromRGB(255,255,255)
+end)
+
+-- Reset
+local ResetBtn = Instance.new("TextButton")
+ResetBtn.Size = UDim2.new(1,0,0,40)
+ResetBtn.Position = UDim2.new(0,0,0,166)
+ResetBtn.BackgroundColor3 = Color3.fromRGB(30,30,40)
+ResetBtn.Text = ""
+ResetBtn.Parent = Content
+Instance.new("UICorner", ResetBtn).CornerRadius = UDim.new(0,8)
+
+local ResetLabel = Instance.new("TextLabel")
+ResetLabel.Size = UDim2.new(1,-12,1,0)
+ResetLabel.Position = UDim2.new(0,12,0,0)
+ResetLabel.Text = "🔄 INSTANT RESET (R)"
+ResetLabel.TextColor3 = Color3.fromRGB(255,255,255)
+ResetLabel.Font = Enum.Font.GothamBold
+ResetLabel.TextSize = 12
+ResetLabel.Parent = ResetBtn
+ResetBtn.MouseButton1Click:Connect(Reset)
+
+-- Flash Steal (CatHUB Style)
+local sliderValue = 0.95
+local active = {}
+ProximityPromptService.PromptButtonHoldBegan:Connect(function(p)
+    if not flashOn then return end
+    if active[p] then return end
+    active[p] = true
+    local start = os.clock()
+    local fired = false
+    StealBarFill.Size = UDim2.new(0,0,1,0)
+    local conn = RunService.PreRender:Connect(function()
+        if not p or not p.Parent then conn:Disconnect() active[p]=nil return end
+        local prog = math.clamp((os.clock()-start)/p.HoldDuration,0,1)
+        StealBarFill.Size = UDim2.new(prog,0,1,0)
+        if not fired and prog >= sliderValue then
+            fired = true
+            conn:Disconnect()
+            active[p]=nil
+            local t = player.Character and player.Character:FindFirstChildOfClass("Tool")
+            if t then t:Activate() end
+            StealBarFill.Size = UDim2.new(1,0,1,0)
+            task.delay(0.2, function() StealBarFill.Size = UDim2.new(0,0,1,0) end)
+        end
+    end)
+    p.PromptButtonHoldEnded:Connect(function()
+        if not fired then conn:Disconnect() active[p]=nil StealBarFill.Size = UDim2.new(0,0,1,0) end
+    end)
+end)
+
+-- Hotkeys
+UserInputService.InputBegan:Connect(function(i)
+    if i.KeyCode == Enum.KeyCode.F then DoTeleport()
+    elseif i.KeyCode == Enum.KeyCode.R then Reset() end
+end)
+
+print("OLD HUB CARREGADO! F=Teleport | R=Reset")
