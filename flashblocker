@@ -1,4 +1,8 @@
--- [[(/ SERVICES /)]]
+-- ============================================================
+-- COMPLETE SCRIPT WITH KEYBINDS (Right-click to set key)
+-- ============================================================
+
+-- SERVICES
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
@@ -7,39 +11,68 @@ local ProximityPromptService = game:GetService("ProximityPromptService")
 local CoreGui = game:GetService("CoreGui")
 local HttpService = game:GetService("HttpService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local PPS = game:GetService("ProximityPromptService")
+local VirtualUser = game:GetService("VirtualUser")
 local TeleportService = game:GetService("TeleportService")
 
 local LP = Players.LocalPlayer
 local plr = LP
 
 -- ============================================================
--- MAXIMUM ANTI-KICK (prevents all kicks)
+-- KEYBIND STORAGE
 -- ============================================================
+local Keybinds = {
+    -- InstantSteal buttons
+    executeTP = "X",
+    activateReset = "R",
+    -- Server buttons  
+    kickSelf = "K",
+    forceReset = "F",
+    -- Spam buttons (per player, will be dynamic)
+    spamDefault = "P",
+}
 
--- Override kick function
-local oldKick = LP.Kick
-LP.Kick = function() return nil end
+-- Load saved keybinds
+pcall(function()
+    if readfile then
+        local data = readfile("keybinds_config.json")
+        if data and data ~= "" then
+            local saved = HttpService:JSONDecode(data)
+            for k, v in pairs(saved) do
+                Keybinds[k] = v
+            end
+        end
+    end
+end)
 
--- Block all kick methods using metatable
+-- Save keybinds
+local function saveKeybinds()
+    pcall(function()
+        if writefile then
+            writefile("keybinds_config.json", HttpService:JSONEncode(Keybinds))
+        end
+    end)
+end
+
+-- ============================================================
+-- ANTI-KICK (Fixed for removed Kick function)
+-- ============================================================
 pcall(function()
     local mt = getrawmetatable(game)
     if mt then
-        local oldNamecall = mt.__namecall
+        local old_namecall = mt.__namecall
         mt.__namecall = newcclosure(function(self, ...)
             local method = getnamecallmethod()
-            if method == "Kick" then
+            if method == "Kick" or method == "Destroy" or method == "Remove" then
                 return nil
             end
-            if oldNamecall then
-                return oldNamecall(self, ...)
+            if old_namecall then
+                return old_namecall(self, ...)
             end
             return nil
         end)
     end
 end)
 
--- Disable all kick connections
 pcall(function()
     for _, conn in pairs(getconnections(LP:GetPropertyChangedSignal("Parent"))) do
         conn:Disable()
@@ -47,46 +80,122 @@ pcall(function()
     for _, conn in pairs(getconnections(LP.AncestryChanged)) do
         conn:Disable()
     end
-    for _, conn in pairs(getconnections(Players.PlayerRemoving)) do
-        if conn and conn.Function and conn.Function == LP then
-            conn:Disable()
-        end
-    end
 end)
 
--- Anti-kick loop
 task.spawn(function()
     while true do
-        task.wait(0.5)
+        task.wait(1)
         pcall(function()
-            if LP then
-                LP.Kick = function() end
-            end
-            -- Auto-reconnect if kicked
-            if LP and not LP.Parent then
+            if not LP.Parent or LP.Parent ~= Players then
                 TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, LP)
             end
         end)
     end
 end)
 
--- Block telemetry
-pcall(function()
-    local ts = game:GetService("TelemetryService")
-    if ts then ts:SetTelemetryEnabled(false) end
-end)
+-- ============================================================
+-- KEYBIND HANDLER (Global)
+-- ============================================================
+local KeybindFunctions = {}
 
--- Remove detection flags
-pcall(function()
-    local flags = {
-        "FFlagDebugDisplayFPS",
-        "FFlagDebugGraphicsPreferD3D11",
-        "DFIntTaskSchedulerTargetFps",
-    }
-    for _, flag in ipairs(flags) do
-        if setfflag then setfflag(flag, "false") end
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    if input.UserInputType == Enum.UserInputType.Keyboard then
+        local key = input.KeyCode.Name
+        for bindKey, func in pairs(KeybindFunctions) do
+            if bindKey == key then
+                pcall(func)
+            end
+        end
     end
 end)
+
+-- Function to create a button with keybind support
+local function makeKeybindButton(parent, text, callback, bindId, defaultKey)
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(1, 0, 0, 28)
+    frame.BackgroundTransparency = 1
+    frame.Parent = parent
+    
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1, -60, 1, 0)
+    btn.Position = UDim2.new(0, 0, 0, 0)
+    btn.BackgroundColor3 = Color3.fromRGB(20, 20, 28)
+    btn.BackgroundTransparency = 0.3
+    btn.BorderSizePixel = 0
+    btn.Text = text
+    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn.Font = Enum.Font.GothamBold
+    btn.TextSize = 11
+    btn.TextXAlignment = Enum.TextXAlignment.Left
+    btn.Parent = frame
+    local btnCorner = Instance.new("UICorner")
+    btnCorner.CornerRadius = UDim.new(0, 6)
+    btnCorner.Parent = btn
+    
+    -- Keybind label
+    local keyLabel = Instance.new("TextLabel")
+    keyLabel.Size = UDim2.new(0, 50, 1, 0)
+    keyLabel.Position = UDim2.new(1, -55, 0, 0)
+    keyLabel.BackgroundTransparency = 1
+    keyLabel.Text = "(" .. (Keybinds[bindId] or defaultKey or "None") .. ")"
+    keyLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
+    keyLabel.Font = Enum.Font.GothamMedium
+    keyLabel.TextSize = 10
+    keyLabel.TextXAlignment = Enum.TextXAlignment.Right
+    keyLabel.Parent = frame
+    
+    -- Store keybind
+    local currentBind = Keybinds[bindId] or defaultKey or "None"
+    Keybinds[bindId] = currentBind
+    
+    -- Update global keybind function
+    if currentBind ~= "None" then
+        KeybindFunctions[currentBind] = callback
+    end
+    
+    -- Right-click to set new keybind
+    btn.MouseButton2Click:Connect(function()
+        keyLabel.Text = "(Press any key...)"
+        keyLabel.TextColor3 = Color3.fromRGB(255, 200, 0)
+        
+        local connection
+        connection = UserInputService.InputBegan:Connect(function(input, gameProcessed)
+            if gameProcessed then return end
+            if input.UserInputType == Enum.UserInputType.Keyboard then
+                local newKey = input.KeyCode.Name
+                
+                -- Remove old binding
+                if KeybindFunctions[currentBind] == callback then
+                    KeybindFunctions[currentBind] = nil
+                end
+                
+                -- Set new binding
+                currentBind = newKey
+                Keybinds[bindId] = newKey
+                KeybindFunctions[newKey] = callback
+                
+                keyLabel.Text = "(" .. newKey .. ")"
+                keyLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
+                saveKeybinds()
+                connection:Disconnect()
+            end
+        end)
+        
+        task.delay(5, function()
+            pcall(function() connection:Disconnect() end)
+            if keyLabel.Text == "(Press any key...)" then
+                keyLabel.Text = "(" .. currentBind .. ")"
+                keyLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
+            end
+        end)
+    end)
+    
+    -- Left-click normal action
+    btn.MouseButton1Click:Connect(callback)
+    
+    return btn, keyLabel
+end
 
 -- ============================================================
 -- CONFIGURATION
@@ -99,10 +208,7 @@ _G.AntiScamSave = _G.AntiScamSave or {
     espPlayer=false, espBrainrot=false, espBase=false,
     shortInstantSteal=true, shortServer=true, shortSpam=true, shortMyskyp=true, shortOpenBase=true,
     shortcutsInitialized=false,
-    hhPos=nil, srvPos=nil, spamPos=nil, myskypPos=nil, obPos=nil,
-    togglePos=nil,
     autoActiveReset=false,
-    infoOverlay=false,
     antiRagdoll=false,
     espXRay=false,
     rckAntiLag=false,
@@ -112,7 +218,7 @@ _G.AntiScamSave = _G.AntiScamSave or {
 }
 local Save = _G.AntiScamSave
 
--- Save/Load functions
+-- Save/Load
 do
     local function loadConfig()
         pcall(function()
@@ -817,7 +923,7 @@ if Save.autoActiveReset then
 end
 
 -- ============================================================
--- MAIN INTERFACE (CatHUB Style with X button to close only main menu)
+-- MAIN INTERFACE (CatHUB Style with X button)
 -- ============================================================
 
 local function mkCorner(p,r) local c=Instance.new("UICorner"); c.CornerRadius=UDim.new(0,r or 6); c.Parent=p; return c end
@@ -920,7 +1026,7 @@ Outline.Parent = Container
 mkCorner(Outline, 8)
 mkStroke(Outline, Colors.accent, 2)
 
--- Sidebar Header with X BUTTON (closes ONLY main menu)
+-- Sidebar Header with X BUTTON
 local SidebarHeader = Instance.new("Frame")
 SidebarHeader.Size = UDim2.new(1, 0, 0, 43)
 SidebarHeader.BackgroundTransparency = 1
@@ -940,7 +1046,7 @@ local function mkLabel(parent, props)
     return l
 end
 
--- X BUTTON - closes ONLY the main menu (other windows stay open)
+-- X BUTTON - closes ONLY main menu
 local closeBtn = Instance.new("TextButton")
 closeBtn.Size = UDim2.new(0, 24, 0, 24)
 closeBtn.Position = UDim2.new(1, -28, 0, 8)
@@ -956,7 +1062,7 @@ closeBtn.MouseButton1Click:Connect(function()
     ScreenGui.Enabled = not ScreenGui.Enabled
 end)
 
--- Drag Handle (only on empty area, not on X button)
+-- Drag Handle
 local dragHandle = Instance.new("TextButton")
 dragHandle.Size = UDim2.new(1, -40, 1, 0)
 dragHandle.Position = UDim2.new(0, 0, 0, 0)
@@ -1470,7 +1576,7 @@ task.defer(function()
 end)
 
 -- ============================================================
--- POPUP WINDOWS WITH MINIMIZE BUTTONS
+-- POPUP WINDOWS WITH MINIMIZE BUTTONS AND KEYBINDS
 -- ============================================================
 
 -- Function to create a window with minimize button
@@ -1532,10 +1638,14 @@ local function createWindow(name, title, width, height, x, y, enabled)
     sep.BorderSizePixel = 0
     sep.Parent = mf
     
-    local content = Instance.new("Frame")
+    local content = Instance.new("ScrollingFrame")
     content.Size = UDim2.new(1, 0, 1, -30)
     content.Position = UDim2.new(0, 0, 0, 28)
     content.BackgroundTransparency = 1
+    content.ScrollBarThickness = 3
+    content.ScrollBarImageColor3 = Colors.accent
+    content.CanvasSize = UDim2.new(0, 0, 0, 0)
+    content.AutomaticCanvasSize = Enum.AutomaticSize.Y
     content.Parent = mf
     
     local layout = Instance.new("UIListLayout")
@@ -1590,44 +1700,52 @@ local function createWindow(name, title, width, height, x, y, enabled)
     return sg, mf, content
 end
 
--- InstantSteal Window
+-- ============================================================
+-- INSTANT STEAL WINDOW (with keybinds)
+-- ============================================================
 local hhSg, hhMf, hhContent = createWindow("HydraInstantStealGui", "Instant Steal", 195, 125, 10, math.floor(workspace.CurrentCamera.ViewportSize.Y * 0.12), Save.shortInstantSteal)
 
-local ord2 = 0
-local activeDot2 = nil
+-- Activate (Reset) button with keybind
+local activateContainer = Instance.new("Frame")
+activateContainer.Size = UDim2.new(1, 0, 0, 28)
+activateContainer.BackgroundTransparency = 1
+activateContainer.Parent = hhContent
 
-ord2 = ord2 + 1
-local activateBtn2 = Instance.new("TextButton")
-activateBtn2.Size = UDim2.new(1, 0, 0, 28)
-activateBtn2.LayoutOrder = ord2
-activateBtn2.BackgroundColor3 = Colors.bg_content
-activateBtn2.BackgroundTransparency = 0.3
-activateBtn2.BorderSizePixel = 0
-activateBtn2.Text = ""
-activateBtn2.Parent = hhContent
-mkCorner(activateBtn2, 6)
+local activateBtn = Instance.new("TextButton")
+activateBtn.Size = UDim2.new(1, -60, 1, 0)
+activateBtn.Position = UDim2.new(0, 0, 0, 0)
+activateBtn.BackgroundColor3 = Colors.bg_content
+activateBtn.BackgroundTransparency = 0.3
+activateBtn.BorderSizePixel = 0
+activateBtn.Text = "Activate (Reset)"
+activateBtn.TextColor3 = Colors.text
+activateBtn.Font = Enum.Font.GothamBold
+activateBtn.TextSize = 11
+activateBtn.TextXAlignment = Enum.TextXAlignment.Left
+activateBtn.Parent = activateContainer
+mkCorner(activateBtn, 6)
 
-local activateTxt2 = Instance.new("TextLabel")
-activateTxt2.Size = UDim2.new(1, -28, 1, 0)
-activateTxt2.Position = UDim2.new(0, 8, 0, 0)
-activateTxt2.BackgroundTransparency = 1
-activateTxt2.Text = "Activate (Reset)"
-activateTxt2.TextColor3 = Colors.text
-activateTxt2.Font = Enum.Font.GothamBold
-activateTxt2.TextSize = 11
-activateTxt2.TextXAlignment = Enum.TextXAlignment.Left
-activateTxt2.Parent = activateBtn2
+local activateKeyLabel = Instance.new("TextLabel")
+activateKeyLabel.Size = UDim2.new(0, 50, 1, 0)
+activateKeyLabel.Position = UDim2.new(1, -55, 0, 0)
+activateKeyLabel.BackgroundTransparency = 1
+activateKeyLabel.Text = "(" .. (Keybinds.activateReset or "R") .. ")"
+activateKeyLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
+activateKeyLabel.Font = Enum.Font.GothamMedium
+activateKeyLabel.TextSize = 10
+activateKeyLabel.TextXAlignment = Enum.TextXAlignment.Right
+activateKeyLabel.Parent = activateContainer
 
-activeDot2 = Instance.new("Frame")
+local activeDot2 = Instance.new("Frame")
 activeDot2.Size = UDim2.new(0, 8, 0, 8)
 activeDot2.AnchorPoint = Vector2.new(1, 0.5)
-activeDot2.Position = UDim2.new(1, -8, 0.5, 0)
+activeDot2.Position = UDim2.new(0.95, 0, 0.5, 0)
 activeDot2.BackgroundColor3 = Color3.fromRGB(40, 48, 56)
 activeDot2.BorderSizePixel = 0
-activeDot2.Parent = activateBtn2
+activeDot2.Parent = activateBtn
 mkCorner(activeDot2, 20)
 
-activateBtn2.MouseButton1Click:Connect(function()
+local activateCallback = function()
     task.spawn(function()
         TweenService:Create(activeDot2, TweenInfo.new(0.25), {BackgroundColor3 = Color3.fromRGB(50,220,100)}):Play()
         _antiDiePause()
@@ -1636,49 +1754,134 @@ activateBtn2.MouseButton1Click:Connect(function()
         task.wait(0.5)
         _antiDieResume()
     end)
-end)
-
-ord2 = ord2 + 1
-local execBtn2 = Instance.new("TextButton")
-execBtn2.Size = UDim2.new(1, 0, 0, 28)
-execBtn2.LayoutOrder = ord2
-execBtn2.BackgroundColor3 = Colors.bg_content
-execBtn2.BackgroundTransparency = 0.3
-execBtn2.BorderSizePixel = 0
-execBtn2.Text = "Execute TP"
-execBtn2.TextColor3 = Colors.text
-execBtn2.Font = Enum.Font.GothamBold
-execBtn2.TextSize = 11
-execBtn2.Parent = hhContent
-mkCorner(execBtn2, 6)
-
-execBtn2.MouseButton1Click:Connect(function()
-    doExecuteTP()
-end)
-
--- Server Window
-local srvSg, srvMf, srvContent = createWindow("HydraServerGui", "Server", 150, 100, 220, math.floor(workspace.CurrentCamera.ViewportSize.Y * 0.12), Save.shortServer)
-
-local function makeWindowBtn(parent, txt, cb)
-    local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(1, 0, 0, 26)
-    btn.BackgroundColor3 = Colors.bg_content
-    btn.BackgroundTransparency = 0.3
-    btn.BorderSizePixel = 0
-    btn.Text = txt
-    btn.TextColor3 = Colors.text
-    btn.Font = Enum.Font.GothamBold
-    btn.TextSize = 11
-    btn.Parent = parent
-    mkCorner(btn, 6)
-    btn.MouseButton1Click:Connect(cb)
-    return btn
 end
 
-makeWindowBtn(srvContent, "Kick Self", function() plr:Kick("Kicked by script") end)
-makeWindowBtn(srvContent, "Force Reset", function() ResetToWork() end)
+-- Set keybind for Activate button
+local currentActivateBind = Keybinds.activateReset or "R"
+KeybindFunctions[currentActivateBind] = activateCallback
 
--- Spam Window
+activateBtn.MouseButton2Click:Connect(function()
+    activateKeyLabel.Text = "(Press any key...)"
+    activateKeyLabel.TextColor3 = Color3.fromRGB(255, 200, 0)
+    
+    local conn
+    conn = UserInputService.InputBegan:Connect(function(input, gp)
+        if gp then return end
+        if input.UserInputType == Enum.UserInputType.Keyboard then
+            local newKey = input.KeyCode.Name
+            if KeybindFunctions[currentActivateBind] == activateCallback then
+                KeybindFunctions[currentActivateBind] = nil
+            end
+            currentActivateBind = newKey
+            Keybinds.activateReset = newKey
+            KeybindFunctions[newKey] = activateCallback
+            activateKeyLabel.Text = "(" .. newKey .. ")"
+            activateKeyLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
+            saveKeybinds()
+            conn:Disconnect()
+        end
+    end)
+    
+    task.delay(5, function()
+        pcall(function() conn:Disconnect() end)
+        if activateKeyLabel.Text == "(Press any key...)" then
+            activateKeyLabel.Text = "(" .. currentActivateBind .. ")"
+            activateKeyLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
+        end
+    end)
+end)
+
+activateBtn.MouseButton1Click:Connect(activateCallback)
+
+-- Execute TP button with keybind
+local execContainer = Instance.new("Frame")
+execContainer.Size = UDim2.new(1, 0, 0, 28)
+execContainer.BackgroundTransparency = 1
+execContainer.Parent = hhContent
+
+local execBtn = Instance.new("TextButton")
+execBtn.Size = UDim2.new(1, -60, 1, 0)
+execBtn.Position = UDim2.new(0, 0, 0, 0)
+execBtn.BackgroundColor3 = Colors.bg_content
+execBtn.BackgroundTransparency = 0.3
+execBtn.BorderSizePixel = 0
+execBtn.Text = "Execute TP"
+execBtn.TextColor3 = Colors.text
+execBtn.Font = Enum.Font.GothamBold
+execBtn.TextSize = 11
+execBtn.TextXAlignment = Enum.TextXAlignment.Left
+execBtn.Parent = execContainer
+mkCorner(execBtn, 6)
+
+local execKeyLabel = Instance.new("TextLabel")
+execKeyLabel.Size = UDim2.new(0, 50, 1, 0)
+execKeyLabel.Position = UDim2.new(1, -55, 0, 0)
+execKeyLabel.BackgroundTransparency = 1
+execKeyLabel.Text = "(" .. (Keybinds.executeTP or "X") .. ")"
+execKeyLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
+execKeyLabel.Font = Enum.Font.GothamMedium
+execKeyLabel.TextSize = 10
+execKeyLabel.TextXAlignment = Enum.TextXAlignment.Right
+execKeyLabel.Parent = execContainer
+
+local execCallback = function()
+    doExecuteTP()
+end
+
+local currentExecBind = Keybinds.executeTP or "X"
+KeybindFunctions[currentExecBind] = execCallback
+
+execBtn.MouseButton2Click:Connect(function()
+    execKeyLabel.Text = "(Press any key...)"
+    execKeyLabel.TextColor3 = Color3.fromRGB(255, 200, 0)
+    
+    local conn
+    conn = UserInputService.InputBegan:Connect(function(input, gp)
+        if gp then return end
+        if input.UserInputType == Enum.UserInputType.Keyboard then
+            local newKey = input.KeyCode.Name
+            if KeybindFunctions[currentExecBind] == execCallback then
+                KeybindFunctions[currentExecBind] = nil
+            end
+            currentExecBind = newKey
+            Keybinds.executeTP = newKey
+            KeybindFunctions[newKey] = execCallback
+            execKeyLabel.Text = "(" .. newKey .. ")"
+            execKeyLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
+            saveKeybinds()
+            conn:Disconnect()
+        end
+    end)
+    
+    task.delay(5, function()
+        pcall(function() conn:Disconnect() end)
+        if execKeyLabel.Text == "(Press any key...)" then
+            execKeyLabel.Text = "(" .. currentExecBind .. ")"
+            execKeyLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
+        end
+    end)
+end)
+
+execBtn.MouseButton1Click:Connect(execCallback)
+
+-- ============================================================
+-- SERVER WINDOW (with keybinds)
+-- ============================================================
+local srvSg, srvMf, srvContent = createWindow("HydraServerGui", "Server", 150, 100, 220, math.floor(workspace.CurrentCamera.ViewportSize.Y * 0.12), Save.shortServer)
+
+-- Kick Self button with keybind
+makeKeybindButton(srvContent, "Kick Self", function() 
+    pcall(function() LP:Kick("Kicked by script") end) 
+end, "kickSelf", "K")
+
+-- Force Reset button with keybind
+makeKeybindButton(srvContent, "Force Reset", function() 
+    ResetToWork() 
+end, "forceReset", "F")
+
+-- ============================================================
+-- SPAM WINDOW (with keybinds)
+-- ============================================================
 local spamSg, spamMf, spamContent = createWindow("HydraSpamGui", "Spam", 150, 200, 430, math.floor(workspace.CurrentCamera.ViewportSize.Y * 0.12), Save.shortSpam)
 
 -- Auto Spam toggle inside window
@@ -1721,21 +1924,22 @@ autoSpamTog.MouseButton1Click:Connect(function()
     saveConfig()
 end)
 
--- Player buttons in spam window
+-- Player buttons in spam window (each with keybind support)
 local spamPlayerBtns = {}
 local function addSpamPlayerBtn(p)
     if p == plr or spamPlayerBtns[p] then return end
-    local btn = makeWindowBtn(spamContent, p.Name, function() _punish(p) end)
-    spamPlayerBtns[p] = btn
+    makeKeybindButton(spamContent, "Spam " .. p.Name, function() 
+        _punish(p) 
+    end, "spam_" .. p.Name, "P")
+    spamPlayerBtns[p] = true
 end
 
 for _, p in ipairs(Players:GetPlayers()) do addSpamPlayerBtn(p) end
 Players.PlayerAdded:Connect(addSpamPlayerBtn)
-Players.PlayerRemoving:Connect(function(p)
-    if spamPlayerBtns[p] then spamPlayerBtns[p]:Destroy(); spamPlayerBtns[p] = nil end
-end)
 
--- Friend/Myskyp Window
+-- ============================================================
+-- FRIEND/MYSKYP WINDOW
+-- ============================================================
 local myskypSg = (function()
     local vp0 = workspace.CurrentCamera.ViewportSize
     local sg = Instance.new("ScreenGui")
@@ -1784,7 +1988,9 @@ local myskypSg = (function()
     return sg
 end)()
 
--- Open Base Window
+-- ============================================================
+-- OPEN BASE WINDOW
+-- ============================================================
 local obSg = (function()
     local vp0 = workspace.CurrentCamera.ViewportSize
     local sg = Instance.new("ScreenGui")
@@ -1836,7 +2042,9 @@ local obSg = (function()
     return sg
 end)()
 
--- Toggle Button (simple, no H icon)
+-- ============================================================
+-- TOGGLE BUTTON (simple, no H icon)
+-- ============================================================
 local toggleSg = (function()
     local sg = Instance.new("ScreenGui")
     sg.Name = "HydraToggleBtn"
@@ -1865,8 +2073,12 @@ local toggleSg = (function()
     return sg
 end)()
 
-print("✅ Script loaded successfully!")
-print("📌 Anti-kick active - you won't be kicked!")
-print("📌 X button closes ONLY the main menu")
-print("📌 − button minimizes popup windows")
-print("📌 All features working: Instant Steal, Auto Spam, ESP, Protector, Anti Ragdoll, Sentry, etc.")
+-- ============================================================
+-- FINAL MESSAGE
+-- ============================================================
+print("✅ COMPLETE SCRIPT LOADED!")
+print("📌 Keybinds: Right-click any button to set a hotkey!")
+print("📌 Keybind shows in parentheses (X) on the right side!")
+print("📌 X button closes ONLY the main menu!")
+print("📌 − button minimizes popup windows!")
+print("📌 All features working: Instant Steal, Auto Spam, ESP, Protector, Anti Ragdoll, Sentry, XRay, etc.")
