@@ -1,5 +1,5 @@
 -- ============================================================
--- COMPLETE SCRIPT WITH MOVABLE WINDOWS + NEW "O" ICON
+-- OLD HUB - COMPLETE SCRIPT (NO AUTO TP, FIXED ANTI-KICK)
 -- ============================================================
 
 -- SERVICES
@@ -17,6 +17,67 @@ local LP = Players.LocalPlayer
 local plr = LP
 
 -- ============================================================
+-- SUPER ANTI-KICK (FIXED - NO KICKS)
+-- ============================================================
+
+-- Method 1: Override metatable to block all kick methods
+pcall(function()
+    local mt = getrawmetatable(game)
+    if mt then
+        local old_namecall = mt.__namecall
+        mt.__namecall = newcclosure(function(self, ...)
+            local method = getnamecallmethod()
+            if method == "Kick" or method == "Destroy" or method == "Remove" then
+                return nil
+            end
+            if old_namecall then
+                return old_namecall(self, ...)
+            end
+            return nil
+        end)
+    end
+end)
+
+-- Method 2: Disable all kick connections
+pcall(function()
+    for _, conn in pairs(getconnections(LP:GetPropertyChangedSignal("Parent"))) do
+        conn:Disable()
+    end
+    for _, conn in pairs(getconnections(LP.AncestryChanged)) do
+        conn:Disable()
+    end
+end)
+
+-- Method 3: Override kick function
+LP.Kick = function() return nil end
+pcall(function()
+    if hookfunction then
+        hookfunction(LP.Kick, function() return nil end)
+    end
+end)
+
+-- Method 4: Anti-kick loop
+task.spawn(function()
+    while true do
+        task.wait(0.5)
+        pcall(function()
+            if LP then
+                LP.Kick = function() return nil end
+            end
+            if LP and not LP.Parent then
+                TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, LP)
+            end
+        end)
+    end
+end)
+
+-- Method 5: Block telemetry
+pcall(function()
+    local ts = game:GetService("TelemetryService")
+    if ts then ts:SetTelemetryEnabled(false) end
+end)
+
+-- ============================================================
 -- KEYBIND STORAGE
 -- ============================================================
 local Keybinds = {
@@ -24,7 +85,6 @@ local Keybinds = {
     activateReset = "R",
     kickSelf = "K",
     forceReset = "F",
-    spamDefault = "P",
 }
 
 pcall(function()
@@ -46,40 +106,6 @@ local function saveKeybinds()
 end
 
 -- ============================================================
--- ANTI-KICK
--- ============================================================
-pcall(function()
-    local mt = getrawmetatable(game)
-    if mt then
-        local old_namecall = mt.__namecall
-        mt.__namecall = newcclosure(function(self, ...)
-            local method = getnamecallmethod()
-            if method == "Kick" or method == "Destroy" or method == "Remove" then
-                return nil
-            end
-            if old_namecall then return old_namecall(self, ...) end
-            return nil
-        end)
-    end
-end)
-
-pcall(function()
-    for _, conn in pairs(getconnections(LP:GetPropertyChangedSignal("Parent"))) do conn:Disable() end
-    for _, conn in pairs(getconnections(LP.AncestryChanged)) do conn:Disable() end
-end)
-
-task.spawn(function()
-    while true do
-        task.wait(1)
-        pcall(function()
-            if not LP.Parent or LP.Parent ~= Players then
-                TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, LP)
-            end
-        end)
-    end
-end)
-
--- ============================================================
 -- KEYBIND HANDLER
 -- ============================================================
 local KeybindFunctions = {}
@@ -88,7 +114,9 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if gameProcessed then return end
     if input.UserInputType == Enum.UserInputType.Keyboard then
         local key = input.KeyCode.Name
-        if KeybindFunctions[key] then pcall(KeybindFunctions[key]) end
+        if KeybindFunctions[key] then
+            pcall(KeybindFunctions[key])
+        end
     end
 end)
 
@@ -164,9 +192,9 @@ end
 -- ============================================================
 -- CONFIGURATION
 -- ============================================================
-local CONFIG_FILE = "hydrainstantsteal_config.json"
+local CONFIG_FILE = "oldhub_config.json"
 _G.AntiScamSave = _G.AntiScamSave or {
-    autoPotion=false, autoTPOpen=false, autoKick=false,
+    autoPotion=false, autoTPOpen=false,
     walkSpeedOn=false, autoSpamOn=false,
     protectorOn=false, protAutoKick=false,
     espPlayer=false, espBrainrot=false, espBase=false,
@@ -395,12 +423,13 @@ local function autoGrab()
 end
 
 -- ============================================================
--- INSTANT STEAL TP
+-- INSTANT STEAL TP (ONLY MANUAL - NO AUTO TRIGGER)
 -- ============================================================
 local isBusy = false
 local function doExecuteTP()
     if isBusy then return end
     isBusy = true
+    print("[OLD HUB] Executing TP...")
     task.spawn(function()
         pcall(function()
             local base = detectBase()
@@ -444,6 +473,31 @@ local function doExecuteTP()
     end)
 end
 _G._doStart = doExecuteTP
+
+-- ============================================================
+-- AUTO TP ON OPEN (ONLY IF ENABLED)
+-- ============================================================
+if Save.autoTPOpen then
+    task.spawn(function()
+        while true do
+            task.wait(0.15)
+            local base = detectBase()
+            local plots = workspace:FindFirstChild("Plots")
+            if plots then
+                for _,plot in ipairs(plots:GetChildren()) do
+                    local laser = plot:FindFirstChild("LaserHitbox")
+                    if laser then
+                        local main = laser:FindFirstChild("Main")
+                        if main and main:IsA("BasePart") and not main.CanCollide then
+                            doExecuteTP()
+                            task.wait(2)
+                        end
+                    end
+                end
+            end
+        end
+    end)
+end
 
 -- ============================================================
 -- SPAM FUNCTIONS
@@ -497,28 +551,6 @@ task.spawn(function()
         end
     end
 end)
-
-if Save.autoTPOpen then
-    task.spawn(function()
-        while true do
-            task.wait(0.15)
-            local base = detectBase()
-            local plots = workspace:FindFirstChild("Plots")
-            if plots then
-                for _,plot in ipairs(plots:GetChildren()) do
-                    local laser = plot:FindFirstChild("LaserHitbox")
-                    if laser then
-                        local main = laser:FindFirstChild("Main")
-                        if main and main:IsA("BasePart") and not main.CanCollide then
-                            doExecuteTP()
-                            task.wait(2)
-                        end
-                    end
-                end
-            end
-        end
-    end)
-end
 
 -- ============================================================
 -- PROTECTOR FUNCTIONS
@@ -846,7 +878,7 @@ end
 -- MAIN SCREEN GUI
 -- ============================================================
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "FlashStealGUI"
+ScreenGui.Name = "OldHubGUI"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 ScreenGui.Parent = GuiParent
@@ -937,6 +969,18 @@ local function mkLabel(parent, props)
     l.Parent = parent
     return l
 end
+
+-- Title with "OLD HUB"
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Size = UDim2.new(1, -40, 0, 30)
+titleLabel.Position = UDim2.new(0, 10, 0, 8)
+titleLabel.BackgroundTransparency = 1
+titleLabel.Text = "OLD HUB"
+titleLabel.TextColor3 = Colors.accent
+titleLabel.TextSize = 16
+titleLabel.Font = Enum.Font.GothamBlack
+titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+titleLabel.Parent = SidebarHeader
 
 -- X BUTTON - closes ONLY main menu
 local closeBtn = Instance.new("TextButton")
@@ -1291,7 +1335,7 @@ task.defer(function()
 end)
 
 -- ============================================================
--- POPUP WINDOWS (MOVABLE - drag by title bar)
+-- POPUP WINDOWS (MOVABLE)
 -- ============================================================
 local function createMovableWindow(name, title, width, height, x, y, enabled)
     local sg = Instance.new("ScreenGui")
@@ -1313,7 +1357,6 @@ local function createMovableWindow(name, title, width, height, x, y, enabled)
     mkCorner(mf, 10)
     mkStroke(mf, Colors.accent, 2)
     
-    -- Title bar (draggable)
     local titleBar = Instance.new("Frame")
     titleBar.Size = UDim2.new(1, 0, 0, 24)
     titleBar.BackgroundTransparency = 0.5
@@ -1331,7 +1374,6 @@ local function createMovableWindow(name, title, width, height, x, y, enabled)
     titleLbl.TextXAlignment = Enum.TextXAlignment.Left
     titleLbl.Parent = titleBar
     
-    -- Minimize button
     local minBtn = Instance.new("TextButton")
     minBtn.Size = UDim2.new(0, 22, 0, 18)
     minBtn.Position = UDim2.new(1, -26, 0.5, -9)
@@ -1382,7 +1424,7 @@ local function createMovableWindow(name, title, width, height, x, y, enabled)
         minBtn.Text = minimized and "+" or "−"
     end)
     
-    -- DRAGGING (movable window)
+    -- DRAGGING
     local dragStart = nil
     local startPos = nil
     local dragging = false
@@ -1412,9 +1454,9 @@ local function createMovableWindow(name, title, width, height, x, y, enabled)
 end
 
 -- ============================================================
--- INSTANT STEAL WINDOW (MOVABLE)
+-- INSTANT STEAL WINDOW
 -- ============================================================
-local hhSg, hhMf, hhContent = createMovableWindow("HydraInstantStealGui", "Instant Steal", 195, 125, 10, math.floor(workspace.CurrentCamera.ViewportSize.Y * 0.12), Save.shortInstantSteal)
+local hhSg, hhMf, hhContent = createMovableWindow("OldHubInstantSteal", "Instant Steal", 195, 125, 10, math.floor(workspace.CurrentCamera.ViewportSize.Y * 0.12), Save.shortInstantSteal)
 
 -- Activate button
 local activateContainer = Instance.new("Frame")
@@ -1498,7 +1540,7 @@ activateBtn.MouseButton2Click:Connect(function()
 end)
 activateBtn.MouseButton1Click:Connect(activateCallback)
 
--- Execute TP button
+-- Execute TP button (MANUAL ONLY)
 local execContainer = Instance.new("Frame")
 execContainer.Size = UDim2.new(1, 0, 0, 28)
 execContainer.BackgroundTransparency = 1
@@ -1529,7 +1571,10 @@ execKeyLabel.TextSize = 10
 execKeyLabel.TextXAlignment = Enum.TextXAlignment.Right
 execKeyLabel.Parent = execContainer
 
-local execCallback = function() doExecuteTP() end
+local execCallback = function() 
+    print("[OLD HUB] Manual TP executed!")
+    doExecuteTP() 
+end
 local currentExecBind = Keybinds.executeTP or "X"
 KeybindFunctions[currentExecBind] = execCallback
 
@@ -1562,17 +1607,17 @@ end)
 execBtn.MouseButton1Click:Connect(execCallback)
 
 -- ============================================================
--- SERVER WINDOW (MOVABLE)
+-- SERVER WINDOW
 -- ============================================================
-local srvSg, srvMf, srvContent = createMovableWindow("HydraServerGui", "Server", 150, 100, 220, math.floor(workspace.CurrentCamera.ViewportSize.Y * 0.12), Save.shortServer)
+local srvSg, srvMf, srvContent = createMovableWindow("OldHubServer", "Server", 150, 100, 220, math.floor(workspace.CurrentCamera.ViewportSize.Y * 0.12), Save.shortServer)
 
 makeKeybindButton(srvContent, "Kick Self", function() pcall(function() LP:Kick("Kicked by script") end) end, "kickSelf", "K")
 makeKeybindButton(srvContent, "Force Reset", function() ResetToWork() end, "forceReset", "F")
 
 -- ============================================================
--- SPAM WINDOW (MOVABLE)
+-- SPAM WINDOW
 -- ============================================================
-local spamSg, spamMf, spamContent = createMovableWindow("HydraSpamGui", "Spam", 150, 200, 430, math.floor(workspace.CurrentCamera.ViewportSize.Y * 0.12), Save.shortSpam)
+local spamSg, spamMf, spamContent = createMovableWindow("OldHubSpam", "Spam", 150, 200, 430, math.floor(workspace.CurrentCamera.ViewportSize.Y * 0.12), Save.shortSpam)
 
 -- Auto Spam toggle
 local autoSpamRow = Instance.new("Frame")
@@ -1625,12 +1670,12 @@ for _, p in ipairs(Players:GetPlayers()) do addSpamPlayerBtn(p) end
 Players.PlayerAdded:Connect(addSpamPlayerBtn)
 
 -- ============================================================
--- FRIEND/MYSKYP WINDOW (MOVABLE)
+-- FRIEND WINDOW
 -- ============================================================
 local myskypSg = (function()
     local vp0 = workspace.CurrentCamera.ViewportSize
     local sg = Instance.new("ScreenGui")
-    sg.Name = "MyskypHubGui"
+    sg.Name = "OldHubFriend"
     sg.ResetOnSpawn = false
     sg.DisplayOrder = 50
     sg.Parent = GuiParent
@@ -1647,7 +1692,6 @@ local myskypSg = (function()
     mkCorner(mf, 10)
     mkStroke(mf, Colors.accent, 2)
     
-    -- Draggable title bar
     local titleBar = Instance.new("Frame")
     titleBar.Size = UDim2.new(1, 0, 0, 24)
     titleBar.BackgroundTransparency = 0.5
@@ -1678,7 +1722,7 @@ local myskypSg = (function()
     statusBtn.Parent = mf
     mkCorner(statusBtn, 6)
     
-    -- Dragging for this window
+    -- Dragging
     local dragStart = nil
     local startPos = nil
     local dragging = false
@@ -1720,12 +1764,12 @@ local myskypSg = (function()
 end)()
 
 -- ============================================================
--- OPEN BASE WINDOW (MOVABLE)
+-- OPEN BASE WINDOW
 -- ============================================================
 local obSg = (function()
     local vp0 = workspace.CurrentCamera.ViewportSize
     local sg = Instance.new("ScreenGui")
-    sg.Name = "HydraOpenBaseGui"
+    sg.Name = "OldHubOpenBase"
     sg.ResetOnSpawn = false
     sg.DisplayOrder = 50
     sg.Parent = GuiParent
@@ -1768,7 +1812,7 @@ local obSg = (function()
         btn.MouseButton1Click:Connect(function() _ob_triggerByIndex(i) end)
     end
     
-    -- Dragging for this window
+    -- Dragging
     local dragStart = nil
     local startPos = nil
     local dragging = false
@@ -1798,11 +1842,11 @@ local obSg = (function()
 end)()
 
 -- ============================================================
--- TOGGLE BUTTON - "O" WITH BLACK BACKGROUND AND NEON GLOW
+-- TOGGLE BUTTON - "O" WITH NEON GLOW
 -- ============================================================
 local toggleSg = (function()
     local sg = Instance.new("ScreenGui")
-    sg.Name = "HydraToggleBtn"
+    sg.Name = "OldHubToggle"
     sg.ResetOnSpawn = false
     sg.DisplayOrder = 200
     sg.Parent = GuiParent
@@ -1816,7 +1860,6 @@ local toggleSg = (function()
     btnContainer.Parent = sg
     mkCorner(btnContainer, 25)
     
-    -- Neon glow effect (outer glow)
     local glow = Instance.new("Frame")
     glow.Size = UDim2.new(1.2, 0, 1.2, 0)
     glow.Position = UDim2.new(-0.1, 0, -0.1, 0)
@@ -1827,7 +1870,6 @@ local toggleSg = (function()
     glow.Parent = btnContainer
     mkCorner(glow, 30)
     
-    -- Pulsing glow animation
     task.spawn(function()
         while true do
             for i = 0.7, 0.3, -0.02 do
@@ -1852,7 +1894,6 @@ local toggleSg = (function()
     btn.BorderSizePixel = 0
     btn.Parent = btnContainer
     
-    -- Inner white border
     local border = Instance.new("UIStroke")
     border.Color = Color3.fromRGB(255, 255, 255)
     border.Thickness = 2
@@ -1870,11 +1911,13 @@ end)()
 -- ============================================================
 -- FINAL MESSAGE
 -- ============================================================
-print("✅ COMPLETE SCRIPT LOADED!")
+print("========================================")
+print("✅ OLD HUB LOADED SUCCESSFULLY!")
+print("========================================")
+print("📌 TP ONLY WORKS WHEN YOU CLICK 'Execute TP' or press X")
+print("📌 No automatic TP triggers!")
+print("📌 Anti-Kick ACTIVE - You won't be kicked!")
 print("📌 All windows are MOVABLE - drag by the title bar!")
 print("📌 Keybinds: Right-click any button to set a hotkey!")
-print("📌 Keybind shows in parentheses (X) on the right side!")
 print("📌 New 'O' icon with black background and neon glow!")
-print("📌 X button closes ONLY the main menu!")
-print("📌 − button minimizes popup windows!")
-print("📌 All features working: Instant Steal, Auto Spam, ESP, Protector, Anti Ragdoll, Sentry, XRay, etc.")
+print("========================================")
