@@ -1,4 +1,4 @@
--- [[(/ Services /)]]
+-- [[(/ ANTI-CHEAT SUPER PROTEGIDO /)]]
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
@@ -9,46 +9,87 @@ local HttpService = game:GetService("HttpService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local PPS = game:GetService("ProximityPromptService")
 local VirtualUser = game:GetService("VirtualUser")
+local TeleportService = game:GetService("TeleportService")
+local Stats = game:GetService("Stats")
 
 local LP = Players.LocalPlayer
 local plr = LP
 
--- ANTI-CHEAT PROTECTION
+-- ANTI-BAN / ANTI-CHEAT MÁXIMO
 local AntiCheat = {
     enabled = true,
-    connections = {}
+    connections = {},
+    originalSettings = {}
 }
 
 function AntiCheat:protect()
-    -- Remove detection flags
+    -- Remove todas as flags de detecção
     pcall(function()
-        local flags = {
+        local flagsToDisable = {
             "FFlagDebugDisplayFPS",
-            "FFlagDebugGraphicsPreferD3D11",
+            "FFlagDebugGraphicsPreferD3D11", 
             "DFIntTaskSchedulerTargetFps",
+            "FFlagCheckForCheatScripts",
+            "FFlagCheckForCheatScripts2",
+            "FFlagCheckForCheatScripts3",
+            "FFlagCheckForCheatScripts4",
+            "FFlagCheckForCheatScripts5",
         }
-        for _, flag in ipairs(flags) do
+        for _, flag in ipairs(flagsToDisable) do
             if setfflag then setfflag(flag, "false") end
             if setfflag then setfflag(flag, "0") end
         end
+        if setfpscap then setfpscap(60) end
     end)
     
-    -- Block telemetry
+    -- Desativa telemetria
     pcall(function()
         local ts = game:GetService("TelemetryService")
         if ts then ts:SetTelemetryEnabled(false) end
     end)
     
-    -- Anti-kick
-    self.connections[#self.connections + 1] = game:GetService("Players").LocalPlayer.OnTeleport:Connect(function(state)
+    -- Anti-kick / Anti-ban
+    self.connections[#self.connections + 1] = Players.LocalPlayer.OnTeleport:Connect(function(state)
         if state == Enum.TeleportState.InProgress then
-            wait(0.1)
-            game:GetService("TeleportService"):TeleportToPlaceInstance(game.PlaceId, game.JobId, LP)
+            task.wait(0.1)
+            pcall(function()
+                TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, LP)
+            end)
+        end
+    end)
+    
+    -- Bloqueia kicks
+    self.connections[#self.connections + 1] = game:GetService("Players").LocalPlayer:Kick(function(reason)
+        if reason then
+            task.wait(0.1)
+            return true
+        end
+    end)
+    
+    -- Esconde scripts
+    for _, v in pairs(getgc and getgc() or {}) do
+        if type(v) == "table" and rawget(v, "script") then
+            pcall(function() rawset(v, "script", nil) end)
+        end
+    end
+end
+
+function AntiCheat:start()
+    self:protect()
+    -- Anti-kick loop
+    task.spawn(function()
+        while true do
+            task.wait(1)
+            pcall(function()
+                if LP then
+                    LP.Kick = function() end
+                end
+            end)
         end
     end)
 end
 
-AntiCheat:protect()
+AntiCheat:start()
 
 -- [[(/ Config /)]]
 local CONFIG_FILE = "hydrainstantsteal_config.json"
@@ -743,7 +784,7 @@ if Save.autoActiveReset then
 end
 
 -- ============================================================
--- INTERFACE PRINCIPAL (CatHUB - SEM ÍCONE H, SEM HYDRA, SEM DISCORD)
+-- INTERFACE PRINCIPAL (COM BOTÃO X PARA FECHAR APENAS O MENU PRINCIPAL)
 -- ============================================================
 
 local function mkCorner(p,r) local c=Instance.new("UICorner"); c.CornerRadius=UDim.new(0,r or 6); c.Parent=p; return c end
@@ -767,7 +808,7 @@ if typeof(gethui) == "function" then
 end
 
 -- Destroi interfaces antigas
-local oldGuis = {"HydraInstantStealGui", "HydraServerGui", "HydraSpamGui", "MyskypHubGui", "HydraOpenBaseGui", "HydraInfoOverlay", "HydraToggleBtn", "hydrainstantsteal"}
+local oldGuis = {"HydraInstantStealGui", "HydraServerGui", "HydraSpamGui", "MyskypHubGui", "HydraOpenBaseGui", "HydraInfoOverlay", "HydraToggleBtn", "hydrainstantsteal", "FlashStealGUI"}
 for _, name in ipairs(oldGuis) do
     if GuiParent:FindFirstChild(name) then GuiParent[name]:Destroy() end
 end
@@ -846,7 +887,7 @@ Outline.Parent = Container
 mkCorner(Outline, 8)
 mkStroke(Outline, Colors.accent, 2)
 
--- Sidebar Header (SEM ÍCONE H, SEM TEXTO HYDRA)
+-- Sidebar Header (COM BOTÃO X PARA FECHAR)
 local SidebarHeader = Instance.new("Frame")
 SidebarHeader.Size = UDim2.new(1, 0, 0, 43)
 SidebarHeader.BackgroundTransparency = 1
@@ -866,25 +907,32 @@ local function mkLabel(parent, props)
     return l
 end
 
--- SÓ UMA LINHA SIMPLES NO HEADER (SEM NOME DE HUB)
-local headerLine = Instance.new("Frame")
-headerLine.Size = UDim2.new(1, -20, 0, 2)
-headerLine.Position = UDim2.new(0, 10, 0.5, -1)
-headerLine.BackgroundColor3 = Colors.accent
-headerLine.BackgroundTransparency = 0.8
-headerLine.BorderSizePixel = 0
-headerLine.Parent = SidebarHeader
-mkCorner(headerLine, 2)
+-- Botão X para FECHAR APENAS O MENU PRINCIPAL
+local closeBtn = Instance.new("TextButton")
+closeBtn.Size = UDim2.new(0, 24, 0, 24)
+closeBtn.Position = UDim2.new(1, -28, 0, 8)
+closeBtn.BackgroundTransparency = 1
+closeBtn.Text = "✕"
+closeBtn.TextColor3 = Color3.fromRGB(255, 80, 80)
+closeBtn.TextSize = 14
+closeBtn.Font = Enum.Font.GothamBold
+closeBtn.BorderSizePixel = 0
+closeBtn.Parent = SidebarHeader
 
--- Drag Handle
+closeBtn.MouseButton1Click:Connect(function()
+    ScreenGui.Enabled = not ScreenGui.Enabled
+end)
+
+-- Drag Handle (só na área vazia, não no X)
 local dragHandle = Instance.new("TextButton")
-dragHandle.Size = UDim2.new(1, 0, 1, 0)
+dragHandle.Size = UDim2.new(1, -40, 1, 0)
+dragHandle.Position = UDim2.new(0, 0, 0, 0)
 dragHandle.BackgroundTransparency = 1
 dragHandle.Text = ""
 dragHandle.ZIndex = 50
 dragHandle.Parent = SidebarHeader
 
--- Footer (SEM TEXTO DE DISCORD)
+-- Footer
 local Footer = Instance.new("Frame")
 Footer.Size = UDim2.new(0, 125, 0, 40)
 Footer.Position = UDim2.new(0, 0, 1, -38)
@@ -1351,7 +1399,7 @@ makeToggle("Open Base", Save.shortOpenBase, function(on)
     saveConfig()
 end)
 
--- Dragging functionality
+-- Dragging functionality para o menu principal
 do
     local dragging = false
     local dragStart = nil
@@ -1389,150 +1437,21 @@ task.defer(function()
 end)
 
 -- ============================================================
--- JANELINHAS ORIGINAIS (RECRIADAS)
+-- JANELINHAS ORIGINAIS COM BOTÃO DE MINIMIZAR
 -- ============================================================
 
--- InstantSteal Window
-local hhSg, hhMf, hhContent = (function()
-    local vp0 = workspace.CurrentCamera.ViewportSize
-    local sg, mf, content = (function()
-        local sg = Instance.new("ScreenGui")
-        sg.Name = "HydraInstantStealGui"
-        sg.ResetOnSpawn = false
-        sg.DisplayOrder = 50
-        sg.Parent = GuiParent
-        sg.Enabled = Save.shortInstantSteal
-        
-        local mf = Instance.new("Frame")
-        mf.Size = UDim2.new(0, 195, 0, 125)
-        mf.Position = UDim2.new(0, 10, 0, math.floor(vp0.Y * 0.12))
-        mf.BackgroundColor3 = Colors.bg_sidebar
-        mf.BackgroundTransparency = 0.1
-        mf.BorderSizePixel = 0
-        mf.Active = true
-        mf.ClipsDescendants = true
-        mf.Parent = sg
-        mkCorner(mf, 10)
-        mkStroke(mf, Colors.accent, 2)
-        
-        local title = Instance.new("TextLabel")
-        title.Size = UDim2.new(1, 0, 0, 24)
-        title.BackgroundTransparency = 1
-        title.Text = "Instant Steal"
-        title.TextColor3 = Colors.text
-        title.Font = Enum.Font.GothamBold
-        title.TextSize = 11
-        title.TextXAlignment = Enum.TextXAlignment.Center
-        title.Parent = mf
-        
-        local sep = Instance.new("Frame")
-        sep.Size = UDim2.new(1, -16, 0, 1)
-        sep.Position = UDim2.new(0, 8, 0, 24)
-        sep.BackgroundColor3 = Colors.accent
-        sep.BackgroundTransparency = 0.6
-        sep.BorderSizePixel = 0
-        sep.Parent = mf
-        
-        local content = Instance.new("Frame")
-        content.Size = UDim2.new(1, 0, 1, -30)
-        content.Position = UDim2.new(0, 0, 0, 28)
-        content.BackgroundTransparency = 1
-        content.Parent = mf
-        
-        local layout = Instance.new("UIListLayout")
-        layout.Padding = UDim.new(0, 6)
-        layout.SortOrder = Enum.SortOrder.LayoutOrder
-        layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-        layout.Parent = content
-        
-        local pad = Instance.new("UIPadding")
-        pad.PaddingTop = UDim.new(0, 6)
-        pad.PaddingLeft = UDim.new(0, 8)
-        pad.PaddingRight = UDim.new(0, 8)
-        pad.Parent = content
-        
-        return sg, mf, content
-    end)()
-    
-    local ord = 0
-    local activeDot = nil
-    
-    ord = ord + 1
-    local activateBtn = Instance.new("TextButton")
-    activateBtn.Size = UDim2.new(1, 0, 0, 28)
-    activateBtn.LayoutOrder = ord
-    activateBtn.BackgroundColor3 = Colors.bg_content
-    activateBtn.BackgroundTransparency = 0.3
-    activateBtn.BorderSizePixel = 0
-    activateBtn.Text = ""
-    activateBtn.Parent = hhContent
-    mkCorner(activateBtn, 6)
-    
-    local activateTxt = Instance.new("TextLabel")
-    activateTxt.Size = UDim2.new(1, -28, 1, 0)
-    activateTxt.Position = UDim2.new(0, 8, 0, 0)
-    activateTxt.BackgroundTransparency = 1
-    activateTxt.Text = "Activate (Reset)"
-    activateTxt.TextColor3 = Colors.text
-    activateTxt.Font = Enum.Font.GothamBold
-    activateTxt.TextSize = 11
-    activateTxt.TextXAlignment = Enum.TextXAlignment.Left
-    activateTxt.Parent = activateBtn
-    
-    activeDot = Instance.new("Frame")
-    activeDot.Size = UDim2.new(0, 8, 0, 8)
-    activeDot.AnchorPoint = Vector2.new(1, 0.5)
-    activeDot.Position = UDim2.new(1, -8, 0.5, 0)
-    activeDot.BackgroundColor3 = Color3.fromRGB(40, 48, 56)
-    activeDot.BorderSizePixel = 0
-    activeDot.Parent = activateBtn
-    mkCorner(activeDot, 20)
-    
-    activateBtn.MouseButton1Click:Connect(function()
-        task.spawn(function()
-            TweenService:Create(activeDot, TweenInfo.new(0.25), {BackgroundColor3 = Color3.fromRGB(50,220,100)}):Play()
-            _antiDiePause()
-            task.wait(0.3)
-            ResetToWork()
-            task.wait(0.5)
-            _antiDieResume()
-        end)
-    end)
-    
-    ord = ord + 1
-    local execBtn = Instance.new("TextButton")
-    execBtn.Size = UDim2.new(1, 0, 0, 28)
-    execBtn.LayoutOrder = ord
-    execBtn.BackgroundColor3 = Colors.bg_content
-    execBtn.BackgroundTransparency = 0.3
-    execBtn.BorderSizePixel = 0
-    execBtn.Text = "Execute TP"
-    execBtn.TextColor3 = Colors.text
-    execBtn.Font = Enum.Font.GothamBold
-    execBtn.TextSize = 11
-    execBtn.Parent = hhContent
-    mkCorner(execBtn, 6)
-    
-    execBtn.MouseButton1Click:Connect(function()
-        doExecuteTP()
-    end)
-    
-    return sg, mf, hhContent
-end)()
-
--- Server Window
-local srvSg = (function()
-    local vp0 = workspace.CurrentCamera.ViewportSize
+-- Função para criar janela com minimizar
+local function createWindow(name, title, width, height, x, y, enabled)
     local sg = Instance.new("ScreenGui")
-    sg.Name = "HydraServerGui"
+    sg.Name = name
     sg.ResetOnSpawn = false
     sg.DisplayOrder = 50
     sg.Parent = GuiParent
-    sg.Enabled = Save.shortServer
+    sg.Enabled = enabled
     
     local mf = Instance.new("Frame")
-    mf.Size = UDim2.new(0, 150, 0, 120)
-    mf.Position = UDim2.new(0, 220, 0, math.floor(vp0.Y * 0.12))
+    mf.Size = UDim2.new(0, width, 0, height)
+    mf.Position = UDim2.new(0, x, 0, y)
     mf.BackgroundColor3 = Colors.bg_sidebar
     mf.BackgroundTransparency = 0.1
     mf.BorderSizePixel = 0
@@ -1542,15 +1461,35 @@ local srvSg = (function()
     mkCorner(mf, 10)
     mkStroke(mf, Colors.accent, 2)
     
-    local title = Instance.new("TextLabel")
-    title.Size = UDim2.new(1, 0, 0, 24)
-    title.BackgroundTransparency = 1
-    title.Text = "Server"
-    title.TextColor3 = Colors.text
-    title.Font = Enum.Font.GothamBold
-    title.TextSize = 11
-    title.TextXAlignment = Enum.TextXAlignment.Center
-    title.Parent = mf
+    -- Title bar com minimizar
+    local titleBar = Instance.new("Frame")
+    titleBar.Size = UDim2.new(1, 0, 0, 24)
+    titleBar.BackgroundTransparency = 0.5
+    titleBar.BorderSizePixel = 0
+    titleBar.Parent = mf
+    
+    local titleLbl = Instance.new("TextLabel")
+    titleLbl.Size = UDim2.new(1, -50, 1, 0)
+    titleLbl.Position = UDim2.new(0, 8, 0, 0)
+    titleLbl.BackgroundTransparency = 1
+    titleLbl.Text = title
+    titleLbl.TextColor3 = Colors.text
+    titleLbl.Font = Enum.Font.GothamBold
+    titleLbl.TextSize = 11
+    titleLbl.TextXAlignment = Enum.TextXAlignment.Left
+    titleLbl.Parent = titleBar
+    
+    -- Botão minimizar
+    local minBtn = Instance.new("TextButton")
+    minBtn.Size = UDim2.new(0, 22, 0, 18)
+    minBtn.Position = UDim2.new(1, -26, 0.5, -9)
+    minBtn.BackgroundTransparency = 1
+    minBtn.Text = "−"
+    minBtn.TextColor3 = Colors.text
+    minBtn.TextSize = 14
+    minBtn.Font = Enum.Font.GothamBold
+    minBtn.BorderSizePixel = 0
+    minBtn.Parent = titleBar
     
     local sep = Instance.new("Frame")
     sep.Size = UDim2.new(1, -16, 0, 1)
@@ -1578,161 +1517,190 @@ local srvSg = (function()
     pad.PaddingRight = UDim.new(0, 8)
     pad.Parent = content
     
-    local function makeBtn(txt, cb)
-        local btn = Instance.new("TextButton")
-        btn.Size = UDim2.new(1, 0, 0, 26)
-        btn.BackgroundColor3 = Colors.bg_content
-        btn.BackgroundTransparency = 0.3
-        btn.BorderSizePixel = 0
-        btn.Text = txt
-        btn.TextColor3 = Colors.text
-        btn.Font = Enum.Font.GothamBold
-        btn.TextSize = 11
-        btn.Parent = content
-        mkCorner(btn, 6)
-        btn.MouseButton1Click:Connect(cb)
-        return btn
-    end
+    local minimized = false
+    local originalHeight = height
     
-    makeBtn("Kick Self", function() plr:Kick("Kicked by script") end)
-    makeBtn("Force Reset", function() ResetToWork() end)
-    
-    return sg
-end)()
-
--- Spam Window
-local spamSg = (function()
-    local vp0 = workspace.CurrentCamera.ViewportSize
-    local sg = Instance.new("ScreenGui")
-    sg.Name = "HydraSpamGui"
-    sg.ResetOnSpawn = false
-    sg.DisplayOrder = 50
-    sg.Parent = GuiParent
-    sg.Enabled = Save.shortSpam
-    
-    local mf = Instance.new("Frame")
-    mf.Size = UDim2.new(0, 150, 0, 200)
-    mf.Position = UDim2.new(0, 430, 0, math.floor(vp0.Y * 0.12))
-    mf.BackgroundColor3 = Colors.bg_sidebar
-    mf.BackgroundTransparency = 0.1
-    mf.BorderSizePixel = 0
-    mf.Active = true
-    mf.ClipsDescendants = true
-    mf.Parent = sg
-    mkCorner(mf, 10)
-    mkStroke(mf, Colors.accent, 2)
-    
-    local title = Instance.new("TextLabel")
-    title.Size = UDim2.new(1, 0, 0, 24)
-    title.BackgroundTransparency = 1
-    title.Text = "Spam"
-    title.TextColor3 = Colors.text
-    title.Font = Enum.Font.GothamBold
-    title.TextSize = 11
-    title.TextXAlignment = Enum.TextXAlignment.Center
-    title.Parent = mf
-    
-    local sep = Instance.new("Frame")
-    sep.Size = UDim2.new(1, -16, 0, 1)
-    sep.Position = UDim2.new(0, 8, 0, 24)
-    sep.BackgroundColor3 = Colors.accent
-    sep.BackgroundTransparency = 0.6
-    sep.BorderSizePixel = 0
-    sep.Parent = mf
-    
-    local content = Instance.new("ScrollingFrame")
-    content.Size = UDim2.new(1, 0, 1, -30)
-    content.Position = UDim2.new(0, 0, 0, 28)
-    content.BackgroundTransparency = 1
-    content.ScrollBarThickness = 3
-    content.ScrollBarImageColor3 = Colors.accent
-    content.CanvasSize = UDim2.new(0, 0, 0, 0)
-    content.AutomaticCanvasSize = Enum.AutomaticSize.Y
-    content.Parent = mf
-    
-    local layout = Instance.new("UIListLayout")
-    layout.Padding = UDim.new(0, 6)
-    layout.SortOrder = Enum.SortOrder.LayoutOrder
-    layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-    layout.Parent = content
-    
-    local pad = Instance.new("UIPadding")
-    pad.PaddingTop = UDim.new(0, 6)
-    pad.PaddingLeft = UDim.new(0, 8)
-    pad.PaddingRight = UDim.new(0, 8)
-    pad.Parent = content
-    
-    local autoSpamToggle = (function()
-        local row = Instance.new("Frame")
-        row.Size = UDim2.new(1, 0, 0, 22)
-        row.BackgroundTransparency = 1
-        row.Parent = content
-        
-        local label = Instance.new("TextLabel")
-        label.Size = UDim2.new(1, -50, 1, 0)
-        label.BackgroundTransparency = 1
-        label.Text = "Auto Spam"
-        label.TextColor3 = Colors.text
-        label.Font = Enum.Font.GothamBold
-        label.TextSize = 10
-        label.TextXAlignment = Enum.TextXAlignment.Left
-        label.Parent = row
-        
-        local togBtn = Instance.new("TextButton")
-        togBtn.Size = UDim2.new(0, 30, 0, 14)
-        togBtn.Position = UDim2.new(1, -34, 0.5, -7)
-        togBtn.BackgroundColor3 = Save.autoSpamOn and Colors.on or Colors.off
-        togBtn.Text = ""
-        togBtn.Parent = row
-        mkCorner(togBtn, 20)
-        
-        local dot = Instance.new("Frame")
-        dot.Size = UDim2.new(0, 10, 0, 10)
-        dot.Position = Save.autoSpamOn and UDim2.new(0, 17, 0, 2) or UDim2.new(0, 2, 0, 2)
-        dot.BackgroundColor3 = Colors.dot
-        dot.Parent = togBtn
-        mkCorner(dot, 20)
-        
-        local state = Save.autoSpamOn
-        togBtn.MouseButton1Click:Connect(function()
-            state = not state
-            TweenService:Create(togBtn, TweenInfo.new(0.12), {BackgroundColor3 = state and Colors.on or Colors.off}):Play()
-            TweenService:Create(dot, TweenInfo.new(0.12), {Position = state and UDim2.new(0, 17, 0, 2) or UDim2.new(0, 2, 0, 2)}):Play()
-            Save.autoSpamOn = state
-            saveConfig()
-        end)
-        
-        return row
-    end)()
-    
-    local playerButtons = {}
-    local function addPlayerBtn(p)
-        if p == plr or playerButtons[p] then return end
-        local btn = Instance.new("TextButton")
-        btn.Size = UDim2.new(1, 0, 0, 22)
-        btn.BackgroundColor3 = Colors.bg_content
-        btn.BackgroundTransparency = 0.3
-        btn.BorderSizePixel = 0
-        btn.Text = p.Name
-        btn.TextColor3 = Colors.text
-        btn.Font = Enum.Font.GothamBold
-        btn.TextSize = 10
-        btn.Parent = content
-        mkCorner(btn, 6)
-        btn.MouseButton1Click:Connect(function()
-            _punish(p)
-        end)
-        playerButtons[p] = btn
-    end
-    
-    for _, p in ipairs(Players:GetPlayers()) do addPlayerBtn(p) end
-    Players.PlayerAdded:Connect(addPlayerBtn)
-    Players.PlayerRemoving:Connect(function(p)
-        if playerButtons[p] then playerButtons[p]:Destroy(); playerButtons[p] = nil end
+    minBtn.MouseButton1Click:Connect(function()
+        minimized = not minimized
+        TweenService:Create(mf, TweenInfo.new(0.18), {
+            Size = UDim2.new(0, width, 0, minimized and 24 or originalHeight)
+        }):Play()
+        minBtn.Text = minimized and "+" or "−"
     end)
     
-    return sg
-end)()
+    -- Dragging
+    local dragStart = nil
+    local startPos = nil
+    local dragging = false
+    
+    titleBar.InputBegan:Connect(function(i)
+        if i.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true
+            dragStart = i.Position
+            startPos = mf.Position
+        end
+    end)
+    
+    UserInputService.InputChanged:Connect(function(i)
+        if dragging and i.UserInputType == Enum.UserInputType.MouseMovement then
+            local delta = i.Position - dragStart
+            mf.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        end
+    end)
+    
+    UserInputService.InputEnded:Connect(function(i)
+        if i.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = false
+        end
+    end)
+    
+    return sg, mf, content
+end
+
+-- InstantSteal Window
+local hhSg, hhMf, hhContent = createWindow("HydraInstantStealGui", "Instant Steal", 195, 125, 10, math.floor(workspace.CurrentCamera.ViewportSize.Y * 0.12), Save.shortInstantSteal)
+
+local ord = 0
+local activeDot = nil
+
+ord = ord + 1
+local activateBtn = Instance.new("TextButton")
+activateBtn.Size = UDim2.new(1, 0, 0, 28)
+activateBtn.LayoutOrder = ord
+activateBtn.BackgroundColor3 = Colors.bg_content
+activateBtn.BackgroundTransparency = 0.3
+activateBtn.BorderSizePixel = 0
+activateBtn.Text = ""
+activateBtn.Parent = hhContent
+mkCorner(activateBtn, 6)
+
+local activateTxt = Instance.new("TextLabel")
+activateTxt.Size = UDim2.new(1, -28, 1, 0)
+activateTxt.Position = UDim2.new(0, 8, 0, 0)
+activateTxt.BackgroundTransparency = 1
+activateTxt.Text = "Activate (Reset)"
+activateTxt.TextColor3 = Colors.text
+activateTxt.Font = Enum.Font.GothamBold
+activateTxt.TextSize = 11
+activateTxt.TextXAlignment = Enum.TextXAlignment.Left
+activateTxt.Parent = activateBtn
+
+activeDot = Instance.new("Frame")
+activeDot.Size = UDim2.new(0, 8, 0, 8)
+activeDot.AnchorPoint = Vector2.new(1, 0.5)
+activeDot.Position = UDim2.new(1, -8, 0.5, 0)
+activeDot.BackgroundColor3 = Color3.fromRGB(40, 48, 56)
+activeDot.BorderSizePixel = 0
+activeDot.Parent = activateBtn
+mkCorner(activeDot, 20)
+
+activateBtn.MouseButton1Click:Connect(function()
+    task.spawn(function()
+        TweenService:Create(activeDot, TweenInfo.new(0.25), {BackgroundColor3 = Color3.fromRGB(50,220,100)}):Play()
+        _antiDiePause()
+        task.wait(0.3)
+        ResetToWork()
+        task.wait(0.5)
+        _antiDieResume()
+    end)
+end)
+
+ord = ord + 1
+local execBtn = Instance.new("TextButton")
+execBtn.Size = UDim2.new(1, 0, 0, 28)
+execBtn.LayoutOrder = ord
+execBtn.BackgroundColor3 = Colors.bg_content
+execBtn.BackgroundTransparency = 0.3
+execBtn.BorderSizePixel = 0
+execBtn.Text = "Execute TP"
+execBtn.TextColor3 = Colors.text
+execBtn.Font = Enum.Font.GothamBold
+execBtn.TextSize = 11
+execBtn.Parent = hhContent
+mkCorner(execBtn, 6)
+
+execBtn.MouseButton1Click:Connect(function()
+    doExecuteTP()
+end)
+
+-- Server Window
+local srvSg, srvMf, srvContent = createWindow("HydraServerGui", "Server", 150, 100, 220, math.floor(workspace.CurrentCamera.ViewportSize.Y * 0.12), Save.shortServer)
+
+local function makeWindowBtn(parent, txt, cb)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1, 0, 0, 26)
+    btn.BackgroundColor3 = Colors.bg_content
+    btn.BackgroundTransparency = 0.3
+    btn.BorderSizePixel = 0
+    btn.Text = txt
+    btn.TextColor3 = Colors.text
+    btn.Font = Enum.Font.GothamBold
+    btn.TextSize = 11
+    btn.Parent = parent
+    mkCorner(btn, 6)
+    btn.MouseButton1Click:Connect(cb)
+    return btn
+end
+
+makeWindowBtn(srvContent, "Kick Self", function() plr:Kick("Kicked by script") end)
+makeWindowBtn(srvContent, "Force Reset", function() ResetToWork() end)
+
+-- Spam Window
+local spamSg, spamMf, spamContent = createWindow("HydraSpamGui", "Spam", 150, 200, 430, math.floor(workspace.CurrentCamera.ViewportSize.Y * 0.12), Save.shortSpam)
+
+-- Auto Spam toggle dentro da janela
+local autoSpamRow = Instance.new("Frame")
+autoSpamRow.Size = UDim2.new(1, 0, 0, 22)
+autoSpamRow.BackgroundTransparency = 1
+autoSpamRow.Parent = spamContent
+
+local autoSpamLabel = Instance.new("TextLabel")
+autoSpamLabel.Size = UDim2.new(1, -50, 1, 0)
+autoSpamLabel.BackgroundTransparency = 1
+autoSpamLabel.Text = "Auto Spam"
+autoSpamLabel.TextColor3 = Colors.text
+autoSpamLabel.Font = Enum.Font.GothamBold
+autoSpamLabel.TextSize = 10
+autoSpamLabel.TextXAlignment = Enum.TextXAlignment.Left
+autoSpamLabel.Parent = autoSpamRow
+
+local autoSpamTog = Instance.new("TextButton")
+autoSpamTog.Size = UDim2.new(0, 30, 0, 14)
+autoSpamTog.Position = UDim2.new(1, -34, 0.5, -7)
+autoSpamTog.BackgroundColor3 = Save.autoSpamOn and Colors.on or Colors.off
+autoSpamTog.Text = ""
+autoSpamTog.Parent = autoSpamRow
+mkCorner(autoSpamTog, 20)
+
+local autoSpamDot = Instance.new("Frame")
+autoSpamDot.Size = UDim2.new(0, 10, 0, 10)
+autoSpamDot.Position = Save.autoSpamOn and UDim2.new(0, 17, 0, 2) or UDim2.new(0, 2, 0, 2)
+autoSpamDot.BackgroundColor3 = Colors.dot
+autoSpamDot.Parent = autoSpamTog
+mkCorner(autoSpamDot, 20)
+
+local autoSpamState = Save.autoSpamOn
+autoSpamTog.MouseButton1Click:Connect(function()
+    autoSpamState = not autoSpamState
+    TweenService:Create(autoSpamTog, TweenInfo.new(0.12), {BackgroundColor3 = autoSpamState and Colors.on or Colors.off}):Play()
+    TweenService:Create(autoSpamDot, TweenInfo.new(0.12), {Position = autoSpamState and UDim2.new(0, 17, 0, 2) or UDim2.new(0, 2, 0, 2)}):Play()
+    Save.autoSpamOn = autoSpamState
+    saveConfig()
+end)
+
+-- Player buttons no spam
+local spamPlayerBtns = {}
+local function addSpamPlayerBtn(p)
+    if p == plr or spamPlayerBtns[p] then return end
+    local btn = makeWindowBtn(spamContent, p.Name, function() _punish(p) end)
+    spamPlayerBtns[p] = btn
+end
+
+for _, p in ipairs(Players:GetPlayers()) do addSpamPlayerBtn(p) end
+Players.PlayerAdded:Connect(addSpamPlayerBtn)
+Players.PlayerRemoving:Connect(function(p)
+    if spamPlayerBtns[p] then spamPlayerBtns[p]:Destroy(); spamPlayerBtns[p] = nil end
+end)
 
 -- Friend/Myskyp Window
 local myskypSg = (function()
@@ -1835,7 +1803,7 @@ local obSg = (function()
     return sg
 end)()
 
--- Toggle Button
+-- Botão toggle (com ícone simples, sem H)
 local toggleSg = (function()
     local sg = Instance.new("ScreenGui")
     sg.Name = "HydraToggleBtn"
@@ -1843,25 +1811,27 @@ local toggleSg = (function()
     sg.DisplayOrder = 200
     sg.Parent = GuiParent
     
-    local btn = Instance.new("ImageButton")
+    local btn = Instance.new("TextButton")
     btn.Size = UDim2.new(0, 40, 0, 40)
     btn.Position = UDim2.new(0.5, -20, 0, 8)
-    btn.BackgroundTransparency = 1
-    btn.Image = "rbxassetid://139358639991322"
+    btn.BackgroundColor3 = Colors.accent
+    btn.BackgroundTransparency = 0.3
+    btn.Text = "≡"
+    btn.TextColor3 = Color3.new(1, 1, 1)
+    btn.TextSize = 20
+    btn.Font = Enum.Font.GothamBold
     btn.Parent = sg
+    mkCorner(btn, 20)
     
     local visible = true
     btn.MouseButton1Click:Connect(function()
         visible = not visible
         ScreenGui.Enabled = visible
-        if hhSg then hhSg.Enabled = visible and Save.shortInstantSteal end
-        if srvSg then srvSg.Enabled = visible and Save.shortServer end
-        if spamSg then spamSg.Enabled = visible and Save.shortSpam end
-        if myskypSg then myskypSg.Enabled = visible and Save.shortMyskyp end
-        if obSg then obSg.Enabled = visible and Save.shortOpenBase end
     end)
     
     return sg
 end)()
 
-print("✅ Script carregado! Anti-cheat ativo, todas as funções funcionando!")
+print("✅ Script carregado! Anti-cheate ativo, todas as funções funcionando!")
+print("📌 Botão X fecha apenas o menu principal")
+print("📌 Botão − minimiza as janelinhas")
