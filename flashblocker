@@ -1,5 +1,5 @@
 -- ============================================================
--- COMPLETE SCRIPT WITH KEYBINDS (Right-click to set key)
+-- COMPLETE SCRIPT WITH MOVABLE WINDOWS + NEW "O" ICON
 -- ============================================================
 
 -- SERVICES
@@ -11,7 +11,6 @@ local ProximityPromptService = game:GetService("ProximityPromptService")
 local CoreGui = game:GetService("CoreGui")
 local HttpService = game:GetService("HttpService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local VirtualUser = game:GetService("VirtualUser")
 local TeleportService = game:GetService("TeleportService")
 
 local LP = Players.LocalPlayer
@@ -21,30 +20,23 @@ local plr = LP
 -- KEYBIND STORAGE
 -- ============================================================
 local Keybinds = {
-    -- InstantSteal buttons
     executeTP = "X",
     activateReset = "R",
-    -- Server buttons  
     kickSelf = "K",
     forceReset = "F",
-    -- Spam buttons (per player, will be dynamic)
     spamDefault = "P",
 }
 
--- Load saved keybinds
 pcall(function()
     if readfile then
         local data = readfile("keybinds_config.json")
         if data and data ~= "" then
             local saved = HttpService:JSONDecode(data)
-            for k, v in pairs(saved) do
-                Keybinds[k] = v
-            end
+            for k, v in pairs(saved) do Keybinds[k] = v end
         end
     end
 end)
 
--- Save keybinds
 local function saveKeybinds()
     pcall(function()
         if writefile then
@@ -54,7 +46,7 @@ local function saveKeybinds()
 end
 
 -- ============================================================
--- ANTI-KICK (Fixed for removed Kick function)
+-- ANTI-KICK
 -- ============================================================
 pcall(function()
     local mt = getrawmetatable(game)
@@ -65,21 +57,15 @@ pcall(function()
             if method == "Kick" or method == "Destroy" or method == "Remove" then
                 return nil
             end
-            if old_namecall then
-                return old_namecall(self, ...)
-            end
+            if old_namecall then return old_namecall(self, ...) end
             return nil
         end)
     end
 end)
 
 pcall(function()
-    for _, conn in pairs(getconnections(LP:GetPropertyChangedSignal("Parent"))) do
-        conn:Disable()
-    end
-    for _, conn in pairs(getconnections(LP.AncestryChanged)) do
-        conn:Disable()
-    end
+    for _, conn in pairs(getconnections(LP:GetPropertyChangedSignal("Parent"))) do conn:Disable() end
+    for _, conn in pairs(getconnections(LP.AncestryChanged)) do conn:Disable() end
 end)
 
 task.spawn(function()
@@ -94,7 +80,7 @@ task.spawn(function()
 end)
 
 -- ============================================================
--- KEYBIND HANDLER (Global)
+-- KEYBIND HANDLER
 -- ============================================================
 local KeybindFunctions = {}
 
@@ -102,15 +88,11 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if gameProcessed then return end
     if input.UserInputType == Enum.UserInputType.Keyboard then
         local key = input.KeyCode.Name
-        for bindKey, func in pairs(KeybindFunctions) do
-            if bindKey == key then
-                pcall(func)
-            end
-        end
+        if KeybindFunctions[key] then pcall(KeybindFunctions[key]) end
     end
 end)
 
--- Function to create a button with keybind support
+-- Function to create button with keybind
 local function makeKeybindButton(parent, text, callback, bindId, defaultKey)
     local frame = Instance.new("Frame")
     frame.Size = UDim2.new(1, 0, 0, 28)
@@ -133,7 +115,6 @@ local function makeKeybindButton(parent, text, callback, bindId, defaultKey)
     btnCorner.CornerRadius = UDim.new(0, 6)
     btnCorner.Parent = btn
     
-    -- Keybind label
     local keyLabel = Instance.new("TextLabel")
     keyLabel.Size = UDim2.new(0, 50, 1, 0)
     keyLabel.Position = UDim2.new(1, -55, 0, 0)
@@ -145,43 +126,28 @@ local function makeKeybindButton(parent, text, callback, bindId, defaultKey)
     keyLabel.TextXAlignment = Enum.TextXAlignment.Right
     keyLabel.Parent = frame
     
-    -- Store keybind
     local currentBind = Keybinds[bindId] or defaultKey or "None"
     Keybinds[bindId] = currentBind
+    if currentBind ~= "None" then KeybindFunctions[currentBind] = callback end
     
-    -- Update global keybind function
-    if currentBind ~= "None" then
-        KeybindFunctions[currentBind] = callback
-    end
-    
-    -- Right-click to set new keybind
     btn.MouseButton2Click:Connect(function()
         keyLabel.Text = "(Press any key...)"
         keyLabel.TextColor3 = Color3.fromRGB(255, 200, 0)
-        
         local connection
-        connection = UserInputService.InputBegan:Connect(function(input, gameProcessed)
-            if gameProcessed then return end
+        connection = UserInputService.InputBegan:Connect(function(input, gp)
+            if gp then return end
             if input.UserInputType == Enum.UserInputType.Keyboard then
                 local newKey = input.KeyCode.Name
-                
-                -- Remove old binding
-                if KeybindFunctions[currentBind] == callback then
-                    KeybindFunctions[currentBind] = nil
-                end
-                
-                -- Set new binding
+                if KeybindFunctions[currentBind] == callback then KeybindFunctions[currentBind] = nil end
                 currentBind = newKey
                 Keybinds[bindId] = newKey
                 KeybindFunctions[newKey] = callback
-                
                 keyLabel.Text = "(" .. newKey .. ")"
                 keyLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
                 saveKeybinds()
                 connection:Disconnect()
             end
         end)
-        
         task.delay(5, function()
             pcall(function() connection:Disconnect() end)
             if keyLabel.Text == "(Press any key...)" then
@@ -191,9 +157,7 @@ local function makeKeybindButton(parent, text, callback, bindId, defaultKey)
         end)
     end)
     
-    -- Left-click normal action
     btn.MouseButton1Click:Connect(callback)
-    
     return btn, keyLabel
 end
 
@@ -218,7 +182,6 @@ _G.AntiScamSave = _G.AntiScamSave or {
 }
 local Save = _G.AntiScamSave
 
--- Save/Load
 do
     local function loadConfig()
         pcall(function()
@@ -248,16 +211,15 @@ do
     end
 end
 
--- Events
 _G._tpDoneEvent = _G._tpDoneEvent or Instance.new("BindableEvent")
 _G._spamEvent   = _G._spamEvent   or Instance.new("BindableEvent")
 
 -- ============================================================
 -- HELPER FUNCTIONS
 -- ============================================================
-local function getChar()  return plr.Character and plr.Character.Parent and plr.Character end
-local function getRoot()  local c=getChar(); return c and c:FindFirstChild("HumanoidRootPart") end
-local function getHum()   local c=getChar(); return c and c:FindFirstChildOfClass("Humanoid") end
+local function getChar() return plr.Character and plr.Character.Parent and plr.Character end
+local function getRoot() local c=getChar(); return c and c:FindFirstChild("HumanoidRootPart") end
+local function getHum() local c=getChar(); return c and c:FindFirstChildOfClass("Humanoid") end
 local function getCarpet() local bp=plr:FindFirstChild("Backpack"); return bp and bp:FindFirstChild("Flying Carpet") end
 local function equipCarpet() local c=getCarpet(); local h=getHum(); if c and h then h:EquipTool(c); task.wait(0.15) end end
 
@@ -286,29 +248,28 @@ end
 if Save.walkSpeedOn then task.spawn(applySpeedAnti) end
 
 -- ============================================================
--- ANTI DIE (IMMORTAL)
+-- ANTI DIE
 -- ============================================================
-local _antiDieConns  = {}
+local _antiDieConns = {}
 local _antiDieActive = true
 local function _antiDieApply()
     for _, c in ipairs(_antiDieConns) do pcall(function() c:Disconnect() end) end
     _antiDieConns = {}
     if not _antiDieActive then return end
     local char = plr.Character; if not char then return end
-    local hum  = char:FindFirstChildOfClass("Humanoid"); if not hum then return end
+    local hum = char:FindFirstChildOfClass("Humanoid"); if not hum then return end
     pcall(function() hum.BreakJointsOnDeath = false end)
     pcall(function() hum:SetStateEnabled(Enum.HumanoidStateType.Dead, false) end)
     table.insert(_antiDieConns, hum:GetPropertyChangedSignal("Health"):Connect(function()
-        if _antiDieActive and hum.Health <= 0 then
-            pcall(function() hum.Health = hum.MaxHealth end)
-        end
+        if _antiDieActive and hum.Health <= 0 then pcall(function() hum.Health = hum.MaxHealth end) end
     end))
 end
-local function _antiDiePause() _antiDieActive = false
+local function _antiDiePause()
+    _antiDieActive = false
     for _, c in ipairs(_antiDieConns) do pcall(function() c:Disconnect() end) end
     _antiDieConns = {}
     local char = plr.Character; if not char then return end
-    local hum  = char:FindFirstChildOfClass("Humanoid"); if not hum then return end
+    local hum = char:FindFirstChildOfClass("Humanoid"); if not hum then return end
     pcall(function() hum.BreakJointsOnDeath = true end)
     pcall(function() hum:SetStateEnabled(Enum.HumanoidStateType.Dead, true) end)
 end
@@ -390,12 +351,7 @@ local function scanPlot(plot)
     local pods = plot:FindFirstChild("AnimalPodiums"); if not pods then return end
     for _, pod in ipairs(pods:GetChildren()) do
         if pod:IsA("Model") and pod:FindFirstChild("Base") then
-            table.insert(animals, {
-                plot = plot.Name,
-                slot = pod.Name,
-                pos  = pod:GetPivot().Position,
-                uid  = plot.Name.."_"..pod.Name,
-            })
+            table.insert(animals, {plot = plot.Name, slot = pod.Name, pos = pod:GetPivot().Position, uid = plot.Name.."_"..pod.Name})
         end
     end
 end
@@ -418,10 +374,8 @@ end)
 local function findPrompt(a)
     local c = promptCache[a.uid]; if c and c.Parent then return c end
     local plot = workspace.Plots and workspace.Plots:FindFirstChild(a.plot)
-    local pod  = plot and plot.AnimalPodiums and plot.AnimalPodiums:FindFirstChild(a.slot)
-    local pr   = pod and pod.Base and pod.Base.Spawn and
-                 pod.Base.Spawn.PromptAttachment and
-                 pod.Base.Spawn.PromptAttachment:FindFirstChildOfClass("ProximityPrompt")
+    local pod = plot and plot.AnimalPodiums and plot.AnimalPodiums:FindFirstChild(a.slot)
+    local pr = pod and pod.Base and pod.Base.Spawn and pod.Base.Spawn.PromptAttachment and pod.Base.Spawn.PromptAttachment:FindFirstChildOfClass("ProximityPrompt")
     if pr then promptCache[a.uid] = pr end
     return pr
 end
@@ -521,7 +475,6 @@ local function _punish(target)
     for _,cmd in ipairs(_cmds) do _fire("f888ee6e-c86d-46e1-93d7-0639d6635d42",target,cmd) end
 end
 
--- Auto Spam Loop
 task.spawn(function()
     while true do
         task.wait(0.5)
@@ -535,10 +488,7 @@ task.spawn(function()
                         local ph = p.Character:FindFirstChild("HumanoidRootPart")
                         if ph then
                             local d = (ph.Position - hrp.Position).Magnitude
-                            if d < closestDist then
-                                closestDist = d
-                                closest = p
-                            end
+                            if d < closestDist then closestDist = d; closest = p end
                         end
                     end
                 end
@@ -548,13 +498,11 @@ task.spawn(function()
     end
 end)
 
--- Auto TP on Open
 if Save.autoTPOpen then
     task.spawn(function()
         while true do
             task.wait(0.15)
             local base = detectBase()
-            local enemyPos = base == "left" and pos2 or pos1
             local plots = workspace:FindFirstChild("Plots")
             if plots then
                 for _,plot in ipairs(plots:GetChildren()) do
@@ -592,22 +540,16 @@ local function protOnSteal()
     local now=tick(); local cl=_findThief(); if not cl then return end
     local c2=_protCooldown[cl.Name] or 0; if now-c2<1.5 then return end
     _protCooldown[cl.Name]=now
-    task.spawn(function()
-        for _,cmd in ipairs({"balloon","rocket"}) do _fire(cl,cmd) end
-    end)
+    task.spawn(function() for _,cmd in ipairs({"balloon","rocket"}) do _fire(cl,cmd) end end)
 end
 
 if Save.protectorOn then
     local pg = plr:WaitForChild("PlayerGui")
     local function watchText(obj)
         if obj:IsA("TextLabel") or obj:IsA("TextButton") then
-            if string.find(string.lower(obj.Text or ""), "someone is stealing your") then
-                protOnSteal()
-            end
+            if string.find(string.lower(obj.Text or ""), "someone is stealing your") then protOnSteal() end
             obj:GetPropertyChangedSignal("Text"):Connect(function()
-                if string.find(string.lower(obj.Text or ""), "someone is stealing your") then
-                    protOnSteal()
-                end
+                if string.find(string.lower(obj.Text or ""), "someone is stealing your") then protOnSteal() end
             end)
         end
     end
@@ -629,22 +571,14 @@ local function startPlayerESP()
         while _rainbowActive do
             _rainbowHue = (_rainbowHue + 6) % 360
             local col = Color3.fromHSV(_rainbowHue/360, 1, 1)
-            for _,hl in pairs(_playerHL) do
-                if hl and hl.Parent then
-                    hl.FillColor = col
-                    hl.OutlineColor = col
-                end
-            end
+            for _,hl in pairs(_playerHL) do if hl and hl.Parent then hl.FillColor = col; hl.OutlineColor = col end end
             task.wait(0.1)
         end
     end)
     for _,p in ipairs(Players:GetPlayers()) do
         if p ~= plr and p.Character then
             local hl = Instance.new("Highlight")
-            hl.FillTransparency = 0.5
-            hl.OutlineTransparency = 0
-            hl.Adornee = p.Character
-            hl.Parent = p.Character
+            hl.FillTransparency = 0.5; hl.OutlineTransparency = 0; hl.Adornee = p.Character; hl.Parent = p.Character
             _playerHL[p] = hl
         end
     end
@@ -652,10 +586,7 @@ local function startPlayerESP()
         p.CharacterAdded:Connect(function(char)
             task.wait(0.3)
             local hl = Instance.new("Highlight")
-            hl.FillTransparency = 0.5
-            hl.OutlineTransparency = 0
-            hl.Adornee = char
-            hl.Parent = char
+            hl.FillTransparency = 0.5; hl.OutlineTransparency = 0; hl.Adornee = char; hl.Parent = char
             _playerHL[p] = hl
         end)
     end)
@@ -663,15 +594,12 @@ end
 
 local function stopPlayerESP()
     _rainbowActive = false
-    for _,hl in pairs(_playerHL) do
-        pcall(function() if hl and hl.Parent then hl:Destroy() end end)
-    end
+    for _,hl in pairs(_playerHL) do pcall(function() if hl and hl.Parent then hl:Destroy() end end) end
     _playerHL = {}
 end
 
 if Save.espPlayer then task.spawn(startPlayerESP) end
 
--- Brainrot ESP
 local _brainrotHL = {}
 if Save.espBrainrot then
     task.spawn(function()
@@ -683,11 +611,8 @@ if Save.espBrainrot then
                     for _,br in ipairs(plot:GetChildren()) do
                         if br:IsA("Model") and br:FindFirstChildOfClass("Humanoid") and not _brainrotHL[br] then
                             local hl = Instance.new("Highlight")
-                            hl.FillColor = Color3.fromRGB(255,0,0)
-                            hl.OutlineColor = Color3.fromRGB(255,100,100)
-                            hl.FillTransparency = 0.6
-                            hl.Adornee = br
-                            hl.Parent = br
+                            hl.FillColor = Color3.fromRGB(255,0,0); hl.OutlineColor = Color3.fromRGB(255,100,100)
+                            hl.FillTransparency = 0.6; hl.Adornee = br; hl.Parent = br
                             _brainrotHL[br] = hl
                         end
                     end
@@ -697,7 +622,6 @@ if Save.espBrainrot then
     end)
 end
 
--- Base ESP
 local _baseEspInstances = {}
 if Save.espBase then
     task.spawn(function()
@@ -713,25 +637,17 @@ if Save.espBase then
                     if timeLabel and mainPart then
                         if not _baseEspInstances[plot.Name] then
                             local bb = Instance.new("BillboardGui")
-                            bb.Size = UDim2.new(0,70,0,30)
-                            bb.StudsOffset = Vector3.new(0,5,0)
-                            bb.AlwaysOnTop = true
-                            bb.Adornee = mainPart
-                            bb.Parent = plot
+                            bb.Size = UDim2.new(0,70,0,30); bb.StudsOffset = Vector3.new(0,5,0); bb.AlwaysOnTop = true
+                            bb.Adornee = mainPart; bb.Parent = plot
                             local l2 = Instance.new("TextLabel")
-                            l2.Size = UDim2.new(1,0,1,0)
-                            l2.BackgroundTransparency = 1
-                            l2.TextScaled = true
-                            l2.Font = Enum.Font.GothamBlack
-                            l2.TextColor3 = Color3.fromRGB(255,255,0)
-                            l2.Parent = bb
+                            l2.Size = UDim2.new(1,0,1,0); l2.BackgroundTransparency = 1; l2.TextScaled = true
+                            l2.Font = Enum.Font.GothamBlack; l2.TextColor3 = Color3.fromRGB(255,255,0); l2.Parent = bb
                             _baseEspInstances[plot.Name] = bb
                         end
                         local l3 = _baseEspInstances[plot.Name]:FindFirstChildWhichIsA("TextLabel")
                         if l3 then l3.Text = timeLabel.Text end
                     elseif _baseEspInstances[plot.Name] then
-                        _baseEspInstances[plot.Name]:Destroy()
-                        _baseEspInstances[plot.Name] = nil
+                        _baseEspInstances[plot.Name]:Destroy(); _baseEspInstances[plot.Name] = nil
                     end
                 end
             end
@@ -791,28 +707,20 @@ if _antiRagdollOn then startAntiRagdoll() end
 -- ============================================================
 -- ANTI LAG
 -- ============================================================
-local _antiLagOn = Save.rckAntiLag or false
-
-if _antiLagOn then
+if Save.rckAntiLag then
     task.spawn(function()
         local function cleanChar(char)
             if not char then return end
             pcall(function()
                 for _,child in ipairs(char:GetChildren()) do
-                    if child:IsA("Accessory") or child:IsA("Hat") or child:IsA("Shirt") or child:IsA("Pants") then
-                        child:Destroy()
-                    end
+                    if child:IsA("Accessory") or child:IsA("Hat") or child:IsA("Shirt") or child:IsA("Pants") then child:Destroy() end
                 end
                 for _,child in ipairs(char:GetDescendants()) do
-                    if child:IsA("ParticleEmitter") or child:IsA("Trail") or child:IsA("Beam") or child:IsA("Fire") then
-                        child:Destroy()
-                    end
+                    if child:IsA("ParticleEmitter") or child:IsA("Trail") or child:IsA("Beam") or child:IsA("Fire") then child:Destroy() end
                 end
             end)
         end
-        for _,p in ipairs(Players:GetPlayers()) do
-            if p.Character then cleanChar(p.Character) end
-        end
+        for _,p in ipairs(Players:GetPlayers()) do if p.Character then cleanChar(p.Character) end end
     end)
 end
 
@@ -860,10 +768,7 @@ RunService.RenderStepped:Connect(function()
     local char = getChar(); if not char then return end
     local hum = char:FindFirstChildOfClass("Humanoid"); if not hum then return end
     for _,track in ipairs(hum:GetPlayingAnimationTracks()) do
-        if not table.find(_lockedTracks, track) then
-            track:Stop()
-            table.insert(_lockedTracks, track)
-        end
+        if not table.find(_lockedTracks, track) then track:Stop(); table.insert(_lockedTracks, track) end
     end
 end)
 
@@ -873,7 +778,7 @@ end)
 local _ob_firing = false
 local function _ob_firePrompt(prompt)
     local origDist = prompt.MaxActivationDistance
-    local origLOS  = prompt.RequiresLineOfSight
+    local origLOS = prompt.RequiresLineOfSight
     local origHold = prompt.HoldDuration
     pcall(function() prompt.MaxActivationDistance=100000; prompt.RequiresLineOfSight=false; prompt.HoldDuration=0 end)
     _ob_firing = true
@@ -887,18 +792,12 @@ local function _ob_triggerByIndex(idx)
     local plots = workspace:FindFirstChild("Plots")
     if not plots then return end
     for _,plot in ipairs(plots:GetChildren()) do
-        if not isMyBase(plot.Name) then
-            targetPlot = plot
-            break
-        end
+        if not isMyBase(plot.Name) then targetPlot = plot; break end
     end
     if not targetPlot then return end
-    
     local prompts = {}
     for _,obj in ipairs(targetPlot:GetDescendants()) do
-        if obj:IsA("ProximityPrompt") and obj.Enabled then
-            table.insert(prompts, obj)
-        end
+        if obj:IsA("ProximityPrompt") and obj.Enabled then table.insert(prompts, obj) end
     end
     table.sort(prompts, function(a,b) 
         local y1 = a.Parent and a.Parent.Position.Y or 0
@@ -908,36 +807,27 @@ local function _ob_triggerByIndex(idx)
     if prompts[idx] then _ob_firePrompt(prompts[idx]) end
 end
 
--- ============================================================
--- AUTO ACTIVE RESET
--- ============================================================
 if Save.autoActiveReset then
     task.spawn(function()
-        task.wait(0.5)
-        _antiDiePause()
-        task.wait(0.3)
-        ResetToWork()
-        task.wait(0.5)
-        _antiDieResume()
+        task.wait(0.5); _antiDiePause(); task.wait(0.3); ResetToWork(); task.wait(0.5); _antiDieResume()
     end)
 end
 
 -- ============================================================
--- MAIN INTERFACE (CatHUB Style with X button)
+-- INTERFACE COLORS
 -- ============================================================
-
 local function mkCorner(p,r) local c=Instance.new("UICorner"); c.CornerRadius=UDim.new(0,r or 6); c.Parent=p; return c end
 local function mkStroke(p,col,t) local s=Instance.new("UIStroke"); s.Color=col or Color3.fromRGB(0,170,255); s.Thickness=t or 2; s.Parent=p; return s end
 
 local Colors = {
     bg_sidebar = Color3.fromRGB(15,15,20),
     bg_content = Color3.fromRGB(0,0,0),
-    accent     = Color3.fromRGB(0,170,255),
-    text       = Color3.new(0.941176,0.941176,0.941176),
-    sub        = Color3.fromRGB(180,180,200),
-    on         = Color3.new(0,0.784314,0.392157),
-    off        = Color3.fromRGB(35,35,40),
-    dot        = Color3.new(0.941176,0.941176,0.941176),
+    accent = Color3.fromRGB(0,170,255),
+    text = Color3.new(0.941176,0.941176,0.941176),
+    sub = Color3.fromRGB(180,180,200),
+    on = Color3.new(0,0.784314,0.392157),
+    off = Color3.fromRGB(35,35,40),
+    dot = Color3.new(0.941176,0.941176,0.941176),
 }
 
 local GuiParent = CoreGui
@@ -952,7 +842,9 @@ for _, name in ipairs(oldGuis) do
     if GuiParent:FindFirstChild(name) then GuiParent[name]:Destroy() end
 end
 
+-- ============================================================
 -- MAIN SCREEN GUI
+-- ============================================================
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "FlashStealGUI"
 ScreenGui.ResetOnSpawn = false
@@ -968,8 +860,8 @@ StealBarBG.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
 StealBarBG.BackgroundTransparency = 0
 StealBarBG.BorderSizePixel = 0
 StealBarBG.Parent = ScreenGui
-
 mkCorner(StealBarBG, 6)
+
 local StealBarStroke = Instance.new("UIStroke")
 StealBarStroke.Color = Color3.fromRGB(180, 180, 180)
 StealBarStroke.Thickness = 1.5
@@ -1137,7 +1029,6 @@ local function makeNavBtn(name)
     btn.BackgroundTransparency = 1
     btn.Text = ""
     btn.Parent = NavButtons
-    
     local abar = Instance.new("Frame")
     abar.Size = UDim2.new(0, 3, 1, -8)
     abar.Position = UDim2.new(0, 4, 0, 4)
@@ -1145,20 +1036,12 @@ local function makeNavBtn(name)
     abar.Visible = false
     abar.Parent = btn
     mkCorner(abar, 20)
-    
     local tl = mkLabel(btn, {text=name, size=10, color=Colors.sub, font=Enum.Font.GothamMedium,
         sz=UDim2.new(1, -15, 1, 0), pos=UDim2.new(0, 12, 0, 0)})
-    
     navBtns[name] = {btn=btn, abar=abar, tl=tl}
-    
     btn.MouseButton1Click:Connect(function()
-        for _, nb in pairs(navBtns) do
-            nb.abar.Visible = false
-            nb.tl.TextColor3 = Colors.sub
-        end
-        abar.Visible = true
-        tl.TextColor3 = Color3.new(1,1,1)
-        activeNav = name
+        for _, nb in pairs(navBtns) do nb.abar.Visible = false; nb.tl.TextColor3 = Colors.sub end
+        abar.Visible = true; tl.TextColor3 = Color3.new(1,1,1); activeNav = name
         local anchor = anchorFrames[name]
         if anchor then
             task.defer(function()
@@ -1177,7 +1060,6 @@ local function makeSectionHeader(name)
     f.BackgroundTransparency = 1
     f.Parent = MainFrame
     anchorFrames[name] = f
-    
     local lbl = Instance.new("TextLabel")
     lbl.Size = UDim2.new(1, 0, 1, 0)
     lbl.BackgroundTransparency = 1
@@ -1197,45 +1079,33 @@ RunService.Heartbeat:Connect(function()
     local absY = MainFrame.AbsolutePosition.Y
     local maxS2 = math.max(0, MainFrame.AbsoluteCanvasSize.Y - MainFrame.AbsoluteSize.Y)
     local best = nil
-    if maxS2 > 0 and scrollY >= maxS2 - 1 then
-        best = "Shortcuts"
+    if maxS2 > 0 and scrollY >= maxS2 - 1 then best = "Shortcuts"
     else
         local bestDist = math.huge
         for name, anchor in pairs(anchorFrames) do
             if anchor and anchor.Parent then
                 local anchorRelY = anchor.AbsolutePosition.Y - absY + scrollY
                 local dist = scrollY - anchorRelY
-                if dist >= -10 and dist < bestDist then
-                    bestDist = dist
-                    best = name
-                end
+                if dist >= -10 and dist < bestDist then bestDist = dist; best = name end
             end
         end
     end
     if best and best ~= activeNav then
         activeNav = best
-        for _, nb in pairs(navBtns) do
-            nb.abar.Visible = false
-            nb.tl.TextColor3 = Colors.sub
-        end
-        if navBtns[best] then
-            navBtns[best].abar.Visible = true
-            navBtns[best].tl.TextColor3 = Color3.new(1,1,1)
-        end
+        for _, nb in pairs(navBtns) do nb.abar.Visible = false; nb.tl.TextColor3 = Colors.sub end
+        if navBtns[best] then navBtns[best].abar.Visible = true; navBtns[best].tl.TextColor3 = Color3.new(1,1,1) end
     end
 end)
 
--- UI Elements creation
+-- UI Elements
 local function makeToggle(labelTxt, initOn, callback)
     local row = Instance.new("Frame")
     row.Size = UDim2.new(1, 0, 0, 22)
     row.BackgroundTransparency = 1
     row.BorderSizePixel = 0
     row.Parent = MainFrame
-    
     mkLabel(row, {text=labelTxt, size=11, font=Enum.Font.GothamMedium,
         sz=UDim2.new(1, -50, 0, 16), pos=UDim2.new(0, 2, 0, 3)})
-    
     local togBtn = Instance.new("TextButton")
     togBtn.Size = UDim2.new(0, 30, 0, 14)
     togBtn.Position = UDim2.new(1, -34, 0.5, -7)
@@ -1243,16 +1113,13 @@ local function makeToggle(labelTxt, initOn, callback)
     togBtn.Text = ""
     togBtn.Parent = row
     mkCorner(togBtn, 20)
-    
     local dot = Instance.new("Frame")
     dot.Size = UDim2.new(0, 10, 0, 10)
     dot.Position = initOn and UDim2.new(0, 17, 0, 2) or UDim2.new(0, 2, 0, 2)
     dot.BackgroundColor3 = Colors.dot
     dot.Parent = togBtn
     mkCorner(dot, 20)
-    
     local state = initOn or false
-    
     togBtn.MouseButton1Click:Connect(function()
         state = not state
         TweenService:Create(togBtn, TweenInfo.new(0.12), {BackgroundColor3 = state and Colors.on or Colors.off}):Play()
@@ -1267,9 +1134,7 @@ local function makeSlider(labelTxt, minVal, maxVal, initVal, onChange)
     row.BackgroundTransparency = 1
     row.BorderSizePixel = 0
     row.Parent = MainFrame
-    
     mkLabel(row, {text=labelTxt, size=11, font=Enum.Font.GothamMedium, sz=UDim2.new(1, -54, 0, 15), pos=UDim2.new(0, 2, 0, 2)})
-    
     local inputBox = Instance.new("TextBox")
     inputBox.Size = UDim2.new(0, 44, 0, 15)
     inputBox.Position = UDim2.new(1, -46, 0, 2)
@@ -1283,7 +1148,6 @@ local function makeSlider(labelTxt, minVal, maxVal, initVal, onChange)
     inputBox.ClearTextOnFocus = true
     inputBox.Parent = row
     mkCorner(inputBox, 4)
-    
     local track = Instance.new("Frame")
     track.Size = UDim2.new(1, -6, 0, 6)
     track.Position = UDim2.new(0, 2, 0, 26)
@@ -1291,7 +1155,6 @@ local function makeSlider(labelTxt, minVal, maxVal, initVal, onChange)
     track.BorderSizePixel = 0
     track.Parent = row
     mkCorner(track, 6)
-    
     local pct = (initVal - minVal) / (maxVal - minVal)
     local fill = Instance.new("Frame")
     fill.Size = UDim2.new(pct, 0, 1, 0)
@@ -1299,7 +1162,6 @@ local function makeSlider(labelTxt, minVal, maxVal, initVal, onChange)
     fill.BorderSizePixel = 0
     fill.Parent = track
     mkCorner(fill, 6)
-    
     local knob = Instance.new("Frame")
     knob.Size = UDim2.new(0, 12, 0, 12)
     knob.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -1309,9 +1171,7 @@ local function makeSlider(labelTxt, minVal, maxVal, initVal, onChange)
     knob.ZIndex = 4
     knob.Parent = track
     mkCorner(knob, 6)
-    
     local curVal = initVal
-    
     local function setVal(v)
         v = math.clamp(math.floor(v + 0.5), minVal, maxVal)
         curVal = v
@@ -1321,7 +1181,6 @@ local function makeSlider(labelTxt, minVal, maxVal, initVal, onChange)
         inputBox.Text = tostring(v)
         if onChange then onChange(v) end
     end
-    
     local dragging = false
     local slBtn = Instance.new("TextButton")
     slBtn.Size = UDim2.new(1, 0, 1, 0)
@@ -1329,19 +1188,8 @@ local function makeSlider(labelTxt, minVal, maxVal, initVal, onChange)
     slBtn.Text = ""
     slBtn.ZIndex = 3
     slBtn.Parent = track
-    
-    slBtn.InputBegan:Connect(function(i)
-        if i.UserInputType == Enum.UserInputType.MouseButton1 then
-            dragging = true
-        end
-    end)
-    
-    UserInputService.InputEnded:Connect(function(i)
-        if i.UserInputType == Enum.UserInputType.MouseButton1 then
-            dragging = false
-        end
-    end)
-    
+    slBtn.InputBegan:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 then dragging = true end end)
+    UserInputService.InputEnded:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end end)
     UserInputService.InputChanged:Connect(function(i)
         if dragging and i.UserInputType == Enum.UserInputType.MouseMovement then
             local abs = track.AbsolutePosition
@@ -1349,7 +1197,6 @@ local function makeSlider(labelTxt, minVal, maxVal, initVal, onChange)
             setVal(minVal + math.clamp((i.Position.X - abs.X) / sz.X, 0, 1) * (maxVal - minVal))
         end
     end)
-    
     inputBox.FocusLost:Connect(function()
         local v = tonumber(inputBox.Text)
         if v then setVal(v) else inputBox.Text = tostring(curVal) end
@@ -1359,11 +1206,8 @@ end
 -- ============================================================
 -- BUILD INTERFACE SECTIONS
 -- ============================================================
-
--- Main Section
 makeSectionHeader("Main")
 
--- Auto Active Reset
 local aarState = Save.autoActiveReset or false
 local aarRow = Instance.new("Frame")
 aarRow.Size = UDim2.new(1, 0, 0, 22)
@@ -1372,7 +1216,6 @@ aarRow.BorderSizePixel = 0
 aarRow.Parent = MainFrame
 mkLabel(aarRow, {text="Auto Active (Reset)", size=11, font=Enum.Font.GothamMedium,
     sz=UDim2.new(1, -50, 0, 16), pos=UDim2.new(0, 2, 0, 3)})
-
 local aarTogBtn = Instance.new("TextButton")
 aarTogBtn.Size = UDim2.new(0, 30, 0, 14)
 aarTogBtn.Position = UDim2.new(1, -34, 0.5, -7)
@@ -1380,207 +1223,77 @@ aarTogBtn.BackgroundColor3 = aarState and Colors.on or Colors.off
 aarTogBtn.Text = ""
 aarTogBtn.Parent = aarRow
 mkCorner(aarTogBtn, 20)
-
 local aarDot = Instance.new("Frame")
 aarDot.Size = UDim2.new(0, 10, 0, 10)
 aarDot.Position = aarState and UDim2.new(0, 17, 0, 2) or UDim2.new(0, 2, 0, 2)
 aarDot.BackgroundColor3 = Colors.dot
 aarDot.Parent = aarTogBtn
 mkCorner(aarDot, 20)
-
 aarTogBtn.MouseButton1Click:Connect(function()
     aarState = not aarState
     TweenService:Create(aarTogBtn, TweenInfo.new(0.12), {BackgroundColor3 = aarState and Colors.on or Colors.off}):Play()
     TweenService:Create(aarDot, TweenInfo.new(0.12), {Position = aarState and UDim2.new(0, 17, 0, 2) or UDim2.new(0, 2, 0, 2)}):Play()
     Save.autoActiveReset = aarState
     saveConfig()
-    if aarState then
-        _antiDiePause()
-        task.wait(0.3)
-        ResetToWork()
-        task.wait(0.5)
-        _antiDieResume()
-    end
+    if aarState then _antiDiePause(); task.wait(0.3); ResetToWork(); task.wait(0.5); _antiDieResume() end
 end)
 
--- Auto TP on Open
-makeToggle("Auto TP on Open", Save.autoTPOpen or false, function(enabled)
-    Save.autoTPOpen = enabled
-    saveConfig()
-end)
-
--- Giant Potion
-makeToggle("Giant Potion", Save.autoPotion or false, function(s)
-    Save.autoPotion = s
-    _G.AutoPotion = s
-    saveConfig()
-end)
+makeToggle("Auto TP on Open", Save.autoTPOpen or false, function(enabled) Save.autoTPOpen = enabled; saveConfig() end)
+makeToggle("Giant Potion", Save.autoPotion or false, function(s) Save.autoPotion = s; _G.AutoPotion = s; saveConfig() end)
 _G.AutoPotion = Save.autoPotion or false
+makeToggle("Anti Ragdoll", Save.antiRagdoll or false, function(on) Save.antiRagdoll = on; saveConfig(); if on then startAntiRagdoll() elseif _ragdollConn then _ragdollConn:Disconnect(); _ragdollConn = nil end end)
+makeToggle("Sentry", Save.rckSentry or false, function(on) Save.rckSentry = on; saveConfig(); if on then startSentry() elseif _sentryConn then _sentryConn:Disconnect(); _sentryConn = nil end end)
 
--- Anti Ragdoll
-makeToggle("Anti Ragdoll", Save.antiRagdoll or false, function(on)
-    Save.antiRagdoll = on
-    saveConfig()
-    if on then
-        startAntiRagdoll()
-    elseif _ragdollConn then
-        _ragdollConn:Disconnect()
-        _ragdollConn = nil
-    end
-end)
-
--- Sentry
-makeToggle("Sentry", Save.rckSentry or false, function(on)
-    Save.rckSentry = on
-    saveConfig()
-    if on then
-        startSentry()
-    elseif _sentryConn then
-        _sentryConn:Disconnect()
-        _sentryConn = nil
-    end
-end)
-
--- Booster Section
 makeSectionHeader("Booster")
+makeToggle("Walk Speed", Save.walkSpeedOn or false, function(on) Save.walkSpeedOn = on; saveConfig(); if on then applySpeedAnti() else removeSpeedAnti() end end)
+makeSlider("Speed Value", 20, 40, speedAntiValue, function(v) speedAntiValue = v; Save.walkSpeedValue = v; saveConfig(); if Save.walkSpeedOn then removeSpeedAnti(); applySpeedAnti() end end)
 
-makeToggle("Walk Speed", Save.walkSpeedOn or false, function(on)
-    Save.walkSpeedOn = on
-    saveConfig()
-    if on then applySpeedAnti() else removeSpeedAnti() end
-end)
-
-makeSlider("Speed Value", 20, 40, speedAntiValue, function(v)
-    speedAntiValue = v
-    Save.walkSpeedValue = v
-    saveConfig()
-    if Save.walkSpeedOn then
-        removeSpeedAnti()
-        applySpeedAnti()
-    end
-end)
-
--- ESP Section
 makeSectionHeader("ESP")
+makeToggle("Player ESP", Save.espPlayer or false, function(enabled) Save.espPlayer = enabled; saveConfig(); if enabled then startPlayerESP() else stopPlayerESP() end end)
+makeToggle("Brainrot ESP", Save.espBrainrot or false, function(enabled) Save.espBrainrot = enabled; saveConfig() end)
+makeToggle("Base ESP", Save.espBase or false, function(enabled) Save.espBase = enabled; saveConfig() end)
+makeToggle("XRay", Save.espXRay or false, function(on) Save.espXRay = on; saveConfig(); if on then startXRay() else _xrayOn = false; for part, value in pairs(_origTransp) do if part then part.LocalTransparencyModifier = value end end; _origTransp = {} end end)
 
-makeToggle("Player ESP", Save.espPlayer or false, function(enabled)
-    Save.espPlayer = enabled
-    saveConfig()
-    if enabled then
-        startPlayerESP()
-    else
-        stopPlayerESP()
-    end
-end)
-
-makeToggle("Brainrot ESP", Save.espBrainrot or false, function(enabled)
-    Save.espBrainrot = enabled
-    saveConfig()
-end)
-
-makeToggle("Base ESP", Save.espBase or false, function(enabled)
-    Save.espBase = enabled
-    saveConfig()
-end)
-
-makeToggle("XRay", Save.espXRay or false, function(on)
-    Save.espXRay = on
-    saveConfig()
-    if on then
-        startXRay()
-    else
-        _xrayOn = false
-        for part, value in pairs(_origTransp) do
-            if part then part.LocalTransparencyModifier = value end
-        end
-        _origTransp = {}
-    end
-end)
-
--- Protector Section
 makeSectionHeader("Protector")
+makeToggle("Protect AP", Save.protectorOn or false, function(on) Save.protectorOn = on; saveConfig() end)
+makeToggle("Protect Kick AP", Save.protAutoKick or false, function(on) Save.protAutoKick = on; saveConfig() end)
 
-makeToggle("Protect AP", Save.protectorOn or false, function(on)
-    Save.protectorOn = on
-    saveConfig()
-end)
-
-makeToggle("Protect Kick AP", Save.protAutoKick or false, function(on)
-    Save.protAutoKick = on
-    saveConfig()
-end)
-
--- Shortcuts Section
 makeSectionHeader("Shortcuts")
-
-makeToggle("InstantSteal", Save.shortInstantSteal, function(on)
-    Save.shortInstantSteal = on
-    saveConfig()
-end)
-
-makeToggle("Server", Save.shortServer, function(on)
-    Save.shortServer = on
-    saveConfig()
-end)
-
-makeToggle("Spam", Save.shortSpam, function(on)
-    Save.shortSpam = on
-    saveConfig()
-end)
-
-makeToggle("Friend", Save.shortMyskyp, function(on)
-    Save.shortMyskyp = on
-    saveConfig()
-end)
-
-makeToggle("Open Base", Save.shortOpenBase, function(on)
-    Save.shortOpenBase = on
-    saveConfig()
-end)
+makeToggle("InstantSteal", Save.shortInstantSteal, function(on) Save.shortInstantSteal = on; saveConfig() end)
+makeToggle("Server", Save.shortServer, function(on) Save.shortServer = on; saveConfig() end)
+makeToggle("Spam", Save.shortSpam, function(on) Save.shortSpam = on; saveConfig() end)
+makeToggle("Friend", Save.shortMyskyp, function(on) Save.shortMyskyp = on; saveConfig() end)
+makeToggle("Open Base", Save.shortOpenBase, function(on) Save.shortOpenBase = on; saveConfig() end)
 
 -- Dragging for main menu
 do
     local dragging = false
     local dragStart = nil
     local startPos = nil
-    
     dragHandle.InputBegan:Connect(function(i)
         if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
-            dragging = true
-            dragStart = i.Position
-            startPos = Container.Position
+            dragging = true; dragStart = i.Position; startPos = Container.Position
         end
     end)
-    
     UserInputService.InputChanged:Connect(function(i)
         if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then
             local delta = i.Position - dragStart
             Container.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
         end
     end)
-    
     UserInputService.InputEnded:Connect(function(i)
-        if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
-            dragging = false
-        end
+        if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then dragging = false end
     end)
 end
 
--- Auto select first nav button
 task.defer(function()
-    if navBtns["Main"] then
-        navBtns["Main"].abar.Visible = true
-        navBtns["Main"].tl.TextColor3 = Color3.new(1,1,1)
-        activeNav = "Main"
-    end
+    if navBtns["Main"] then navBtns["Main"].abar.Visible = true; navBtns["Main"].tl.TextColor3 = Color3.new(1,1,1); activeNav = "Main" end
 end)
 
 -- ============================================================
--- POPUP WINDOWS WITH MINIMIZE BUTTONS AND KEYBINDS
+-- POPUP WINDOWS (MOVABLE - drag by title bar)
 -- ============================================================
-
--- Function to create a window with minimize button
-local function createWindow(name, title, width, height, x, y, enabled)
+local function createMovableWindow(name, title, width, height, x, y, enabled)
     local sg = Instance.new("ScreenGui")
     sg.Name = name
     sg.ResetOnSpawn = false
@@ -1600,7 +1313,7 @@ local function createWindow(name, title, width, height, x, y, enabled)
     mkCorner(mf, 10)
     mkStroke(mf, Colors.accent, 2)
     
-    -- Title bar with minimize button
+    -- Title bar (draggable)
     local titleBar = Instance.new("Frame")
     titleBar.Size = UDim2.new(1, 0, 0, 24)
     titleBar.BackgroundTransparency = 0.5
@@ -1618,7 +1331,7 @@ local function createWindow(name, title, width, height, x, y, enabled)
     titleLbl.TextXAlignment = Enum.TextXAlignment.Left
     titleLbl.Parent = titleBar
     
-    -- MINIMIZE BUTTON
+    -- Minimize button
     local minBtn = Instance.new("TextButton")
     minBtn.Size = UDim2.new(0, 22, 0, 18)
     minBtn.Position = UDim2.new(1, -26, 0.5, -9)
@@ -1665,13 +1378,11 @@ local function createWindow(name, title, width, height, x, y, enabled)
     
     minBtn.MouseButton1Click:Connect(function()
         minimized = not minimized
-        TweenService:Create(mf, TweenInfo.new(0.18), {
-            Size = UDim2.new(0, width, 0, minimized and 24 or originalHeight)
-        }):Play()
+        TweenService:Create(mf, TweenInfo.new(0.18), {Size = UDim2.new(0, width, 0, minimized and 24 or originalHeight)}):Play()
         minBtn.Text = minimized and "+" or "−"
     end)
     
-    -- Dragging
+    -- DRAGGING (movable window)
     local dragStart = nil
     local startPos = nil
     local dragging = false
@@ -1701,11 +1412,11 @@ local function createWindow(name, title, width, height, x, y, enabled)
 end
 
 -- ============================================================
--- INSTANT STEAL WINDOW (with keybinds)
+-- INSTANT STEAL WINDOW (MOVABLE)
 -- ============================================================
-local hhSg, hhMf, hhContent = createWindow("HydraInstantStealGui", "Instant Steal", 195, 125, 10, math.floor(workspace.CurrentCamera.ViewportSize.Y * 0.12), Save.shortInstantSteal)
+local hhSg, hhMf, hhContent = createMovableWindow("HydraInstantStealGui", "Instant Steal", 195, 125, 10, math.floor(workspace.CurrentCamera.ViewportSize.Y * 0.12), Save.shortInstantSteal)
 
--- Activate (Reset) button with keybind
+-- Activate button
 local activateContainer = Instance.new("Frame")
 activateContainer.Size = UDim2.new(1, 0, 0, 28)
 activateContainer.BackgroundTransparency = 1
@@ -1736,18 +1447,18 @@ activateKeyLabel.TextSize = 10
 activateKeyLabel.TextXAlignment = Enum.TextXAlignment.Right
 activateKeyLabel.Parent = activateContainer
 
-local activeDot2 = Instance.new("Frame")
-activeDot2.Size = UDim2.new(0, 8, 0, 8)
-activeDot2.AnchorPoint = Vector2.new(1, 0.5)
-activeDot2.Position = UDim2.new(0.95, 0, 0.5, 0)
-activeDot2.BackgroundColor3 = Color3.fromRGB(40, 48, 56)
-activeDot2.BorderSizePixel = 0
-activeDot2.Parent = activateBtn
-mkCorner(activeDot2, 20)
+local activeDotIcon = Instance.new("Frame")
+activeDotIcon.Size = UDim2.new(0, 8, 0, 8)
+activeDotIcon.AnchorPoint = Vector2.new(1, 0.5)
+activeDotIcon.Position = UDim2.new(0.95, 0, 0.5, 0)
+activeDotIcon.BackgroundColor3 = Color3.fromRGB(40, 48, 56)
+activeDotIcon.BorderSizePixel = 0
+activeDotIcon.Parent = activateBtn
+mkCorner(activeDotIcon, 20)
 
 local activateCallback = function()
     task.spawn(function()
-        TweenService:Create(activeDot2, TweenInfo.new(0.25), {BackgroundColor3 = Color3.fromRGB(50,220,100)}):Play()
+        TweenService:Create(activeDotIcon, TweenInfo.new(0.25), {BackgroundColor3 = Color3.fromRGB(50,220,100)}):Play()
         _antiDiePause()
         task.wait(0.3)
         ResetToWork()
@@ -1756,22 +1467,18 @@ local activateCallback = function()
     end)
 end
 
--- Set keybind for Activate button
 local currentActivateBind = Keybinds.activateReset or "R"
 KeybindFunctions[currentActivateBind] = activateCallback
 
 activateBtn.MouseButton2Click:Connect(function()
     activateKeyLabel.Text = "(Press any key...)"
     activateKeyLabel.TextColor3 = Color3.fromRGB(255, 200, 0)
-    
     local conn
     conn = UserInputService.InputBegan:Connect(function(input, gp)
         if gp then return end
         if input.UserInputType == Enum.UserInputType.Keyboard then
             local newKey = input.KeyCode.Name
-            if KeybindFunctions[currentActivateBind] == activateCallback then
-                KeybindFunctions[currentActivateBind] = nil
-            end
+            if KeybindFunctions[currentActivateBind] == activateCallback then KeybindFunctions[currentActivateBind] = nil end
             currentActivateBind = newKey
             Keybinds.activateReset = newKey
             KeybindFunctions[newKey] = activateCallback
@@ -1781,7 +1488,6 @@ activateBtn.MouseButton2Click:Connect(function()
             conn:Disconnect()
         end
     end)
-    
     task.delay(5, function()
         pcall(function() conn:Disconnect() end)
         if activateKeyLabel.Text == "(Press any key...)" then
@@ -1790,10 +1496,9 @@ activateBtn.MouseButton2Click:Connect(function()
         end
     end)
 end)
-
 activateBtn.MouseButton1Click:Connect(activateCallback)
 
--- Execute TP button with keybind
+-- Execute TP button
 local execContainer = Instance.new("Frame")
 execContainer.Size = UDim2.new(1, 0, 0, 28)
 execContainer.BackgroundTransparency = 1
@@ -1824,25 +1529,19 @@ execKeyLabel.TextSize = 10
 execKeyLabel.TextXAlignment = Enum.TextXAlignment.Right
 execKeyLabel.Parent = execContainer
 
-local execCallback = function()
-    doExecuteTP()
-end
-
+local execCallback = function() doExecuteTP() end
 local currentExecBind = Keybinds.executeTP or "X"
 KeybindFunctions[currentExecBind] = execCallback
 
 execBtn.MouseButton2Click:Connect(function()
     execKeyLabel.Text = "(Press any key...)"
     execKeyLabel.TextColor3 = Color3.fromRGB(255, 200, 0)
-    
     local conn
     conn = UserInputService.InputBegan:Connect(function(input, gp)
         if gp then return end
         if input.UserInputType == Enum.UserInputType.Keyboard then
             local newKey = input.KeyCode.Name
-            if KeybindFunctions[currentExecBind] == execCallback then
-                KeybindFunctions[currentExecBind] = nil
-            end
+            if KeybindFunctions[currentExecBind] == execCallback then KeybindFunctions[currentExecBind] = nil end
             currentExecBind = newKey
             Keybinds.executeTP = newKey
             KeybindFunctions[newKey] = execCallback
@@ -1852,7 +1551,6 @@ execBtn.MouseButton2Click:Connect(function()
             conn:Disconnect()
         end
     end)
-    
     task.delay(5, function()
         pcall(function() conn:Disconnect() end)
         if execKeyLabel.Text == "(Press any key...)" then
@@ -1861,30 +1559,22 @@ execBtn.MouseButton2Click:Connect(function()
         end
     end)
 end)
-
 execBtn.MouseButton1Click:Connect(execCallback)
 
 -- ============================================================
--- SERVER WINDOW (with keybinds)
+-- SERVER WINDOW (MOVABLE)
 -- ============================================================
-local srvSg, srvMf, srvContent = createWindow("HydraServerGui", "Server", 150, 100, 220, math.floor(workspace.CurrentCamera.ViewportSize.Y * 0.12), Save.shortServer)
+local srvSg, srvMf, srvContent = createMovableWindow("HydraServerGui", "Server", 150, 100, 220, math.floor(workspace.CurrentCamera.ViewportSize.Y * 0.12), Save.shortServer)
 
--- Kick Self button with keybind
-makeKeybindButton(srvContent, "Kick Self", function() 
-    pcall(function() LP:Kick("Kicked by script") end) 
-end, "kickSelf", "K")
-
--- Force Reset button with keybind
-makeKeybindButton(srvContent, "Force Reset", function() 
-    ResetToWork() 
-end, "forceReset", "F")
+makeKeybindButton(srvContent, "Kick Self", function() pcall(function() LP:Kick("Kicked by script") end) end, "kickSelf", "K")
+makeKeybindButton(srvContent, "Force Reset", function() ResetToWork() end, "forceReset", "F")
 
 -- ============================================================
--- SPAM WINDOW (with keybinds)
+-- SPAM WINDOW (MOVABLE)
 -- ============================================================
-local spamSg, spamMf, spamContent = createWindow("HydraSpamGui", "Spam", 150, 200, 430, math.floor(workspace.CurrentCamera.ViewportSize.Y * 0.12), Save.shortSpam)
+local spamSg, spamMf, spamContent = createMovableWindow("HydraSpamGui", "Spam", 150, 200, 430, math.floor(workspace.CurrentCamera.ViewportSize.Y * 0.12), Save.shortSpam)
 
--- Auto Spam toggle inside window
+-- Auto Spam toggle
 local autoSpamRow = Instance.new("Frame")
 autoSpamRow.Size = UDim2.new(1, 0, 0, 22)
 autoSpamRow.BackgroundTransparency = 1
@@ -1924,13 +1614,10 @@ autoSpamTog.MouseButton1Click:Connect(function()
     saveConfig()
 end)
 
--- Player buttons in spam window (each with keybind support)
 local spamPlayerBtns = {}
 local function addSpamPlayerBtn(p)
     if p == plr or spamPlayerBtns[p] then return end
-    makeKeybindButton(spamContent, "Spam " .. p.Name, function() 
-        _punish(p) 
-    end, "spam_" .. p.Name, "P")
+    makeKeybindButton(spamContent, "Spam " .. p.Name, function() _punish(p) end, "spam_" .. p.Name, "P")
     spamPlayerBtns[p] = true
 end
 
@@ -1938,7 +1625,7 @@ for _, p in ipairs(Players:GetPlayers()) do addSpamPlayerBtn(p) end
 Players.PlayerAdded:Connect(addSpamPlayerBtn)
 
 -- ============================================================
--- FRIEND/MYSKYP WINDOW
+-- FRIEND/MYSKYP WINDOW (MOVABLE)
 -- ============================================================
 local myskypSg = (function()
     local vp0 = workspace.CurrentCamera.ViewportSize
@@ -1960,18 +1647,62 @@ local myskypSg = (function()
     mkCorner(mf, 10)
     mkStroke(mf, Colors.accent, 2)
     
+    -- Draggable title bar
+    local titleBar = Instance.new("Frame")
+    titleBar.Size = UDim2.new(1, 0, 0, 24)
+    titleBar.BackgroundTransparency = 0.5
+    titleBar.BorderSizePixel = 0
+    titleBar.Parent = mf
+    
+    local titleLbl = Instance.new("TextLabel")
+    titleLbl.Size = UDim2.new(1, -50, 1, 0)
+    titleLbl.Position = UDim2.new(0, 8, 0, 0)
+    titleLbl.BackgroundTransparency = 1
+    titleLbl.Text = "Friend"
+    titleLbl.TextColor3 = Colors.text
+    titleLbl.Font = Enum.Font.GothamBold
+    titleLbl.TextSize = 11
+    titleLbl.TextXAlignment = Enum.TextXAlignment.Left
+    titleLbl.Parent = titleBar
+    
     local statusBtn = Instance.new("TextButton")
-    statusBtn.Size = UDim2.new(1, -12, 1, -12)
-    statusBtn.Position = UDim2.new(0, 6, 0, 6)
+    statusBtn.Size = UDim2.new(1, -24, 1, -30)
+    statusBtn.Position = UDim2.new(0, 12, 0, 30)
     statusBtn.BackgroundColor3 = Colors.accent
     statusBtn.BackgroundTransparency = 0
     statusBtn.BorderSizePixel = 0
     statusBtn.Text = "Friend: Disallow"
     statusBtn.TextColor3 = Color3.new(1, 1, 1)
     statusBtn.Font = Enum.Font.GothamBold
-    statusBtn.TextSize = 12
+    statusBtn.TextSize = 11
     statusBtn.Parent = mf
     mkCorner(statusBtn, 6)
+    
+    -- Dragging for this window
+    local dragStart = nil
+    local startPos = nil
+    local dragging = false
+    
+    titleBar.InputBegan:Connect(function(i)
+        if i.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true
+            dragStart = i.Position
+            startPos = mf.Position
+        end
+    end)
+    
+    UserInputService.InputChanged:Connect(function(i)
+        if dragging and i.UserInputType == Enum.UserInputType.MouseMovement then
+            local delta = i.Position - dragStart
+            mf.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        end
+    end)
+    
+    UserInputService.InputEnded:Connect(function(i)
+        if i.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = false
+        end
+    end)
     
     local allowed = false
     statusBtn.MouseButton1Click:Connect(function()
@@ -1989,7 +1720,7 @@ local myskypSg = (function()
 end)()
 
 -- ============================================================
--- OPEN BASE WINDOW
+-- OPEN BASE WINDOW (MOVABLE)
 -- ============================================================
 local obSg = (function()
     local vp0 = workspace.CurrentCamera.ViewportSize
@@ -2034,16 +1765,40 @@ local obSg = (function()
         btn.TextSize = 13
         btn.Parent = mf
         mkCorner(btn, 6)
-        btn.MouseButton1Click:Connect(function()
-            _ob_triggerByIndex(i)
-        end)
+        btn.MouseButton1Click:Connect(function() _ob_triggerByIndex(i) end)
     end
+    
+    -- Dragging for this window
+    local dragStart = nil
+    local startPos = nil
+    local dragging = false
+    
+    mf.InputBegan:Connect(function(i)
+        if i.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true
+            dragStart = i.Position
+            startPos = mf.Position
+        end
+    end)
+    
+    UserInputService.InputChanged:Connect(function(i)
+        if dragging and i.UserInputType == Enum.UserInputType.MouseMovement then
+            local delta = i.Position - dragStart
+            mf.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        end
+    end)
+    
+    UserInputService.InputEnded:Connect(function(i)
+        if i.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = false
+        end
+    end)
     
     return sg
 end)()
 
 -- ============================================================
--- TOGGLE BUTTON (simple, no H icon)
+-- TOGGLE BUTTON - "O" WITH BLACK BACKGROUND AND NEON GLOW
 -- ============================================================
 local toggleSg = (function()
     local sg = Instance.new("ScreenGui")
@@ -2052,17 +1807,56 @@ local toggleSg = (function()
     sg.DisplayOrder = 200
     sg.Parent = GuiParent
     
+    local btnContainer = Instance.new("Frame")
+    btnContainer.Size = UDim2.new(0, 50, 0, 50)
+    btnContainer.Position = UDim2.new(0.5, -25, 0, 8)
+    btnContainer.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    btnContainer.BackgroundTransparency = 0
+    btnContainer.BorderSizePixel = 0
+    btnContainer.Parent = sg
+    mkCorner(btnContainer, 25)
+    
+    -- Neon glow effect (outer glow)
+    local glow = Instance.new("Frame")
+    glow.Size = UDim2.new(1.2, 0, 1.2, 0)
+    glow.Position = UDim2.new(-0.1, 0, -0.1, 0)
+    glow.BackgroundColor3 = Colors.accent
+    glow.BackgroundTransparency = 0.7
+    glow.BorderSizePixel = 0
+    glow.ZIndex = 0
+    glow.Parent = btnContainer
+    mkCorner(glow, 30)
+    
+    -- Pulsing glow animation
+    task.spawn(function()
+        while true do
+            for i = 0.7, 0.3, -0.02 do
+                TweenService:Create(glow, TweenInfo.new(0.05), {BackgroundTransparency = i}):Play()
+                task.wait(0.05)
+            end
+            for i = 0.3, 0.7, 0.02 do
+                TweenService:Create(glow, TweenInfo.new(0.05), {BackgroundTransparency = i}):Play()
+                task.wait(0.05)
+            end
+        end
+    end)
+    
     local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(0, 40, 0, 40)
-    btn.Position = UDim2.new(0.5, -20, 0, 8)
-    btn.BackgroundColor3 = Colors.accent
-    btn.BackgroundTransparency = 0.3
-    btn.Text = "≡"
-    btn.TextColor3 = Color3.new(1, 1, 1)
-    btn.TextSize = 20
-    btn.Font = Enum.Font.GothamBold
-    btn.Parent = sg
-    mkCorner(btn, 20)
+    btn.Size = UDim2.new(1, 0, 1, 0)
+    btn.Position = UDim2.new(0, 0, 0, 0)
+    btn.BackgroundTransparency = 1
+    btn.Text = "O"
+    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn.TextSize = 28
+    btn.Font = Enum.Font.GothamBlack
+    btn.BorderSizePixel = 0
+    btn.Parent = btnContainer
+    
+    -- Inner white border
+    local border = Instance.new("UIStroke")
+    border.Color = Color3.fromRGB(255, 255, 255)
+    border.Thickness = 2
+    border.Parent = btnContainer
     
     local visible = true
     btn.MouseButton1Click:Connect(function()
@@ -2077,8 +1871,10 @@ end)()
 -- FINAL MESSAGE
 -- ============================================================
 print("✅ COMPLETE SCRIPT LOADED!")
+print("📌 All windows are MOVABLE - drag by the title bar!")
 print("📌 Keybinds: Right-click any button to set a hotkey!")
 print("📌 Keybind shows in parentheses (X) on the right side!")
+print("📌 New 'O' icon with black background and neon glow!")
 print("📌 X button closes ONLY the main menu!")
 print("📌 − button minimizes popup windows!")
 print("📌 All features working: Instant Steal, Auto Spam, ESP, Protector, Anti Ragdoll, Sentry, XRay, etc.")
