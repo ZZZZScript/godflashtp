@@ -1,4 +1,4 @@
--- [[(/ ANTI-CHEAT SUPER PROTEGIDO /)]]
+-- [[(/ SERVICES /)]]
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
@@ -8,90 +8,89 @@ local CoreGui = game:GetService("CoreGui")
 local HttpService = game:GetService("HttpService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local PPS = game:GetService("ProximityPromptService")
-local VirtualUser = game:GetService("VirtualUser")
 local TeleportService = game:GetService("TeleportService")
-local Stats = game:GetService("Stats")
 
 local LP = Players.LocalPlayer
 local plr = LP
 
--- ANTI-BAN / ANTI-CHEAT MÁXIMO
-local AntiCheat = {
-    enabled = true,
-    connections = {},
-    originalSettings = {}
-}
+-- ============================================================
+-- MAXIMUM ANTI-KICK (prevents all kicks)
+-- ============================================================
 
-function AntiCheat:protect()
-    -- Remove todas as flags de detecção
-    pcall(function()
-        local flagsToDisable = {
-            "FFlagDebugDisplayFPS",
-            "FFlagDebugGraphicsPreferD3D11", 
-            "DFIntTaskSchedulerTargetFps",
-            "FFlagCheckForCheatScripts",
-            "FFlagCheckForCheatScripts2",
-            "FFlagCheckForCheatScripts3",
-            "FFlagCheckForCheatScripts4",
-            "FFlagCheckForCheatScripts5",
-        }
-        for _, flag in ipairs(flagsToDisable) do
-            if setfflag then setfflag(flag, "false") end
-            if setfflag then setfflag(flag, "0") end
-        end
-        if setfpscap then setfpscap(60) end
-    end)
-    
-    -- Desativa telemetria
-    pcall(function()
-        local ts = game:GetService("TelemetryService")
-        if ts then ts:SetTelemetryEnabled(false) end
-    end)
-    
-    -- Anti-kick / Anti-ban
-    self.connections[#self.connections + 1] = Players.LocalPlayer.OnTeleport:Connect(function(state)
-        if state == Enum.TeleportState.InProgress then
-            task.wait(0.1)
-            pcall(function()
-                TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, LP)
-            end)
-        end
-    end)
-    
-    -- Bloqueia kicks
-    self.connections[#self.connections + 1] = game:GetService("Players").LocalPlayer:Kick(function(reason)
-        if reason then
-            task.wait(0.1)
-            return true
-        end
-    end)
-    
-    -- Esconde scripts
-    for _, v in pairs(getgc and getgc() or {}) do
-        if type(v) == "table" and rawget(v, "script") then
-            pcall(function() rawset(v, "script", nil) end)
+-- Override kick function
+local oldKick = LP.Kick
+LP.Kick = function() return nil end
+
+-- Block all kick methods using metatable
+pcall(function()
+    local mt = getrawmetatable(game)
+    if mt then
+        local oldNamecall = mt.__namecall
+        mt.__namecall = newcclosure(function(self, ...)
+            local method = getnamecallmethod()
+            if method == "Kick" then
+                return nil
+            end
+            if oldNamecall then
+                return oldNamecall(self, ...)
+            end
+            return nil
+        end)
+    end
+end)
+
+-- Disable all kick connections
+pcall(function()
+    for _, conn in pairs(getconnections(LP:GetPropertyChangedSignal("Parent"))) do
+        conn:Disable()
+    end
+    for _, conn in pairs(getconnections(LP.AncestryChanged)) do
+        conn:Disable()
+    end
+    for _, conn in pairs(getconnections(Players.PlayerRemoving)) do
+        if conn and conn.Function and conn.Function == LP then
+            conn:Disable()
         end
     end
-end
+end)
 
-function AntiCheat:start()
-    self:protect()
-    -- Anti-kick loop
-    task.spawn(function()
-        while true do
-            task.wait(1)
-            pcall(function()
-                if LP then
-                    LP.Kick = function() end
-                end
-            end)
-        end
-    end)
-end
+-- Anti-kick loop
+task.spawn(function()
+    while true do
+        task.wait(0.5)
+        pcall(function()
+            if LP then
+                LP.Kick = function() end
+            end
+            -- Auto-reconnect if kicked
+            if LP and not LP.Parent then
+                TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, LP)
+            end
+        end)
+    end
+end)
 
-AntiCheat:start()
+-- Block telemetry
+pcall(function()
+    local ts = game:GetService("TelemetryService")
+    if ts then ts:SetTelemetryEnabled(false) end
+end)
 
--- [[(/ Config /)]]
+-- Remove detection flags
+pcall(function()
+    local flags = {
+        "FFlagDebugDisplayFPS",
+        "FFlagDebugGraphicsPreferD3D11",
+        "DFIntTaskSchedulerTargetFps",
+    }
+    for _, flag in ipairs(flags) do
+        if setfflag then setfflag(flag, "false") end
+    end
+end)
+
+-- ============================================================
+-- CONFIGURATION
+-- ============================================================
 local CONFIG_FILE = "hydrainstantsteal_config.json"
 _G.AntiScamSave = _G.AntiScamSave or {
     autoPotion=false, autoTPOpen=false, autoKick=false,
@@ -113,7 +112,7 @@ _G.AntiScamSave = _G.AntiScamSave or {
 }
 local Save = _G.AntiScamSave
 
--- [[(/ Save/Load /)]]
+-- Save/Load functions
 do
     local function loadConfig()
         pcall(function()
@@ -143,18 +142,22 @@ do
     end
 end
 
--- [[(/ Events /)]]
+-- Events
 _G._tpDoneEvent = _G._tpDoneEvent or Instance.new("BindableEvent")
 _G._spamEvent   = _G._spamEvent   or Instance.new("BindableEvent")
 
--- [[(/ Helper Functions /)]]
+-- ============================================================
+-- HELPER FUNCTIONS
+-- ============================================================
 local function getChar()  return plr.Character and plr.Character.Parent and plr.Character end
 local function getRoot()  local c=getChar(); return c and c:FindFirstChild("HumanoidRootPart") end
 local function getHum()   local c=getChar(); return c and c:FindFirstChildOfClass("Humanoid") end
 local function getCarpet() local bp=plr:FindFirstChild("Backpack"); return bp and bp:FindFirstChild("Flying Carpet") end
 local function equipCarpet() local c=getCarpet(); local h=getHum(); if c and h then h:EquipTool(c); task.wait(0.15) end end
 
--- [[(/ Speed /)]]
+-- ============================================================
+-- SPEED BOOST
+-- ============================================================
 local speedAntiConn=nil; local speedAntiValue=28; local _stealingCFrame=false
 if type(Save.walkSpeedValue)=="number" then speedAntiValue=Save.walkSpeedValue end
 local function applySpeedAnti()
@@ -176,7 +179,9 @@ local function removeSpeedAnti()
 end
 if Save.walkSpeedOn then task.spawn(applySpeedAnti) end
 
--- [[(/ Anti Die /)]]
+-- ============================================================
+-- ANTI DIE (IMMORTAL)
+-- ============================================================
 local _antiDieConns  = {}
 local _antiDieActive = true
 local function _antiDieApply()
@@ -205,7 +210,9 @@ local function _antiDieResume() _antiDieActive = true; _antiDieApply() end
 plr.CharacterAdded:Connect(function() task.wait(0.3); _antiDieApply() end)
 task.spawn(function() task.wait(1); _antiDieApply() end)
 
--- [[(/ Reset Function /)]]
+-- ============================================================
+-- RESET FUNCTION
+-- ============================================================
 local function ResetToWork()
     local flags = {
         {"GameNetPVHeaderRotationalVelocityZeroCutoffExponent","-5000"},
@@ -220,7 +227,9 @@ local function ResetToWork()
     if h then pcall(function() h:ChangeState(Enum.HumanoidStateType.Dead) end) end
 end
 
--- [[(/ Base Detection /)]]
+-- ============================================================
+-- BASE DETECTION
+-- ============================================================
 local cachedBase = nil
 local myBasePlot = nil
 local pos1 = Vector3.new(-352.98, -7, 74.30)
@@ -256,7 +265,9 @@ local COORDS_RIGHT = {
     CFrame.new(-353.000000, -4.000000,  75.000000),
 }
 
--- [[(/ Animal Scanning /)]]
+-- ============================================================
+-- ANIMAL SCANNING
+-- ============================================================
 local RADIUS = 200
 local animals = {}
 local promptCache = {}
@@ -323,7 +334,9 @@ local function autoGrab()
     pcall(function() fireproximityprompt(p) end)
 end
 
--- [[(/ Instant Steal TP /)]]
+-- ============================================================
+-- INSTANT STEAL TP
+-- ============================================================
 local isBusy = false
 local function doExecuteTP()
     if isBusy then return end
@@ -372,7 +385,9 @@ local function doExecuteTP()
 end
 _G._doStart = doExecuteTP
 
--- [[(/ Spam Functions /)]]
+-- ============================================================
+-- SPAM FUNCTIONS
+-- ============================================================
 local _eu = plr
 local _AdminRemote = nil
 local _LPT = {}
@@ -400,7 +415,7 @@ local function _punish(target)
     for _,cmd in ipairs(_cmds) do _fire("f888ee6e-c86d-46e1-93d7-0639d6635d42",target,cmd) end
 end
 
--- [[(/ Auto Spam Loop /)]]
+-- Auto Spam Loop
 task.spawn(function()
     while true do
         task.wait(0.5)
@@ -427,7 +442,7 @@ task.spawn(function()
     end
 end)
 
--- [[(/ Auto TP on Open /)]]
+-- Auto TP on Open
 if Save.autoTPOpen then
     task.spawn(function()
         while true do
@@ -451,7 +466,9 @@ if Save.autoTPOpen then
     end)
 end
 
--- [[(/ Protector Functions /)]]
+-- ============================================================
+-- PROTECTOR FUNCTIONS
+-- ============================================================
 local _protCooldown = {}
 local function _findThief()
     local hrp=getRoot(); if not hrp then return nil end
@@ -492,7 +509,9 @@ if Save.protectorOn then
     pg.DescendantAdded:Connect(watchText)
 end
 
--- [[(/ ESP Functions /)]]
+-- ============================================================
+-- ESP FUNCTIONS
+-- ============================================================
 local _playerHL = {}
 local _rainbowActive = false
 local _rainbowHue = 0
@@ -614,7 +633,9 @@ if Save.espBase then
     end)
 end
 
--- [[(/ XRay /)]]
+-- ============================================================
+-- XRAY
+-- ============================================================
 local _xrayOn = Save.espXRay or false
 local _origTransp = {}
 
@@ -636,7 +657,9 @@ end
 
 if _xrayOn then startXRay() end
 
--- [[(/ Anti Ragdoll /)]]
+-- ============================================================
+-- ANTI RAGDOLL
+-- ============================================================
 local _antiRagdollOn = Save.antiRagdoll or false
 local _ragdollConn = nil
 
@@ -659,7 +682,9 @@ end
 
 if _antiRagdollOn then startAntiRagdoll() end
 
--- [[(/ Anti Lag /)]]
+-- ============================================================
+-- ANTI LAG
+-- ============================================================
 local _antiLagOn = Save.rckAntiLag or false
 
 if _antiLagOn then
@@ -685,7 +710,9 @@ if _antiLagOn then
     end)
 end
 
--- [[(/ Sentry /)]]
+-- ============================================================
+-- SENTRY
+-- ============================================================
 local _sentryOn = Save.rckSentry or false
 local _sentryConn = nil
 local DETECTION_DISTANCE = 60
@@ -716,7 +743,9 @@ end
 
 if _sentryOn then startSentry() end
 
--- [[(/ Disable Anim /)]]
+-- ============================================================
+-- DISABLE ANIMATIONS
+-- ============================================================
 local _disableAnimOn = Save.rckDisableAnim or false
 local _lockedTracks = {}
 
@@ -732,7 +761,9 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- [[(/ Open Base Functions /)]]
+-- ============================================================
+-- OPEN BASE FUNCTIONS
+-- ============================================================
 local _ob_firing = false
 local function _ob_firePrompt(prompt)
     local origDist = prompt.MaxActivationDistance
@@ -771,7 +802,9 @@ local function _ob_triggerByIndex(idx)
     if prompts[idx] then _ob_firePrompt(prompts[idx]) end
 end
 
--- [[(/ Auto Active Reset /)]]
+-- ============================================================
+-- AUTO ACTIVE RESET
+-- ============================================================
 if Save.autoActiveReset then
     task.spawn(function()
         task.wait(0.5)
@@ -784,7 +817,7 @@ if Save.autoActiveReset then
 end
 
 -- ============================================================
--- INTERFACE PRINCIPAL (COM BOTÃO X PARA FECHAR APENAS O MENU PRINCIPAL)
+-- MAIN INTERFACE (CatHUB Style with X button to close only main menu)
 -- ============================================================
 
 local function mkCorner(p,r) local c=Instance.new("UICorner"); c.CornerRadius=UDim.new(0,r or 6); c.Parent=p; return c end
@@ -807,13 +840,13 @@ if typeof(gethui) == "function" then
     if ok then GuiParent = result end
 end
 
--- Destroi interfaces antigas
+-- Destroy old GUIs
 local oldGuis = {"HydraInstantStealGui", "HydraServerGui", "HydraSpamGui", "MyskypHubGui", "HydraOpenBaseGui", "HydraInfoOverlay", "HydraToggleBtn", "hydrainstantsteal", "FlashStealGUI"}
 for _, name in ipairs(oldGuis) do
     if GuiParent:FindFirstChild(name) then GuiParent[name]:Destroy() end
 end
 
--- INTERFACE PRINCIPAL
+-- MAIN SCREEN GUI
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "FlashStealGUI"
 ScreenGui.ResetOnSpawn = false
@@ -887,7 +920,7 @@ Outline.Parent = Container
 mkCorner(Outline, 8)
 mkStroke(Outline, Colors.accent, 2)
 
--- Sidebar Header (COM BOTÃO X PARA FECHAR)
+-- Sidebar Header with X BUTTON (closes ONLY main menu)
 local SidebarHeader = Instance.new("Frame")
 SidebarHeader.Size = UDim2.new(1, 0, 0, 43)
 SidebarHeader.BackgroundTransparency = 1
@@ -907,7 +940,7 @@ local function mkLabel(parent, props)
     return l
 end
 
--- Botão X para FECHAR APENAS O MENU PRINCIPAL
+-- X BUTTON - closes ONLY the main menu (other windows stay open)
 local closeBtn = Instance.new("TextButton")
 closeBtn.Size = UDim2.new(0, 24, 0, 24)
 closeBtn.Position = UDim2.new(1, -28, 0, 8)
@@ -923,7 +956,7 @@ closeBtn.MouseButton1Click:Connect(function()
     ScreenGui.Enabled = not ScreenGui.Enabled
 end)
 
--- Drag Handle (só na área vazia, não no X)
+-- Drag Handle (only on empty area, not on X button)
 local dragHandle = Instance.new("TextButton")
 dragHandle.Size = UDim2.new(1, -40, 1, 0)
 dragHandle.Position = UDim2.new(0, 0, 0, 0)
@@ -1218,7 +1251,7 @@ local function makeSlider(labelTxt, minVal, maxVal, initVal, onChange)
 end
 
 -- ============================================================
--- CONSTRUÇÃO DA INTERFACE
+-- BUILD INTERFACE SECTIONS
 -- ============================================================
 
 -- Main Section
@@ -1399,7 +1432,7 @@ makeToggle("Open Base", Save.shortOpenBase, function(on)
     saveConfig()
 end)
 
--- Dragging functionality para o menu principal
+-- Dragging for main menu
 do
     local dragging = false
     local dragStart = nil
@@ -1437,10 +1470,10 @@ task.defer(function()
 end)
 
 -- ============================================================
--- JANELINHAS ORIGINAIS COM BOTÃO DE MINIMIZAR
+-- POPUP WINDOWS WITH MINIMIZE BUTTONS
 -- ============================================================
 
--- Função para criar janela com minimizar
+-- Function to create a window with minimize button
 local function createWindow(name, title, width, height, x, y, enabled)
     local sg = Instance.new("ScreenGui")
     sg.Name = name
@@ -1461,7 +1494,7 @@ local function createWindow(name, title, width, height, x, y, enabled)
     mkCorner(mf, 10)
     mkStroke(mf, Colors.accent, 2)
     
-    -- Title bar com minimizar
+    -- Title bar with minimize button
     local titleBar = Instance.new("Frame")
     titleBar.Size = UDim2.new(1, 0, 0, 24)
     titleBar.BackgroundTransparency = 0.5
@@ -1479,7 +1512,7 @@ local function createWindow(name, title, width, height, x, y, enabled)
     titleLbl.TextXAlignment = Enum.TextXAlignment.Left
     titleLbl.Parent = titleBar
     
-    -- Botão minimizar
+    -- MINIMIZE BUTTON
     local minBtn = Instance.new("TextButton")
     minBtn.Size = UDim2.new(0, 22, 0, 18)
     minBtn.Position = UDim2.new(1, -26, 0.5, -9)
@@ -1560,43 +1593,43 @@ end
 -- InstantSteal Window
 local hhSg, hhMf, hhContent = createWindow("HydraInstantStealGui", "Instant Steal", 195, 125, 10, math.floor(workspace.CurrentCamera.ViewportSize.Y * 0.12), Save.shortInstantSteal)
 
-local ord = 0
-local activeDot = nil
+local ord2 = 0
+local activeDot2 = nil
 
-ord = ord + 1
-local activateBtn = Instance.new("TextButton")
-activateBtn.Size = UDim2.new(1, 0, 0, 28)
-activateBtn.LayoutOrder = ord
-activateBtn.BackgroundColor3 = Colors.bg_content
-activateBtn.BackgroundTransparency = 0.3
-activateBtn.BorderSizePixel = 0
-activateBtn.Text = ""
-activateBtn.Parent = hhContent
-mkCorner(activateBtn, 6)
+ord2 = ord2 + 1
+local activateBtn2 = Instance.new("TextButton")
+activateBtn2.Size = UDim2.new(1, 0, 0, 28)
+activateBtn2.LayoutOrder = ord2
+activateBtn2.BackgroundColor3 = Colors.bg_content
+activateBtn2.BackgroundTransparency = 0.3
+activateBtn2.BorderSizePixel = 0
+activateBtn2.Text = ""
+activateBtn2.Parent = hhContent
+mkCorner(activateBtn2, 6)
 
-local activateTxt = Instance.new("TextLabel")
-activateTxt.Size = UDim2.new(1, -28, 1, 0)
-activateTxt.Position = UDim2.new(0, 8, 0, 0)
-activateTxt.BackgroundTransparency = 1
-activateTxt.Text = "Activate (Reset)"
-activateTxt.TextColor3 = Colors.text
-activateTxt.Font = Enum.Font.GothamBold
-activateTxt.TextSize = 11
-activateTxt.TextXAlignment = Enum.TextXAlignment.Left
-activateTxt.Parent = activateBtn
+local activateTxt2 = Instance.new("TextLabel")
+activateTxt2.Size = UDim2.new(1, -28, 1, 0)
+activateTxt2.Position = UDim2.new(0, 8, 0, 0)
+activateTxt2.BackgroundTransparency = 1
+activateTxt2.Text = "Activate (Reset)"
+activateTxt2.TextColor3 = Colors.text
+activateTxt2.Font = Enum.Font.GothamBold
+activateTxt2.TextSize = 11
+activateTxt2.TextXAlignment = Enum.TextXAlignment.Left
+activateTxt2.Parent = activateBtn2
 
-activeDot = Instance.new("Frame")
-activeDot.Size = UDim2.new(0, 8, 0, 8)
-activeDot.AnchorPoint = Vector2.new(1, 0.5)
-activeDot.Position = UDim2.new(1, -8, 0.5, 0)
-activeDot.BackgroundColor3 = Color3.fromRGB(40, 48, 56)
-activeDot.BorderSizePixel = 0
-activeDot.Parent = activateBtn
-mkCorner(activeDot, 20)
+activeDot2 = Instance.new("Frame")
+activeDot2.Size = UDim2.new(0, 8, 0, 8)
+activeDot2.AnchorPoint = Vector2.new(1, 0.5)
+activeDot2.Position = UDim2.new(1, -8, 0.5, 0)
+activeDot2.BackgroundColor3 = Color3.fromRGB(40, 48, 56)
+activeDot2.BorderSizePixel = 0
+activeDot2.Parent = activateBtn2
+mkCorner(activeDot2, 20)
 
-activateBtn.MouseButton1Click:Connect(function()
+activateBtn2.MouseButton1Click:Connect(function()
     task.spawn(function()
-        TweenService:Create(activeDot, TweenInfo.new(0.25), {BackgroundColor3 = Color3.fromRGB(50,220,100)}):Play()
+        TweenService:Create(activeDot2, TweenInfo.new(0.25), {BackgroundColor3 = Color3.fromRGB(50,220,100)}):Play()
         _antiDiePause()
         task.wait(0.3)
         ResetToWork()
@@ -1605,21 +1638,21 @@ activateBtn.MouseButton1Click:Connect(function()
     end)
 end)
 
-ord = ord + 1
-local execBtn = Instance.new("TextButton")
-execBtn.Size = UDim2.new(1, 0, 0, 28)
-execBtn.LayoutOrder = ord
-execBtn.BackgroundColor3 = Colors.bg_content
-execBtn.BackgroundTransparency = 0.3
-execBtn.BorderSizePixel = 0
-execBtn.Text = "Execute TP"
-execBtn.TextColor3 = Colors.text
-execBtn.Font = Enum.Font.GothamBold
-execBtn.TextSize = 11
-execBtn.Parent = hhContent
-mkCorner(execBtn, 6)
+ord2 = ord2 + 1
+local execBtn2 = Instance.new("TextButton")
+execBtn2.Size = UDim2.new(1, 0, 0, 28)
+execBtn2.LayoutOrder = ord2
+execBtn2.BackgroundColor3 = Colors.bg_content
+execBtn2.BackgroundTransparency = 0.3
+execBtn2.BorderSizePixel = 0
+execBtn2.Text = "Execute TP"
+execBtn2.TextColor3 = Colors.text
+execBtn2.Font = Enum.Font.GothamBold
+execBtn2.TextSize = 11
+execBtn2.Parent = hhContent
+mkCorner(execBtn2, 6)
 
-execBtn.MouseButton1Click:Connect(function()
+execBtn2.MouseButton1Click:Connect(function()
     doExecuteTP()
 end)
 
@@ -1648,7 +1681,7 @@ makeWindowBtn(srvContent, "Force Reset", function() ResetToWork() end)
 -- Spam Window
 local spamSg, spamMf, spamContent = createWindow("HydraSpamGui", "Spam", 150, 200, 430, math.floor(workspace.CurrentCamera.ViewportSize.Y * 0.12), Save.shortSpam)
 
--- Auto Spam toggle dentro da janela
+-- Auto Spam toggle inside window
 local autoSpamRow = Instance.new("Frame")
 autoSpamRow.Size = UDim2.new(1, 0, 0, 22)
 autoSpamRow.BackgroundTransparency = 1
@@ -1688,7 +1721,7 @@ autoSpamTog.MouseButton1Click:Connect(function()
     saveConfig()
 end)
 
--- Player buttons no spam
+-- Player buttons in spam window
 local spamPlayerBtns = {}
 local function addSpamPlayerBtn(p)
     if p == plr or spamPlayerBtns[p] then return end
@@ -1803,7 +1836,7 @@ local obSg = (function()
     return sg
 end)()
 
--- Botão toggle (com ícone simples, sem H)
+-- Toggle Button (simple, no H icon)
 local toggleSg = (function()
     local sg = Instance.new("ScreenGui")
     sg.Name = "HydraToggleBtn"
@@ -1832,6 +1865,8 @@ local toggleSg = (function()
     return sg
 end)()
 
-print("✅ Script carregado! Anti-cheate ativo, todas as funções funcionando!")
-print("📌 Botão X fecha apenas o menu principal")
-print("📌 Botão − minimiza as janelinhas")
+print("✅ Script loaded successfully!")
+print("📌 Anti-kick active - you won't be kicked!")
+print("📌 X button closes ONLY the main menu")
+print("📌 − button minimizes popup windows")
+print("📌 All features working: Instant Steal, Auto Spam, ESP, Protector, Anti Ragdoll, Sentry, etc.")
