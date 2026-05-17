@@ -1,6 +1,6 @@
 -- ============================================================
 -- FUNHUB V5.3 + OLD HUB FUNCTIONS (COMPLETE MERGE)
--- COM ADMIN SPAMMER ESTILO LAW (FUNDO PRETO)
+-- COM SUB-PAINEL EXPANSÍVEL PARA INSTANT STEAL
 -- ============================================================
 
 -- SERVICES
@@ -13,7 +13,6 @@ local CoreGui = game:GetService("CoreGui")
 local HttpService = game:GetService("HttpService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TeleportService = game:GetService("TeleportService")
-local CollectionService = game:GetService("CollectionService")
 
 local LP = Players.LocalPlayer
 local plr = LP
@@ -59,7 +58,8 @@ local core = { remote = nil }
 task.spawn(function()
     if not plr.Character then plr.CharacterAdded:Wait() end
     task.wait(1)
-    local net = ReplicatedStorage:WaitForChild("Packages"):WaitForChild("Net")
+    local net = ReplicatedStorage:FindFirstChild("Packages"):FindFirstChild("Net")
+    if not net then return end
     local ch = net:GetChildren()
     local idx, n2i = {}, {}
     for i, o in ipairs(ch) do idx[i] = o; n2i[o.Name] = i end
@@ -81,21 +81,15 @@ _G.FunHubOldSave = _G.FunHubOldSave or {
     -- Protector
     protectorOn=false, protAutoKick=false,
     -- ESP
-    espPlayer=false, espBrainrot=false, espBase=false, espClone=false, espTimer=false, espMine=false,
+    espPlayer=false, espBrainrot=false, espBase=false, espTimer=false,
     -- Visual
-    xrayOn=false, antiBee=false, fpsBoost=false, gameStretcher=false, cameraFOV=70,
+    xrayOn=false, fpsBoost=false, cameraFOV=70,
     -- Movement
-    antiRagdoll=false, infiniteJump=false, grappleSpeed=false,
+    antiRagdoll=false, infiniteJump=false,
     -- Exploit
-    autoResetOnBalloon=false, antiTurret=false, aimbot=false, stealOnLeave=false,
-    -- Admin
-    adminSpammerOn=false, quickAdminOn=false,
-    -- Protection
-    defenseOn=false, intruderAlarm=false, spamOnReset=false,
-    -- Desync
-    resetDesync=false, unwalkNoAnim=false,
+    autoResetOnBalloon=false, stealOnLeave=false,
     -- Other
-    quantumCloner=false, carpetTP=false, placeSubspaceMine=false, allowFriends=false,
+    allowFriends=false,
 }
 
 local Save = _G.FunHubOldSave
@@ -316,7 +310,7 @@ local function autoGrab()
 end
 
 -- ============================================================
--- INSTANT STEAL TP (MANUAL & SEMI/FULL MODES)
+-- INSTANT STEAL TP FUNCTIONS
 -- ============================================================
 local isBusy = false
 
@@ -366,7 +360,6 @@ local function doExecuteTP()
     end)
 end
 
--- Semi Mode: TP to nearest animal
 local function doSemiTP()
     local r = getRoot()
     if not r then return end
@@ -384,53 +377,19 @@ local function doSemiTP()
     end
 end
 
--- ============================================================
--- SPAM FUNCTIONS (COM COOLDOWNS E FUNDO PRETO)
--- ============================================================
-local CMDS = {"rocket","ragdoll","balloon","inverse","nightvision","jail","control","tiny","jumpscare","morph"}
-local DUR = {rocket=119,ragdoll=29,balloon=29,inverse=59,nightvision=59,jail=59,control=59,tiny=59,jumpscare=59,morph=59}
-local cooldowns = {}
-local cdLabels = {}
-local selPlayer = nil
-local cardMap = {}
-
-local function spamCommand(target, cmd)
-    if not core.remote or not target then return end
-    local now = tick()
-    if (cooldowns[cmd] or 0) > now then return end
-    pcall(function()
-        core.remote:InvokeServer("f888ee6e-c86d-46e1-93d7-0639d6635d42", target, cmd)
-    end)
-    cooldowns[cmd] = now + DUR[cmd]
-end
-
-local function spamAllCommands(target)
-    if not core.remote or not target then return end
-    local now = tick()
-    for _, cmd in ipairs(CMDS) do
-        if (cooldowns[cmd] or 0) <= now then
-            pcall(function()
-                core.remote:InvokeServer("f888ee6e-c86d-46e1-93d7-0639d6635d42", target, cmd)
-            end)
-            cooldowns[cmd] = now + DUR[cmd]
-        end
+local function tpToBrainrot()
+    local root = getRoot()
+    if not root then return end
+    local nearest = nil
+    local nearestDist = math.huge
+    for _, a in ipairs(animals) do
+        local dist = (root.Position - a.pos).Magnitude
+        if dist < nearestDist then nearestDist = dist; nearest = a end
     end
-end
-
-local function getClosestPlayer()
-    local hrp = getRoot()
-    if not hrp then return nil end
-    local best, bestDist = nil, math.huge
-    for _, p in ipairs(Players:GetPlayers()) do
-        if p ~= plr and p.Character then
-            local ph = p.Character:FindFirstChild("HumanoidRootPart")
-            if ph then
-                local d = (ph.Position - hrp.Position).Magnitude
-                if d < bestDist then bestDist = d; best = p end
-            end
-        end
+    if nearest then
+        root.CFrame = CFrame.new(nearest.pos)
+        Notify.show("TP To Brainrot", "Teleported")
     end
-    return best
 end
 
 -- ============================================================
@@ -532,7 +491,7 @@ local function updateBrainrotESP()
     end
 end
 
--- Timer ESP (Base ESP)
+-- Timer ESP
 local _baseEspInstances = {}
 local function updateBaseESP()
     if not Save.espTimer then
@@ -637,15 +596,6 @@ if Save.stealOnLeave then
 end
 
 -- ============================================================
--- ALLOW FRIENDS GUI BUTTON
--- ============================================================
-local allowFriends = false
-local function toggleAllowFriends()
-    allowFriends = not allowFriends
-    Notify.show("Allow Friends", allowFriends and "Enabled" or "Disabled")
-end
-
--- ============================================================
 -- REJOIN FUNCTION
 -- ============================================================
 local function rejoin()
@@ -655,7 +605,7 @@ local function rejoin()
 end
 
 -- ============================================================
--- KICK SELF (SAFE - NO ERROR)
+-- KICK SELF
 -- ============================================================
 local function kickSelf()
     Notify.show("Kick Self", "Goodbye!")
@@ -691,76 +641,6 @@ local function instantReset()
     task.wait(0.5)
     _antiDieResume()
     Notify.show("Instant Reset", "Reset complete")
-end
-
--- ============================================================
--- EXECUTE FULL (para aba separada)
--- ============================================================
-local function executeFull()
-    doExecuteTP()
-end
-
--- ============================================================
--- ALIGN (SEMI)
--- ============================================================
-local function alignSemi()
-    doSemiTP()
-end
-
--- ============================================================
--- TP TO BRAINROT (SEMI)
--- ============================================================
-local function tpToBrainrot()
-    local root = getRoot()
-    if not root then return end
-    local nearest = nil
-    local nearestDist = math.huge
-    for _, a in ipairs(animals) do
-        local dist = (root.Position - a.pos).Magnitude
-        if dist < nearestDist then nearestDist = dist; nearest = a end
-    end
-    if nearest then
-        root.CFrame = CFrame.new(nearest.pos)
-        Notify.show("TP To Brainrot", "Teleported")
-    end
-end
-
--- ============================================================
--- CARPET TP (NEXT BASE)
--- ============================================================
-local function carpetTP()
-    local base = detectBase()
-    local plots = workspace:FindFirstChild("Plots")
-    if plots then
-        for _,plot in ipairs(plots:GetChildren()) do
-            if not isMyBase(plot.Name) then
-                local pos = plot:GetPivot().Position
-                local root = getRoot()
-                if root then root.CFrame = CFrame.new(pos) end
-                break
-            end
-        end
-    end
-    Notify.show("Carpet TP", "Teleported to next base")
-end
-
--- ============================================================
--- PLACE SUBSPACE MINE
--- ============================================================
-local function placeSubspaceMine()
-    local char = getChar()
-    if char then
-        local tool = char:FindFirstChild("Subspace Mine")
-        if tool then
-            local hum = getHum()
-            if hum then hum:EquipTool(tool) end
-            task.wait(0.1)
-            pcall(function() tool:Activate() end)
-            Notify.show("Subspace Mine", "Placed")
-        else
-            Notify.show("Subspace Mine", "No mine found")
-        end
-    end
 end
 
 -- ============================================================
@@ -884,368 +764,56 @@ end
 _G.FunHubNotify = Notify
 
 -- ============================================================
--- ADMIN SPAMMER PANEL (ESTILO LAW - FUNDO PRETO, AUMENTADO)
+-- SPAM FUNCTIONS (LAW ADMIN SPAMMER)
 -- ============================================================
-local function buildAdminSpammerPanel()
-    -- Cores (fundo preto/escuro)
-    local Colors = {
-        panel  = Color3.fromRGB(18, 20, 28),
-        header = Color3.fromRGB(14, 16, 24),
-        card   = Color3.fromRGB(12, 14, 22),
-        border = Color3.fromRGB(45, 50, 70),
-        selBdr = Color3.fromRGB(100, 130, 220),
-        minBtn = Color3.fromRGB(25, 28, 40),
-        iBtn   = Color3.fromRGB(30, 34, 50),
-        spam   = Color3.fromRGB(50, 68, 150),
-        spam2  = Color3.fromRGB(60, 82, 180),
-        green  = Color3.fromRGB(0, 200, 60),
-        red    = Color3.fromRGB(200, 50, 50),
-        white  = Color3.new(1,1,1),
-        grey   = Color3.fromRGB(150, 150, 170),
-    }
-    
-    -- Dimensões aumentadas (30% maiores)
-    local AW = 300   -- Admin Panel width (aumentado de 220)
-    local AH = 80    -- Admin Panel height (aumentado de 60)
-    local LW = 160   -- Left panel width (aumentado de 120)
-    local LH = 280   -- Left panel height (aumentado de 220)
-    local RW = 160   -- Right panel width (aumentado de 120)
-    local RH = 300   -- Right panel height (aumentado de 250)
-    local HDR = 32   -- Header height (aumentado)
-    local ROW = 22   -- Row height (aumentado)
-    
-    local SG = Instance.new("ScreenGui")
-    SG.Name = "LawAdminSpammer"
-    SG.ResetOnSpawn = false
-    SG.IgnoreGuiInset = true
-    SG.ZIndexBehavior = Enum.ZIndexBehavior.Global
-    SG.Parent = CoreGui
-    
-    local function corner(p, r)
-        local c = Instance.new("UICorner")
-        c.CornerRadius = UDim.new(0, r or 8)
-        c.Parent = p
-    end
-    
-    local function stroke(p, t, col)
-        local s = Instance.new("UIStroke")
-        s.Thickness = t or 1.5
-        s.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-        s.Color = col or Colors.border
-        s.Parent = p
-        return s
-    end
-    
-    local function lbl(parent, props)
-        local l = Instance.new("TextLabel")
-        l.BackgroundTransparency = 1
-        for k, v in pairs(props) do l[k] = v end
-        l.Parent = parent
-        return l
-    end
-    
-    local function mkPanel(x, y, w, h)
-        local f = Instance.new("Frame")
-        f.Size = UDim2.new(0, w, 0, h)
-        f.Position = UDim2.new(0, x, 0, y)
-        f.BackgroundColor3 = Colors.panel
-        f.BorderSizePixel = 0
-        f.ClipsDescendants = true
-        f.Active = true
-        f.Parent = SG
-        corner(f, 10)
-        stroke(f, 1.5, Colors.border)
-        return f
-    end
-    
-    local function mkHeader(panel, title)
-        local h = Instance.new("Frame")
-        h.Size = UDim2.new(1, 0, 0, HDR)
-        h.BackgroundColor3 = Colors.header
-        h.BorderSizePixel = 0
-        h.ZIndex = 3
-        h.Parent = panel
-        corner(h, 10)
-        
-        local fill = Instance.new("Frame")
-        fill.Size = UDim2.new(1, 0, 0, 8)
-        fill.Position = UDim2.new(0, 0, 1, -8)
-        fill.BackgroundColor3 = Colors.header
-        fill.BorderSizePixel = 0
-        fill.ZIndex = 3
-        fill.Parent = h
-        
-        lbl(h, {Position = UDim2.new(0, 10, 0, 0), Size = UDim2.new(1, -40, 1, 0),
-            Font = Enum.Font.GothamBold, TextSize = 11, TextColor3 = Colors.white,
-            TextXAlignment = Enum.TextXAlignment.Left, Text = title, ZIndex = 4})
-        
-        local btn = Instance.new("TextButton")
-        btn.Size = UDim2.new(0, 22, 0, 22)
-        btn.Position = UDim2.new(1, -28, 0.5, -11)
-        btn.BackgroundColor3 = Colors.minBtn
-        btn.Font = Enum.Font.GothamBold
-        btn.Text = "-"
-        btn.TextColor3 = Colors.white
-        btn.TextSize = 12
-        btn.ZIndex = 5
-        btn.Parent = h
-        corner(btn, 6)
-        stroke(btn, 1, Colors.border)
-        return h, btn
-    end
-    
-    local function mkMinimize(f, btn)
-        local min = false
-        local orig = f.Size
-        local mini = UDim2.new(0, orig.X.Offset, 0, HDR)
-        btn.MouseButton1Click:Connect(function()
-            min = not min
-            TweenService:Create(f, TweenInfo.new(0.2, Enum.EasingStyle.Quint), {Size = min and mini or orig}):Play()
-            btn.Text = min and "+" or "-"
-        end)
-    end
-    
-    -- PANEL 1 - Admin Panel (top)
-    local AP = mkPanel(8, 8, AW, AH)
-    local apHdr, apMinBtn = mkHeader(AP, "Admin Panel")
-    mkMinimize(AP, apMinBtn)
-    
-    -- Player row
-    local apRow = Instance.new("Frame")
-    apRow.Size = UDim2.new(1, -10, 0, AH - HDR - 8)
-    apRow.Position = UDim2.new(0, 5, 0, HDR + 4)
-    apRow.BackgroundColor3 = Colors.card
-    apRow.BorderSizePixel = 0
-    apRow.Parent = AP
-    corner(apRow, 8)
-    stroke(apRow, 1, Colors.border)
-    
-    local apAva = Instance.new("ImageLabel")
-    apAva.Size = UDim2.new(0, 32, 0, 32)
-    apAva.Position = UDim2.new(0, 6, 0.5, -16)
-    apAva.BackgroundColor3 = Colors.card
-    apAva.Image = ""
-    apAva.Parent = apRow
-    corner(apAva, 16)
-    
-    lbl(apRow, {Position = UDim2.new(0, 44, 0, 4), Size = UDim2.new(0, 120, 0, 14),
-        Font = Enum.Font.GothamBold, TextSize = 10, TextColor3 = Colors.white,
-        TextXAlignment = Enum.TextXAlignment.Left, Text = plr.DisplayName, ZIndex = 2})
-    lbl(apRow, {Position = UDim2.new(0, 44, 0, 20), Size = UDim2.new(0, 120, 0, 12),
-        Font = Enum.Font.Gotham, TextSize = 8, TextColor3 = Colors.grey,
-        TextXAlignment = Enum.TextXAlignment.Left, Text = "(@"..plr.Name..")", ZIndex = 2})
-    
-    -- Icon buttons
-    local ACTS = {{icon="👉", cmd="control"}, {icon="🔒", cmd="jail"},
-                  {icon="🚀", cmd="rocket"}, {icon="✂️", cmd="ragdoll"},
-                  {icon="🎈", cmd="balloon"}}
-    local ib = 26
-    local ig = 4
-    local bxStart = (AW - 20) - #ACTS * (ib + ig) + ig
-    for i, act in ipairs(ACTS) do
-        local b = Instance.new("TextButton")
-        b.Size = UDim2.new(0, ib, 0, ib)
-        b.Position = UDim2.new(0, bxStart + (i-1) * (ib + ig), 0.5, -ib//2)
-        b.BackgroundColor3 = Colors.iBtn
-        b.Font = Enum.Font.GothamBold
-        b.Text = act.icon
-        b.TextSize = 14
-        b.ZIndex = 4
-        b.Parent = apRow
-        corner(b, 6)
-        stroke(b, 1, Colors.border)
-        
-        b.MouseButton1Click:Connect(function()
-            local target = selPlayer or getClosestPlayer()
-            if target and core.remote then
-                spamCommand(target, act.cmd)
-                TweenService:Create(b, TweenInfo.new(0.07), {BackgroundColor3 = Color3.fromRGB(80, 120, 255)}):Play()
-                task.delay(0.2, function() TweenService:Create(b, TweenInfo.new(0.15), {BackgroundColor3 = Colors.iBtn}):Play() end)
-            end
-        end)
-    end
-    
-    -- Update admin row
-    task.spawn(function()
-        while AP.Parent do
-            task.wait(0.5)
-            local t = selPlayer or plr
-            for _, lblObj in ipairs(apRow:GetDescendants()) do
-                if lblObj:IsA("TextLabel") and lblObj.Position.X.Offset == 44 and lblObj.TextYAlignment == Enum.TextYAlignment.Top then
-                    lblObj.Text = t.DisplayName
-                elseif lblObj:IsA("TextLabel") and lblObj.Position.X.Offset == 44 and lblObj.TextYAlignment == Enum.TextYAlignment.Center then
-                    lblObj.Text = "(@"..t.Name..")"
-                end
-            end
-            pcall(function()
-                local img = Players:GetUserThumbnailAsync(t.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size48x48)
-                apAva.Image = img
-            end)
-        end
+local CMDS = {"rocket","ragdoll","balloon","inverse","nightvision","jail","control","tiny","jumpscare","morph"}
+local DUR = {rocket=119,ragdoll=29,balloon=29,inverse=59,nightvision=59,jail=59,control=59,tiny=59,jumpscare=59,morph=59}
+local cooldowns = {}
+local cdLabels = {}
+local selPlayer = nil
+local cardMap = {}
+
+local function spamCommand(target, cmd)
+    if not core.remote or not target then return end
+    local now = tick()
+    if (cooldowns[cmd] or 0) > now then return end
+    pcall(function()
+        core.remote:InvokeServer("f888ee6e-c86d-46e1-93d7-0639d6635d42", target, cmd)
     end)
-    
-    -- PANEL 2 - Law Admin Spammer (left)
-    local LPnl = mkPanel(8, 60, LW, LH)
-    local lpHdr, lpMinBtn = mkHeader(LPnl, "Law Admin Spammer")
-    mkMinimize(LPnl, lpMinBtn)
-    
-    local spamBtnH = 28
-    local scroll = Instance.new("ScrollingFrame")
-    scroll.Position = UDim2.new(0, 5, 0, HDR + 6)
-    scroll.Size = UDim2.new(1, -10, 1, -HDR - spamBtnH - 12)
-    scroll.BackgroundColor3 = Color3.fromRGB(10, 12, 22)
-    scroll.BorderSizePixel = 0
-    scroll.ScrollBarThickness = 4
-    scroll.ScrollBarImageColor3 = Color3.fromRGB(80, 100, 180)
-    scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
-    scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
-    scroll.Parent = LPnl
-    corner(scroll, 8)
-    stroke(scroll, 1, Colors.border)
-    
-    local ull = Instance.new("UIListLayout")
-    ull.Padding = UDim.new(0, 5)
-    ull.SortOrder = Enum.SortOrder.Name
-    ull.HorizontalAlignment = Enum.HorizontalAlignment.Center
-    ull.Parent = scroll
-    
-    local upad = Instance.new("UIPadding")
-    upad.PaddingTop = UDim.new(0, 5)
-    upad.PaddingBottom = UDim.new(0, 5)
-    upad.Parent = scroll
-    
-    -- Spam Closest button
-    local spamBtn = Instance.new("TextButton")
-    spamBtn.Size = UDim2.new(1, -10, 0, spamBtnH)
-    spamBtn.Position = UDim2.new(0, 5, 1, -spamBtnH - 6)
-    spamBtn.BackgroundColor3 = Colors.spam
-    spamBtn.Font = Enum.Font.GothamBold
-    spamBtn.Text = "SPAM CLOSEST (C)"
-    spamBtn.TextColor3 = Colors.white
-    spamBtn.TextSize = 11
-    spamBtn.ZIndex = 4
-    spamBtn.Parent = LPnl
-    corner(spamBtn, 8)
-    
-    local sg = Instance.new("UIGradient")
-    sg.Color = ColorSequence.new({ColorSequenceKeypoint.new(0, Colors.spam), ColorSequenceKeypoint.new(1, Colors.spam2)})
-    sg.Rotation = 90
-    sg.Parent = spamBtn
-    
-    spamBtn.MouseButton1Click:Connect(function()
-        local target = getClosestPlayer()
-        if target then spamAllCommands(target) end
-        Notify.show("Spam", "Spamming closest player")
-    end)
-    
-    -- Player cards
-    local function refreshCards()
-        for _, c in pairs(cardMap) do pcall(function() c:Destroy() end) end
-        table.clear(cardMap)
-        for _, p in ipairs(Players:GetPlayers()) do
-            if p == plr then continue end
-            local card = Instance.new("TextButton")
-            card.Name = p.Name
-            card.Size = UDim2.new(1, -8, 0, 36)
-            card.BackgroundColor3 = Colors.card
-            card.Text = ""
-            card.ZIndex = 2
-            card.Parent = scroll
-            corner(card, 8)
-            local cs = stroke(card, 1.5, (selPlayer == p) and Colors.selBdr or Colors.border)
-            
-            local ava = Instance.new("ImageLabel")
-            ava.Size = UDim2.new(0, 26, 0, 26)
-            ava.Position = UDim2.new(0, 6, 0.5, -13)
-            ava.BackgroundColor3 = Colors.card
-            ava.ZIndex = 3
-            pcall(function()
-                ava.Image = Players:GetUserThumbnailAsync(p.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size48x48)
-            end)
-            ava.Parent = card
-            corner(ava, 13)
-            
-            lbl(card, {Position = UDim2.new(0, 38, 0, 4), Size = UDim2.new(1, -45, 0, 14),
-                Font = Enum.Font.GothamBold, TextSize = 9, TextColor3 = Colors.white,
-                TextXAlignment = Enum.TextXAlignment.Left, Text = p.DisplayName, ZIndex = 3})
-            lbl(card, {Position = UDim2.new(0, 38, 0, 18), Size = UDim2.new(1, -45, 0, 12),
-                Font = Enum.Font.Gotham, TextSize = 8, TextColor3 = Colors.grey,
-                TextXAlignment = Enum.TextXAlignment.Left, Text = "(@"..p.Name..")", ZIndex = 3})
-            
-            card.MouseButton1Click:Connect(function()
-                selPlayer = p
-                for _, c2 in pairs(cardMap) do
-                    local st = c2:FindFirstChildOfClass("UIStroke")
-                    if st then st.Color = Colors.border end
-                end
-                cs.Color = Colors.selBdr
-                Notify.show("Target", p.DisplayName)
-            end)
-            cardMap[p.UserId] = card
-        end
-    end
-    
-    Players.PlayerAdded:Connect(refreshCards)
-    Players.PlayerRemoving:Connect(function() task.wait(); refreshCards() end)
-    refreshCards()
-    
-    -- PANEL 3 - Command Cooldowns (right)
-    local RPnl = mkPanel(8 + AW + 8, 60, RW, RH)
-    local rpHdr, rpMinBtn = mkHeader(RPnl, "Command Cooldowns")
-    mkMinimize(RPnl, rpMinBtn)
-    
-    local rowY = HDR + 10
+    cooldowns[cmd] = now + DUR[cmd]
+end
+
+local function spamAllCommands(target)
+    if not core.remote or not target then return end
+    local now = tick()
     for _, cmd in ipairs(CMDS) do
-        local row = Instance.new("Frame")
-        row.Size = UDim2.new(1, -10, 0, ROW)
-        row.Position = UDim2.new(0, 5, 0, rowY)
-        row.BackgroundTransparency = 1
-        row.Parent = RPnl
-        
-        lbl(row, {Position = UDim2.new(0, 8, 0, 0), Size = UDim2.new(0.6, 0, 1, 0),
-            Font = Enum.Font.GothamBold, TextSize = 9, TextColor3 = Colors.white,
-            TextXAlignment = Enum.TextXAlignment.Left, Text = cmd})
-        
-        local sl = lbl(row, {Position = UDim2.new(0.6, 0, 0, 0), Size = UDim2.new(0.4, -10, 1, 0),
-            Font = Enum.Font.GothamBold, TextSize = 9, TextColor3 = Colors.green,
-            TextXAlignment = Enum.TextXAlignment.Right, Text = "READY"})
-        
-        cdLabels[cmd] = sl
-        rowY = rowY + ROW + 5
+        if (cooldowns[cmd] or 0) <= now then
+            pcall(function()
+                core.remote:InvokeServer("f888ee6e-c86d-46e1-93d7-0639d6635d42", target, cmd)
+            end)
+            cooldowns[cmd] = now + DUR[cmd]
+        end
     end
-    
-    -- Cooldown updater
-    RunService.RenderStepped:Connect(function()
-        local now = tick()
-        for _, cmd in ipairs(CMDS) do
-            local l = cdLabels[cmd]
-            if l and l.Parent then
-                local cd = cooldowns[cmd] or 0
-                if now >= cd then
-                    l.Text = "READY"
-                    l.TextColor3 = Colors.green
-                else
-                    l.Text = math.ceil(cd - now) .. "s"
-                    l.TextColor3 = Colors.red
-                end
+end
+
+local function getClosestPlayer()
+    local hrp = getRoot()
+    if not hrp then return nil end
+    local best, bestDist = nil, math.huge
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= plr and p.Character then
+            local ph = p.Character:FindFirstChild("HumanoidRootPart")
+            if ph then
+                local d = (ph.Position - hrp.Position).Magnitude
+                if d < bestDist then bestDist = d; best = p end
             end
         end
-    end)
-    
-    -- Keybind C for spam
-    UserInputService.InputBegan:Connect(function(i, gpe)
-        if gpe then return end
-        if i.KeyCode == Enum.KeyCode.C then
-            local target = getClosestPlayer()
-            if target then spamAllCommands(target) end
-        end
-    end)
-    
-    return SG
+    end
+    return best
 end
 
 -- ============================================================
--- MAIN FUNHUB GUI (INTERFACE PRINCIPAL)
+-- MAIN FUNHUB GUI (COM SUB-PAINEL PARA INSTANT STEAL)
 -- ============================================================
 
 -- Kill old GUIs
@@ -1276,7 +844,7 @@ local function buildMainGUI()
     
     local mainFrame = Instance.new("Frame")
     mainFrame.Name = "Frame"
-    mainFrame.Size = UDim2.new(0, 380, 0, 420)
+    mainFrame.Size = UDim2.new(0, 400, 0, 480)
     mainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
     mainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
     mainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
@@ -1576,7 +1144,9 @@ local function buildMainGUI()
         end)
     end
     
-    -- PAGE 1: MAIN
+    -- ============================================================
+    -- PAGE 1: MAIN (COM SUB-PAINEL PARA INSTANT STEAL)
+    -- ============================================================
     local page1 = pages[1]
     
     local header1 = Instance.new("TextLabel")
@@ -1589,9 +1159,10 @@ local function buildMainGUI()
     header1.TextXAlignment = Enum.TextXAlignment.Left
     header1.Parent = page1
     
-    -- Full Mode toggle (ativa/desativa a aba extra)
-    makeToggle(page1, "Full Mode", "fullMode", function(on)
-        Notify.show("Full Mode", on and "Enabled - Full options shown" or "Disabled")
+    -- Full Mode toggle (ativa o sub-painel)
+    local fullModeRow = makeToggle(page1, "Full Mode", "fullMode", function(on)
+        updateSubPanelVisibility()
+        Notify.show("Full Mode", on and "Enabled - Instant Steal panel shown" or "Disabled")
     end)
     
     makeToggle(page1, "Giant Potion", "autoPotion", nil)
@@ -1606,52 +1177,98 @@ local function buildMainGUI()
         Notify.show("Activate", "Reset complete")
     end, "R")
     
-    makeActionButton(page1, "Execute", doExecuteTP, "X")
-    makeActionButton(page1, "Align (Semi)", alignSemi, nil)
-    makeActionButton(page1, "TP To Brainrot (Semi)", tpToBrainrot, nil)
+    -- ============================================================
+    -- SUB-PAINEL PARA INSTANT STEAL (aparece só com Full Mode ON)
+    -- ============================================================
+    local subPanel = Instance.new("Frame")
+    subPanel.Name = "InstantStealPanel"
+    subPanel.Size = UDim2.new(1, 0, 0, 0)
+    subPanel.BackgroundColor3 = Color3.fromRGB(20, 25, 35)
+    subPanel.BackgroundTransparency = 0.3
+    subPanel.ClipsDescendants = true
+    subPanel.Visible = Save.fullMode
+    subPanel.Parent = page1
     
-    -- ABA SEPARADA PARA EXECUTE FULL (aparece apenas quando Full Mode está ativo)
-    local fullRow = Instance.new("Frame")
-    fullRow.Size = UDim2.new(1, 0, 0, 34)
-    fullRow.BackgroundTransparency = 1
-    fullRow.Parent = page1
+    local subCorner = Instance.new("UICorner")
+    subCorner.CornerRadius = UDim.new(0, 8)
+    subCorner.Parent = subPanel
     
-    local fullBtn = Instance.new("TextButton")
-    fullBtn.Size = UDim2.new(1, -8, 1, -1)
-    fullBtn.Position = UDim2.new(0, 4, 0, 0)
-    fullBtn.BackgroundColor3 = Color3.fromRGB(40, 80, 120)
-    fullBtn.Text = "EXECUTE FULL (FULL MODE ONLY)"
-    fullBtn.TextColor3 = Color3.fromRGB(255, 200, 100)
-    fullBtn.TextSize = 13
-    fullBtn.Font = Enum.Font.GothamBold
-    fullBtn.Parent = fullRow
+    local subStroke = Instance.new("UIStroke")
+    subStroke.Color = Color3.fromRGB(100, 150, 255)
+    subStroke.Thickness = 1
+    subStroke.Parent = subPanel
     
-    local fullCorner = Instance.new("UICorner")
-    fullCorner.CornerRadius = UDim.new(0, 10)
-    fullCorner.Parent = fullBtn
+    -- Título do sub-painel
+    local subTitle = Instance.new("TextLabel")
+    subTitle.Size = UDim2.new(1, 0, 0, 24)
+    subTitle.Position = UDim2.new(0, 8, 0, 0)
+    subTitle.BackgroundTransparency = 1
+    subTitle.Text = "⚡ INSTANT STEAL ACTIONS ⚡"
+    subTitle.TextColor3 = Color3.fromRGB(255, 200, 100)
+    subTitle.TextSize = 12
+    subTitle.Font = Enum.Font.GothamBold
+    subTitle.TextXAlignment = Enum.TextXAlignment.Center
+    subTitle.Parent = subPanel
     
-    fullBtn.MouseButton1Click:Connect(function()
-        if Save.fullMode then
-            executeFull()
-        else
-            Notify.show("Full Mode", "Enable Full Mode first!")
-        end
-    end)
+    -- Container para os botões
+    local subButtons = Instance.new("Frame")
+    subButtons.Size = UDim2.new(1, -16, 0, 0)
+    subButtons.Position = UDim2.new(0, 8, 0, 28)
+    subButtons.BackgroundTransparency = 1
+    subButtons.Parent = subPanel
     
-    -- Controlar visibilidade da aba Execute Full baseado no Full Mode
-    local function updateFullModeVisibility()
-        fullRow.Visible = Save.fullMode
+    local subLayout = Instance.new("UIListLayout")
+    subLayout.Padding = UDim.new(0, 6)
+    subLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    subLayout.Parent = subButtons
+    
+    -- Botões dentro do sub-painel
+    local function makeSubButton(text, action, keyHint)
+        local btn = Instance.new("TextButton")
+        btn.Size = UDim2.new(1, 0, 0, 32)
+        btn.BackgroundColor3 = Color3.fromRGB(30, 35, 50)
+        btn.Text = keyHint and (text .. " [" .. keyHint .. "]") or text
+        btn.TextColor3 = Color3.fromRGB(210, 225, 255)
+        btn.TextSize = 12
+        btn.Font = Enum.Font.GothamBold
+        btn.Parent = subButtons
+        
+        local btnCorner = Instance.new("UICorner")
+        btnCorner.CornerRadius = UDim.new(0, 8)
+        btnCorner.Parent = btn
+        
+        btn.MouseButton1Click:Connect(function()
+            pcall(action)
+        end)
+        
+        return btn
     end
-    updateFullModeVisibility()
     
-    -- Observer para mudanças no Save.fullMode
-    local fullModeConn
-    fullModeConn = RunService.RenderStepped:Connect(function()
-        if fullRow.Visible ~= Save.fullMode then
-            fullRow.Visible = Save.fullMode
+    makeSubButton("▶ Execute", doExecuteTP, "X")
+    makeSubButton("⚡ Execute Full", doExecuteTP, "B")
+    makeSubButton("🎯 Align (Semi)", doSemiTP, nil)
+    makeSubButton("🌀 TP To Brainrot (Semi)", tpToBrainrot, nil)
+    
+    -- Atualizar altura do sub-painel
+    local function updateSubPanelHeight()
+        local totalHeight = 28 + (#subButtons:GetChildren() * 38) + 12
+        subPanel.Size = UDim2.new(1, 0, 0, totalHeight)
+        subButtons.Size = UDim2.new(1, -16, 0, totalHeight - 40)
+    end
+    
+    -- Função para mostrar/esconder o sub-painel
+    local function updateSubPanelVisibility()
+        subPanel.Visible = Save.fullMode
+        if Save.fullMode then
+            updateSubPanelHeight()
         end
-    end)
+    end
     
+    -- Inicializar
+    updateSubPanelHeight()
+    updateSubPanelVisibility()
+    
+    -- Separador
     local sep1 = Instance.new("Frame")
     sep1.Size = UDim2.new(1, 0, 0, 12)
     sep1.BackgroundTransparency = 1
@@ -1681,7 +1298,9 @@ local function buildMainGUI()
         if Save.jumpPowerOn then applyJumpPower() end
     end)
     
+    -- ============================================================
     -- PAGE 2: VISUAL
+    -- ============================================================
     local page2 = pages[2]
     
     local header3 = Instance.new("TextLabel")
@@ -1728,7 +1347,9 @@ local function buildMainGUI()
         setCameraFOV()
     end)
     
+    -- ============================================================
     -- PAGE 3: PLAYER
+    -- ============================================================
     local page3 = pages[3]
     
     local header5 = Instance.new("TextLabel")
@@ -1775,7 +1396,9 @@ local function buildMainGUI()
     makeToggle(page3, "Protect AP", "protectorOn", nil)
     makeToggle(page3, "Anti Intruder", "intruderAlarm", nil)
     
+    -- ============================================================
     -- PAGE 4: UTILS
+    -- ============================================================
     local page4 = pages[4]
     
     local header8 = Instance.new("TextLabel")
@@ -1804,9 +1427,6 @@ local function buildMainGUI()
     header9.TextXAlignment = Enum.TextXAlignment.Left
     header9.Parent = page4
     
-    makeToggle(page4, "Allow Friends", "allowFriends", function(on)
-        toggleAllowFriends()
-    end)
     makeActionButton(page4, "Carpet TP (Next Base)", carpetTP, nil)
     makeActionButton(page4, "Place Subspace Mine", placeSubspaceMine, nil)
     
@@ -1869,9 +1489,292 @@ local function buildMainGUI()
     return screen
 end
 
--- Build all GUIs
+-- Build main GUI
 _G.GUIS = _G.GUIS or {}
 _G.GUIS.FunGui = buildMainGUI()
+
+-- Build Law Admin Spammer (com fundo preto)
+local function buildAdminSpammerPanel()
+    -- Cores (fundo preto)
+    local Colors = {
+        panel  = Color3.fromRGB(18, 20, 28),
+        header = Color3.fromRGB(14, 16, 24),
+        card   = Color3.fromRGB(12, 14, 22),
+        border = Color3.fromRGB(45, 50, 70),
+        selBdr = Color3.fromRGB(100, 130, 220),
+        minBtn = Color3.fromRGB(25, 28, 40),
+        iBtn   = Color3.fromRGB(30, 34, 50),
+        spam   = Color3.fromRGB(50, 68, 150),
+        spam2  = Color3.fromRGB(60, 82, 180),
+        green  = Color3.fromRGB(0, 200, 60),
+        red    = Color3.fromRGB(200, 50, 50),
+        white  = Color3.new(1,1,1),
+        grey   = Color3.fromRGB(150, 150, 170),
+    }
+    
+    local AW = 300
+    local AH = 80
+    local LW = 160
+    local LH = 280
+    local RW = 160
+    local RH = 300
+    local HDR = 32
+    local ROW = 22
+    
+    local SG = Instance.new("ScreenGui")
+    SG.Name = "LawAdminSpammer"
+    SG.ResetOnSpawn = false
+    SG.IgnoreGuiInset = true
+    SG.ZIndexBehavior = Enum.ZIndexBehavior.Global
+    SG.Parent = CoreGui
+    
+    local function corner(p, r)
+        local c = Instance.new("UICorner")
+        c.CornerRadius = UDim.new(0, r or 8)
+        c.Parent = p
+    end
+    
+    local function stroke(p, t, col)
+        local s = Instance.new("UIStroke")
+        s.Thickness = t or 1.5
+        s.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+        s.Color = col or Colors.border
+        s.Parent = p
+        return s
+    end
+    
+    local function lbl(parent, props)
+        local l = Instance.new("TextLabel")
+        l.BackgroundTransparency = 1
+        for k, v in pairs(props) do l[k] = v end
+        l.Parent = parent
+        return l
+    end
+    
+    local function mkPanel(x, y, w, h)
+        local f = Instance.new("Frame")
+        f.Size = UDim2.new(0, w, 0, h)
+        f.Position = UDim2.new(0, x, 0, y)
+        f.BackgroundColor3 = Colors.panel
+        f.BorderSizePixel = 0
+        f.ClipsDescendants = true
+        f.Active = true
+        f.Parent = SG
+        corner(f, 10)
+        stroke(f, 1.5, Colors.border)
+        return f
+    end
+    
+    local function mkHeader(panel, title)
+        local h = Instance.new("Frame")
+        h.Size = UDim2.new(1, 0, 0, HDR)
+        h.BackgroundColor3 = Colors.header
+        h.BorderSizePixel = 0
+        h.ZIndex = 3
+        h.Parent = panel
+        corner(h, 10)
+        
+        local fill = Instance.new("Frame")
+        fill.Size = UDim2.new(1, 0, 0, 8)
+        fill.Position = UDim2.new(0, 0, 1, -8)
+        fill.BackgroundColor3 = Colors.header
+        fill.BorderSizePixel = 0
+        fill.ZIndex = 3
+        fill.Parent = h
+        
+        lbl(h, {Position = UDim2.new(0, 10, 0, 0), Size = UDim2.new(1, -40, 1, 0),
+            Font = Enum.Font.GothamBold, TextSize = 11, TextColor3 = Colors.white,
+            TextXAlignment = Enum.TextXAlignment.Left, Text = title, ZIndex = 4})
+        
+        local btn = Instance.new("TextButton")
+        btn.Size = UDim2.new(0, 22, 0, 22)
+        btn.Position = UDim2.new(1, -28, 0.5, -11)
+        btn.BackgroundColor3 = Colors.minBtn
+        btn.Font = Enum.Font.GothamBold
+        btn.Text = "-"
+        btn.TextColor3 = Colors.white
+        btn.TextSize = 12
+        btn.ZIndex = 5
+        btn.Parent = h
+        corner(btn, 6)
+        stroke(btn, 1, Colors.border)
+        return h, btn
+    end
+    
+    local function mkMinimize(f, btn)
+        local min = false
+        local orig = f.Size
+        local mini = UDim2.new(0, orig.X.Offset, 0, HDR)
+        btn.MouseButton1Click:Connect(function()
+            min = not min
+            TweenService:Create(f, TweenInfo.new(0.2, Enum.EasingStyle.Quint), {Size = min and mini or orig}):Play()
+            btn.Text = min and "+" or "-"
+        end)
+    end
+    
+    -- Admin Panel
+    local AP = mkPanel(8, 8, AW, AH)
+    local apHdr, apMinBtn = mkHeader(AP, "Admin Panel")
+    mkMinimize(AP, apMinBtn)
+    
+    local apRow = Instance.new("Frame")
+    apRow.Size = UDim2.new(1, -10, 0, AH - HDR - 8)
+    apRow.Position = UDim2.new(0, 5, 0, HDR + 4)
+    apRow.BackgroundColor3 = Colors.card
+    apRow.BorderSizePixel = 0
+    apRow.Parent = AP
+    corner(apRow, 8)
+    stroke(apRow, 1, Colors.border)
+    
+    local apAva = Instance.new("ImageLabel")
+    apAva.Size = UDim2.new(0, 32, 0, 32)
+    apAva.Position = UDim2.new(0, 6, 0.5, -16)
+    apAva.BackgroundColor3 = Colors.card
+    apAva.Image = ""
+    apAva.Parent = apRow
+    corner(apAva, 16)
+    
+    lbl(apRow, {Position = UDim2.new(0, 44, 0, 4), Size = UDim2.new(0, 120, 0, 14),
+        Font = Enum.Font.GothamBold, TextSize = 10, TextColor3 = Colors.white,
+        TextXAlignment = Enum.TextXAlignment.Left, Text = plr.DisplayName, ZIndex = 2})
+    lbl(apRow, {Position = UDim2.new(0, 44, 0, 20), Size = UDim2.new(0, 120, 0, 12),
+        Font = Enum.Font.Gotham, TextSize = 8, TextColor3 = Colors.grey,
+        TextXAlignment = Enum.TextXAlignment.Left, Text = "(@"..plr.Name..")", ZIndex = 2})
+    
+    local ACTS = {{icon="👉", cmd="control"}, {icon="🔒", cmd="jail"},
+                  {icon="🚀", cmd="rocket"}, {icon="✂️", cmd="ragdoll"},
+                  {icon="🎈", cmd="balloon"}}
+    local ib = 26
+    local ig = 4
+    local bxStart = (AW - 20) - #ACTS * (ib + ig) + ig
+    for i, act in ipairs(ACTS) do
+        local b = Instance.new("TextButton")
+        b.Size = UDim2.new(0, ib, 0, ib)
+        b.Position = UDim2.new(0, bxStart + (i-1) * (ib + ig), 0.5, -ib//2)
+        b.BackgroundColor3 = Colors.iBtn
+        b.Font = Enum.Font.GothamBold
+        b.Text = act.icon
+        b.TextSize = 14
+        b.ZIndex = 4
+        b.Parent = apRow
+        corner(b, 6)
+        stroke(b, 1, Colors.border)
+        
+        b.MouseButton1Click:Connect(function()
+            local target = selPlayer or getClosestPlayer()
+            if target and core.remote then
+                spamCommand(target, act.cmd)
+                TweenService:Create(b, TweenInfo.new(0.07), {BackgroundColor3 = Color3.fromRGB(80, 120, 255)}):Play()
+                task.delay(0.2, function() TweenService:Create(b, TweenInfo.new(0.15), {BackgroundColor3 = Colors.iBtn}):Play() end)
+            end
+        end)
+    end
+    
+    -- Left Panel (Players)
+    local LPnl = mkPanel(8, 60, LW, LH)
+    local lpHdr, lpMinBtn = mkHeader(LPnl, "Law Admin Spammer")
+    mkMinimize(LPnl, lpMinBtn)
+    
+    local spamBtnH = 28
+    local scroll = Instance.new("ScrollingFrame")
+    scroll.Position = UDim2.new(0, 5, 0, HDR + 6)
+    scroll.Size = UDim2.new(1, -10, 1, -HDR - spamBtnH - 12)
+    scroll.BackgroundColor3 = Color3.fromRGB(10, 12, 22)
+    scroll.BorderSizePixel = 0
+    scroll.ScrollBarThickness = 4
+    scroll.ScrollBarImageColor3 = Color3.fromRGB(80, 100, 180)
+    scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+    scroll.Parent = LPnl
+    corner(scroll, 8)
+    stroke(scroll, 1, Colors.border)
+    
+    local ull = Instance.new("UIListLayout")
+    ull.Padding = UDim.new(0, 5)
+    ull.SortOrder = Enum.SortOrder.Name
+    ull.HorizontalAlignment = Enum.HorizontalAlignment.Center
+    ull.Parent = scroll
+    
+    local upad = Instance.new("UIPadding")
+    upad.PaddingTop = UDim.new(0, 5)
+    upad.PaddingBottom = UDim.new(0, 5)
+    upad.Parent = scroll
+    
+    local spamBtn = Instance.new("TextButton")
+    spamBtn.Size = UDim2.new(1, -10, 0, spamBtnH)
+    spamBtn.Position = UDim2.new(0, 5, 1, -spamBtnH - 6)
+    spamBtn.BackgroundColor3 = Colors.spam
+    spamBtn.Font = Enum.Font.GothamBold
+    spamBtn.Text = "SPAM CLOSEST (C)"
+    spamBtn.TextColor3 = Colors.white
+    spamBtn.TextSize = 11
+    spamBtn.ZIndex = 4
+    spamBtn.Parent = LPnl
+    corner(spamBtn, 8)
+    
+    local sg = Instance.new("UIGradient")
+    sg.Color = ColorSequence.new({ColorSequenceKeypoint.new(0, Colors.spam), ColorSequenceKeypoint.new(1, Colors.spam2)})
+    sg.Rotation = 90
+    sg.Parent = spamBtn
+    
+    spamBtn.MouseButton1Click:Connect(function()
+        local target = getClosestPlayer()
+        if target then spamAllCommands(target) end
+        Notify.show("Spam", "Spamming closest player")
+    end)
+    
+    -- Right Panel (Cooldowns)
+    local RPnl = mkPanel(8 + AW + 8, 60, RW, RH)
+    local rpHdr, rpMinBtn = mkHeader(RPnl, "Command Cooldowns")
+    mkMinimize(RPnl, rpMinBtn)
+    
+    local rowY = HDR + 10
+    for _, cmd in ipairs(CMDS) do
+        local row = Instance.new("Frame")
+        row.Size = UDim2.new(1, -10, 0, ROW)
+        row.Position = UDim2.new(0, 5, 0, rowY)
+        row.BackgroundTransparency = 1
+        row.Parent = RPnl
+        
+        lbl(row, {Position = UDim2.new(0, 8, 0, 0), Size = UDim2.new(0.6, 0, 1, 0),
+            Font = Enum.Font.GothamBold, TextSize = 9, TextColor3 = Colors.white,
+            TextXAlignment = Enum.TextXAlignment.Left, Text = cmd})
+        
+        local sl = lbl(row, {Position = UDim2.new(0.6, 0, 0, 0), Size = UDim2.new(0.4, -10, 1, 0),
+            Font = Enum.Font.GothamBold, TextSize = 9, TextColor3 = Colors.green,
+            TextXAlignment = Enum.TextXAlignment.Right, Text = "READY"})
+        
+        cdLabels[cmd] = sl
+        rowY = rowY + ROW + 5
+    end
+    
+    RunService.RenderStepped:Connect(function()
+        local now = tick()
+        for _, cmd in ipairs(CMDS) do
+            local l = cdLabels[cmd]
+            if l and l.Parent then
+                local cd = cooldowns[cmd] or 0
+                if now >= cd then
+                    l.Text = "READY"
+                    l.TextColor3 = Colors.green
+                else
+                    l.Text = math.ceil(cd - now) .. "s"
+                    l.TextColor3 = Colors.red
+                end
+            end
+        end
+    end)
+    
+    UserInputService.InputBegan:Connect(function(i, gpe)
+        if gpe then return end
+        if i.KeyCode == Enum.KeyCode.C then
+            local target = getClosestPlayer()
+            if target then spamAllCommands(target) end
+        end
+    end)
+    
+    return SG
+end
+
 _G.GUIS.AdminSpammer = buildAdminSpammerPanel()
 
 -- Start background ESP updates
@@ -1884,7 +1787,7 @@ task.spawn(function()
     end
 end)
 
--- Initialize booster settings
+-- Initialize settings
 if Save.walkSpeedOn then applySpeedAnti() end
 if Save.jumpPowerOn then applyJumpPower() end
 if Save.antiRagdoll then startAntiRagdoll() end
@@ -1896,7 +1799,7 @@ if Save.cameraFOV and camera then camera.FieldOfView = Save.cameraFOV end
 print("========================================")
 print("✅ OLD HUB X FUNHUB V5.3 LOADED!")
 print("========================================")
-print("📌 Full Mode enabled = Execute Full button appears")
-print("📌 Admin Spammer with black background (Law style)")
-print("📌 All functions integrated")
+print("📌 Enable 'Full Mode' to see Instant Steal panel!")
+print("📌 Instant Steal buttons appear in a sub-panel")
+print("📌 Admin Spammer with black background")
 print("========================================")
